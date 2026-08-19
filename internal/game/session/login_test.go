@@ -135,7 +135,9 @@ func TestLoginCompletesHandshakeAndSupportsFriendOperation(t *testing.T) {
 			}
 			reply, err := proto.Marshal(&pb.Message{
 				Meta: &pb.Meta{ServiceName: message.Meta.ServiceName, MethodName: message.Meta.MethodName, MessageType: int32(pb.MessageType_Response), ClientSeq: message.Meta.ClientSeq, ServerSeq: int64(index + 1)},
-				Body: xor(responseBody),
+				// The production gateway returns plaintext protobuf responses. The
+				// session fallback must recover these after P2-04 decrypts them.
+				Body: responseBody,
 			})
 			if err != nil {
 				serverErrors <- err

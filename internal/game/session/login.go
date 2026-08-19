@@ -158,7 +158,7 @@ func LoginWithOptions(ctx context.Context, code string, options Options) (_ *Ses
 	}
 	session.client = client
 
-	loginReply, err := sendLogin(lifecycleCtx, client, resolved)
+	loginReply, err := sendLogin(lifecycleCtx, client, runtime, resolved)
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +187,7 @@ func LoginWithOptions(ctx context.Context, code string, options Options) (_ *Ses
 		Avatar: basic.GetAvatarUrl(),
 	}
 	client.UpdateState(state)
-	lands, err := requestInitialLands(lifecycleCtx, client)
+	lands, err := requestInitialLands(lifecycleCtx, client, runtime)
 	if err != nil {
 		return nil, err
 	}
@@ -198,7 +198,7 @@ func LoginWithOptions(ctx context.Context, code string, options Options) (_ *Ses
 
 	aceService, err := ace.New(ace.Options{
 		Runtime:       runtime,
-		Sender:        aceTransportSender{client: client},
+		Sender:        aceTransportSender{client: client, runtime: runtime},
 		IsConnected:   session.Online,
 		UserHeartbeat: session.heartbeat,
 		Logger:        ace.Logger(resolved.Logger),
@@ -303,7 +303,7 @@ func loginHeaders(existing http.Header, userAgent string) http.Header {
 	return headers
 }
 
-func sendLogin(ctx context.Context, client *transport.Client, options Options) (*pb.LoginReply, error) {
+func sendLogin(ctx context.Context, client *transport.Client, runtime SecurityRuntime, options Options) (*pb.LoginReply, error) {
 	device := options.LoginDevice
 	if device == nil {
 		device = &pb.DeviceInfo{
@@ -324,11 +324,10 @@ func sendLogin(ctx context.Context, client *transport.Client, options Options) (
 		SceneId:    "1256",
 		ReportData: &pb.ReportData{MinigameChannel: "other", MinigamePlatid: 2},
 	}
-	response, err := client.SendMsg(ctx, transport.Command{
+	response, err := sendDecoded(ctx, client, runtime, transport.Command{
 		ServiceName: userService,
 		MethodName:  loginMethod,
-		Response:    new(pb.LoginReply),
-	}, request)
+	}, request, new(pb.LoginReply))
 	if err != nil {
 		return nil, fmt.Errorf("game login handshake: %w", err)
 	}
@@ -339,12 +338,11 @@ func sendLogin(ctx context.Context, client *transport.Client, options Options) (
 	return reply, nil
 }
 
-func requestInitialLands(ctx context.Context, client *transport.Client) (*pb.AllLandsReply, error) {
-	response, err := client.SendMsg(ctx, transport.Command{
+func requestInitialLands(ctx context.Context, client *transport.Client, runtime SecurityRuntime) (*pb.AllLandsReply, error) {
+	response, err := sendDecoded(ctx, client, runtime, transport.Command{
 		ServiceName: plantService,
 		MethodName:  landsMethod,
-		Response:    new(pb.AllLandsReply),
-	}, &pb.AllLandsRequest{})
+	}, &pb.AllLandsRequest{}, new(pb.AllLandsReply))
 	if err != nil {
 		return nil, fmt.Errorf("request initial AllLands: %w", err)
 	}
@@ -359,12 +357,42 @@ func (s *Session) heartbeat(ctx context.Context) error {
 	if !s.Online() {
 		return ErrOffline
 	}
-	_, err := s.client.SendMsg(ctx, transport.Command{
+	_, err := sendDecoded(ctx, s.client, s.runtime, transport.Command{
 		ServiceName: userService,
 		MethodName:  "Heartbeat",
-		Response:    new(pb.HeartbeatReply),
-	}, &pb.HeartbeatRequest{Gid: s.GID, ClientVersion: s.clientVersion})
+	}, &pb.HeartbeatRequest{Gid: s.GID, ClientVersion: s.clientVersion}, new(pb.HeartbeatReply))
 	return err
+}
+
+// sendDecoded keeps the session compatible with both gateway deployments:
+// P2-04 currently decrypts every response, while the production gateway used
+// by the Node client returns plaintext protobuf response bodies. A failed
+// direct decode is therefore retried after the inverse TSDK transform.
+func sendDecoded(ctx context.Context, client *transport.Client, runtime SecurityRuntime, command transport.Command, request proto.Message, response proto.Message) (proto.Message, error) {
+	command.Response = nil
+	command.Decode = func(body []byte) (proto.Message, error) {
+		return decodeResponse(runtime, response, body)
+	}
+	return client.SendMsg(ctx, command, request)
+}
+
+func decodeResponse(runtime SecurityRuntime, response proto.Message, body []byte) (proto.Message, error) {
+	directErr := proto.Unmarshal(body, response)
+	if directErr == nil {
+		return response, nil
+	}
+	if runtime == nil {
+		return nil, directErr
+	}
+	proto.Reset(response)
+	recovered, err := runtime.Encrypt(body)
+	if err != nil {
+		return nil, fmt.Errorf("recover plaintext response: %w", err)
+	}
+	if err := proto.Unmarshal(recovered, response); err != nil {
+		return nil, fmt.Errorf("decode response directly: %v; recover plaintext: %w", directErr, err)
+	}
+	return response, nil
 }
 
 // Online reports whether the login handshake is complete and the underlying
@@ -436,6 +464,9 @@ func (s *Session) SendMsg(ctx context.Context, command transport.Command, reques
 	if s == nil || !s.Online() {
 		return nil, ErrOffline
 	}
+	if command.Response != nil {
+		return sendDecoded(ctx, s.client, s.runtime, command, request, command.Response)
+	}
 	return s.client.SendMsg(ctx, command, request)
 }
 
@@ -491,7 +522,8 @@ func (s *Session) Close() error {
 }
 
 type aceTransportSender struct {
-	client *transport.Client
+	client  *transport.Client
+	runtime SecurityRuntime
 }
 
 var _ ace.Sender = aceTransportSender{}
@@ -501,10 +533,13 @@ func (s aceTransportSender) Send(ctx context.Context, service, method string, bo
 	if err := proto.Unmarshal(body, &request); err != nil {
 		return nil, fmt.Errorf("decode ACE request: %w", err)
 	}
-	reply, _, err := s.client.SendMsgRaw(ctx, transport.Command{
+	response, err := sendDecoded(ctx, s.client, s.runtime, transport.Command{
 		ServiceName: service,
 		MethodName:  method,
 		Timeout:     timeout,
-	}, &request)
-	return reply, err
+	}, &request, new(pb.AntiDataReply))
+	if err != nil {
+		return nil, err
+	}
+	return proto.Marshal(response)
 }
