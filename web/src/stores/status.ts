@@ -1,9 +1,9 @@
-import type { Socket } from 'socket.io-client'
 import { useStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
-import { io } from 'socket.io-client'
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import api from '@/api'
+import { useRealtime } from '@/composables/useRealtime'
+import { REALTIME_EVENTS } from '@/realtime/client'
 import { useAccountStore } from '@/stores/account'
 
 // Define interfaces for better type checking
@@ -32,12 +32,9 @@ export const useStatusStore = defineStore('status', () => {
   const statusAccountId = ref('')
   const loading = ref(false)
   const error = ref('')
-  const realtimeConnected = ref(false)
   const realtimeLogsEnabled = ref(true)
   const currentRealtimeAccountId = ref('')
   const tokenRef = useStorage('admin_token', '')
-
-  let socket: Socket | null = null
 
   function getCurrentAccountId() {
     const accountStore = useAccountStore()
@@ -156,84 +153,51 @@ export const useStatusStore = defineStore('status', () => {
       : list.filter((item: any) => !shouldHideLogEntryInFrontend(item))
   }
 
-  function ensureRealtimeSocket() {
-    if (socket)
-      return socket
+  const realtime = useRealtime({
+    getToken: () => String(tokenRef.value || ''),
+  })
+  const realtimeConnected = realtime.connected
 
-    socket = io('/', {
-      path: '/socket.io',
-      autoConnect: false,
-      transports: ['websocket', 'polling'],
-      upgrade: true,
-      timeout: 10000,
-      reconnectionAttempts: 5,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 10000,
-      auth: {
-        token: tokenRef.value,
-      },
-    })
-
-    socket.on('connect', () => {
-      realtimeConnected.value = true
-      if (currentRealtimeAccountId.value) {
-        socket?.emit('subscribe', { accountId: currentRealtimeAccountId.value })
-      }
-      else {
-        socket?.emit('subscribe', { accountId: 'all' })
-      }
-    })
-
-    socket.on('disconnect', () => {
-      realtimeConnected.value = false
-    })
-
-    socket.on('connect_error', (err) => {
-      realtimeConnected.value = false
-      console.error('[realtime] 连接失败:', err.message)
-    })
-
-    socket.on('status:update', handleRealtimeStatus)
-    socket.on('log:new', handleRealtimeLog)
-    socket.on('account-log:new', handleRealtimeAccountLog)
-    socket.on('logs:snapshot', handleRealtimeLogsSnapshot)
-    socket.on('account-logs:snapshot', handleRealtimeAccountLogsSnapshot)
-    return socket
-  }
+  realtime.on(REALTIME_EVENTS.status, handleRealtimeStatus)
+  realtime.on(REALTIME_EVENTS.log, handleRealtimeLog)
+  realtime.on(REALTIME_EVENTS.accountLog, handleRealtimeAccountLog)
+  realtime.on(REALTIME_EVENTS.logsSnapshot, handleRealtimeLogsSnapshot)
+  realtime.on(REALTIME_EVENTS.accountLogsSnapshot, handleRealtimeAccountLogsSnapshot)
 
   function connectRealtime(accountId: string) {
     currentRealtimeAccountId.value = String(accountId || '').trim()
     if (!tokenRef.value)
       return
-
-    const client = ensureRealtimeSocket()
-    client.auth = {
-      token: tokenRef.value,
-      accountId: currentRealtimeAccountId.value || 'all',
-    }
-
-    if (client.connected) {
-      client.emit('subscribe', { accountId: currentRealtimeAccountId.value || 'all' })
-      return
-    }
-    client.connect()
+    realtime.connect(currentRealtimeAccountId.value, String(tokenRef.value))
   }
 
   function disconnectRealtime() {
-    if (!socket)
-      return
-    socket.off('connect')
-    socket.off('disconnect')
-    socket.off('connect_error')
-    socket.off('status:update', handleRealtimeStatus)
-    socket.off('log:new', handleRealtimeLog)
-    socket.off('account-log:new', handleRealtimeAccountLog)
-    socket.off('logs:snapshot', handleRealtimeLogsSnapshot)
-    socket.off('account-logs:snapshot', handleRealtimeAccountLogsSnapshot)
-    socket.disconnect()
-    socket = null
-    realtimeConnected.value = false
+    currentRealtimeAccountId.value = ''
+    realtime.disconnect()
   }
+
+  // The status store is created by the authenticated shell, so the shared
+  // client follows the app-level token/account lifecycle rather than a view.
+  watch(() => getCurrentAccountId(), (accountId, previousAccountId) => {
+    const next = String(accountId || '').trim()
+    currentRealtimeAccountId.value = next
+    if (previousAccountId && previousAccountId !== next)
+      clearAccountScopedData()
+    if (next && tokenRef.value)
+      realtime.connect(next, String(tokenRef.value))
+    else
+      realtime.disconnect()
+  }, { immediate: true })
+
+  watch(tokenRef, (token) => {
+    const nextToken = String(token || '').trim()
+    if (!nextToken || !currentRealtimeAccountId.value) {
+      realtime.disconnect()
+      return
+    }
+    realtime.disconnect()
+    realtime.connect(currentRealtimeAccountId.value, nextToken)
+  })
 
   async function fetchStatus(accountId: string) {
     if (!accountId)
