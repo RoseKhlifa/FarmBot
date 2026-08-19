@@ -17,11 +17,15 @@ import (
 func TestLiveLoginGate(t *testing.T) {
 	code := strings.TrimSpace(os.Getenv("FARM_P2_05_LOGIN_CODE"))
 	if code == "" {
-		t.Skip("set FARM_P2_05_LOGIN_CODE and FARM_P2_05_FRIEND_GID to run the P2 live gate")
+		t.Skip("set FARM_P2_05_LOGIN_CODE to run the P2 live gate")
 	}
-	friendGID, err := strconv.ParseInt(strings.TrimSpace(os.Getenv("FARM_P2_05_FRIEND_GID")), 10, 64)
-	if err != nil || friendGID <= 0 {
-		t.Fatal("FARM_P2_05_FRIEND_GID must be a positive integer")
+	friendGID := int64(0)
+	if rawFriendGID := strings.TrimSpace(os.Getenv("FARM_P2_05_FRIEND_GID")); rawFriendGID != "" {
+		var err error
+		friendGID, err = strconv.ParseInt(rawFriendGID, 10, 64)
+		if err != nil || friendGID <= 0 {
+			t.Fatal("FARM_P2_05_FRIEND_GID must be a positive integer when provided")
+		}
 	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 31*time.Minute)
@@ -42,6 +46,27 @@ func TestLiveLoginGate(t *testing.T) {
 	}
 	if gameSession.InitialLands() == nil {
 		t.Fatal("real AllLands did not return a reply")
+	}
+	if friendGID == 0 {
+		friendsReply, err := gameSession.SendMsg(ctx, transport.Command{
+			ServiceName: "gamepb.friendpb.FriendService",
+			MethodName:  "GetAll",
+			Response:    new(pb.GetAllReply),
+		}, &pb.GetAllRequest{})
+		if err != nil {
+			t.Fatalf("get real friend list: %v", err)
+		}
+		friends := friendsReply.(*pb.GetAllReply).GetGameFriends()
+		for _, friend := range friends {
+			if friend != nil && friend.GetGid() > 0 && friend.GetGid() != gameSession.GID {
+				friendGID = friend.GetGid()
+				t.Logf("selected friend GID %d (%s) from the real friend list", friendGID, friend.GetName())
+				break
+			}
+		}
+		if friendGID == 0 {
+			t.Fatal("real friend list did not contain another usable friend GID; set FARM_P2_05_FRIEND_GID explicitly")
+		}
 	}
 
 	if _, err := gameSession.SendMsg(ctx, transport.Command{
