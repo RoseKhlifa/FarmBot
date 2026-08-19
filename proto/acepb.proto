@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package gamepb.acepb;
+option go_package = "github.com/RoseKhlifa/FarmBot/internal/game/pb;pb";
+
+message AntiDataRequest {
+    bytes data = 1;
+}
+
+message AntiDataReply {
+    bytes data = 1;
+}

@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package gamepb.itempb;
+option go_package = "github.com/RoseKhlifa/FarmBot/internal/game/pb;pb";
+
+import "corepb.proto";
+
+// ============ 物品变化通知 ============
+message ItemNotify {
+    repeated corepb.ItemChg items = 1;
+}
