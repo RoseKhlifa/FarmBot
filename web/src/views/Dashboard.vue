@@ -599,15 +599,16 @@ useIntervalFn(updateCountdowns, 1000)
       <div class="dashboard-hero-copy">
         <div class="dashboard-eyebrow">
           <span class="status-dot" :class="realtimeConnected ? 'status-dot--live' : 'status-dot--idle'" />
-          FARMBOT / CONTROL ROOM
+          FARMBOT / WORKSPACE
         </div>
-        <h1>农场运行总览</h1>
-        <p>集中查看账号状态、巡查节奏和最近动作，把需要处理的事情放在同一个视线里。</p>
+        <h1>农场工作台</h1>
+        <p>{{ currentAccount ? `正在管理 ${nickName}，先处理当前账号的待办动作。` : '先选择一个账号，再开始管理农场和自动化任务。' }}</p>
       </div>
       <div class="dashboard-hero-actions">
+        <span class="dashboard-live-summary"><b>{{ accountStore.accounts.filter(account => account.running).length }}</b> / {{ accountStore.accounts.length }} 个账号运行中</span>
         <button class="dashboard-button dashboard-button--quiet" type="button" @click="showAccountModal = true">
           <span class="i-carbon-add" />
-          添加账号
+          新增账号
         </button>
         <button class="dashboard-button dashboard-button--primary" type="button" :disabled="startAllLoading" @click="startAllAccounts">
           <span :class="startAllLoading ? 'i-svg-spinners-90-ring-with-bg' : (allAccountsRunning ? 'i-carbon-stop-filled' : 'i-carbon-play-filled-alt')" />
@@ -618,8 +619,7 @@ useIntervalFn(updateCountdowns, 1000)
 
     <section class="dashboard-switcher" aria-label="工作区视图">
       <div class="dashboard-switcher-copy">
-        <span>当前工作区</span>
-        <strong>{{ dashboardTabs.find(tab => tab.key === activeTab)?.label || '概览' }}</strong>
+        <span>工作区</span><strong>{{ dashboardTabs.find(tab => tab.key === activeTab)?.label || '概览' }}</strong>
       </div>
       <DashboardTabs
         :tabs="dashboardTabs"
@@ -631,15 +631,38 @@ useIntervalFn(updateCountdowns, 1000)
     <section v-show="activeTab === 'overview'" class="dashboard-overview">
       <div class="dashboard-overview-main">
         <section class="dashboard-account-focus">
-          <div class="section-heading">
+          <div class="dashboard-account-toolbar">
             <div>
-              <span class="section-kicker">CURRENT ACCOUNT</span>
-              <h2>当前账号</h2>
+              <span class="section-kicker">ACCOUNT CONTROL</span>
+              <h2>账号控制</h2>
             </div>
             <span class="section-status" :class="status?.connection?.connected ? 'section-status--live' : 'section-status--idle'">
               <span class="status-dot" :class="status?.connection?.connected ? 'status-dot--live' : 'status-dot--idle'" />
-              {{ status?.connection?.connected ? '正在运行' : (currentAccount ? '等待启动' : '未选择') }}
+              {{ status?.connection?.connected ? '实时连接' : (currentAccount ? '等待启动' : '未选择账号') }}
             </span>
+          </div>
+          <div v-if="accountStore.accounts.length" class="dashboard-account-picker" aria-label="选择账号">
+            <button
+              v-for="account in accountStore.accounts"
+              :key="account.id"
+              class="dashboard-account-option"
+              :class="{ 'dashboard-account-option--active': String(account.id) === String(currentAccountId) }"
+              type="button"
+              @click="accountStore.setCurrentAccount(account)"
+            >
+              <span class="account-list-avatar">{{ (account.nick || account.name || account.uin || '?').toString().charAt(0).toUpperCase() }}</span>
+              <span class="dashboard-account-option-copy"><strong>{{ account.nick || account.name || account.uin || '未命名账号' }}</strong><small>{{ account.running ? '运行中' : '未启动' }}</small></span>
+              <span class="account-list-state" :class="account.running ? 'account-list-state--live' : ''" />
+            </button>
+            <button class="dashboard-account-add" type="button" @click="showAccountModal = true">
+              <span class="i-carbon-add" />新增
+            </button>
+          </div>
+          <div v-else class="dashboard-account-empty-strip">
+            <span><span class="i-carbon-user-follow" />还没有接入农场账号</span>
+            <button type="button" @click="showAccountModal = true">
+              <span class="i-carbon-add" />添加账号
+            </button>
           </div>
           <AccountHeader
             :name="String(nickName)"
@@ -664,22 +687,11 @@ useIntervalFn(updateCountdowns, 1000)
         </section>
 
         <div class="dashboard-insight-grid">
-          <TodayStatsPanel
-            :operations="todayStats.filteredOperations.value"
-            :rows="todayStats.rows.value"
-            :expanded="todayStats.expanded.value"
-            :disconnected="currentAccountDisconnected"
-            :get-name="todayStats.getOpName"
-            :get-icon="todayStats.getOpIcon"
-            :get-color="todayStats.getOpColor"
-            @toggle="toggleTodayStats"
-          />
-
           <section class="dashboard-priority-panel">
             <div class="section-heading section-heading--compact">
               <div>
-                <span class="section-kicker">NEXT UP</span>
-                <h2>下一步</h2>
+                <span class="section-kicker">ACTION QUEUE</span>
+                <h2>待处理动作</h2>
               </div>
               <span class="i-carbon-arrow-up-right text-lg text-[var(--theme-primary)]" />
             </div>
@@ -701,6 +713,16 @@ useIntervalFn(updateCountdowns, 1000)
               </button>
             </div>
           </section>
+          <TodayStatsPanel
+            :operations="todayStats.filteredOperations.value"
+            :rows="todayStats.rows.value"
+            :expanded="todayStats.expanded.value"
+            :disconnected="currentAccountDisconnected"
+            :get-name="todayStats.getOpName"
+            :get-icon="todayStats.getOpIcon"
+            :get-color="todayStats.getOpColor"
+            @toggle="toggleTodayStats"
+          />
         </div>
 
         <section class="dashboard-log-panel">
@@ -782,35 +804,22 @@ useIntervalFn(updateCountdowns, 1000)
           </div>
         </section>
 
-        <section class="dashboard-rail-panel account-switcher-panel">
+        <section class="dashboard-rail-panel dashboard-rail-summary">
           <div class="section-heading section-heading--compact">
             <div>
-              <span class="section-kicker">ACCOUNTS</span>
-              <h2>账号列表</h2>
+              <span class="section-kicker">RUN STATUS</span>
+              <h2>运行概况</h2>
             </div>
-            <span class="account-count">{{ accountStore.accounts.length }}</span>
+            <span class="i-carbon-meter-alt text-lg text-[var(--theme-primary)]" />
           </div>
-          <div v-if="accountStore.accounts.length" class="account-list">
-            <button
-              v-for="account in accountStore.accounts"
-              :key="account.id"
-              class="account-list-item"
-              :class="{ 'account-list-item--active': String(account.id) === String(currentAccountId) }"
-              type="button"
-              @click="accountStore.setCurrentAccount(account)"
-            >
-              <span class="account-list-avatar">{{ (account.nick || account.name || account.uin || '?').toString().charAt(0).toUpperCase() }}</span>
-              <span class="account-list-copy"><strong>{{ account.nick || account.name || account.uin || '未命名账号' }}</strong><small>{{ account.running ? '运行中' : '未启动' }}</small></span>
-              <span class="account-list-state" :class="account.running ? 'account-list-state--live' : ''" />
-            </button>
+          <div class="run-summary-grid">
+            <div><strong>{{ accountStore.accounts.length }}</strong><span>接入账号</span></div>
+            <div><strong>{{ accountStore.accounts.filter(account => account.running).length }}</strong><span>运行中</span></div>
+            <div><strong>{{ allLogs.length }}</strong><span>日志记录</span></div>
+            <div><strong>{{ status?.connection?.connected ? '正常' : '待机' }}</strong><span>当前连接</span></div>
           </div>
-          <div v-else class="account-empty">
-            <span class="i-carbon-user-follow text-xl" />
-            <p>还没有接入农场账号</p>
-            <small>添加账号后，运行状态和日志会显示在这里。</small>
-          </div>
-          <button class="account-add-button" type="button" @click="showAccountModal = true">
-            <span class="i-carbon-add" />添加账号
+          <button class="run-summary-action" type="button" @click="startAllAccounts">
+            <span :class="allAccountsRunning ? 'i-carbon-stop-filled' : 'i-carbon-play-filled-alt'" />{{ allAccountsRunning ? '停止全部账号' : '启动全部账号' }}
           </button>
         </section>
       </aside>
@@ -1620,6 +1629,406 @@ useIntervalFn(updateCountdowns, 1000)
   .tab-fade {
     transition: none !important;
     animation: none !important;
+  }
+}
+
+/* Workspace density pass: prioritize account selection and actions above passive metrics. */
+.dashboard-view {
+  gap: 12px;
+  max-width: 1520px;
+}
+
+.dashboard-hero {
+  align-items: center;
+  gap: 18px;
+  padding: 14px 18px;
+  border-radius: 8px;
+  background: var(--dashboard-panel);
+  box-shadow: none;
+}
+
+.dashboard-eyebrow {
+  gap: 5px;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+
+.dashboard-hero h1 {
+  margin: 5px 0 3px;
+  font-size: 21px;
+  letter-spacing: 0;
+}
+
+.dashboard-hero p {
+  max-width: none;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.dashboard-hero-actions {
+  align-items: center;
+  gap: 7px;
+}
+
+.dashboard-live-summary {
+  padding-right: 5px;
+  color: var(--dashboard-muted);
+  font-size: 10px;
+  white-space: nowrap;
+}
+
+.dashboard-live-summary b {
+  color: var(--theme-primary);
+  font-size: 13px;
+}
+
+.dashboard-button {
+  min-height: 32px;
+  padding: 0 10px;
+  border-radius: 7px;
+  font-size: 11px;
+}
+
+.dashboard-switcher {
+  gap: 12px;
+  padding: 0;
+}
+
+.dashboard-switcher-copy {
+  min-width: 98px;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 7px;
+}
+
+.dashboard-switcher-copy span {
+  font-size: 9px;
+}
+
+.dashboard-switcher-copy strong {
+  font-size: 13px;
+}
+
+.dashboard-switcher :deep(.dashboard-tabs-wrapper) {
+  min-width: 0;
+}
+
+.dashboard-switcher :deep(.dashboard-tabs) {
+  padding: 3px;
+  border-radius: 8px;
+}
+
+.dashboard-switcher :deep(.tab-item) {
+  padding: 6px 9px;
+}
+
+.dashboard-switcher :deep(.tab-label) {
+  font-size: 11px;
+}
+
+.dashboard-overview {
+  grid-template-columns: minmax(0, 1fr) 274px;
+  gap: 14px;
+}
+
+.dashboard-overview-main,
+.dashboard-overview-rail {
+  gap: 14px;
+}
+
+.dashboard-account-focus,
+.dashboard-log-panel,
+.dashboard-rail-panel {
+  padding: 14px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.dashboard-account-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.dashboard-account-toolbar h2 {
+  margin: 4px 0 0;
+  font-size: 16px;
+  line-height: 1.1;
+}
+
+.dashboard-account-picker {
+  display: flex;
+  gap: 6px;
+  min-width: 0;
+  margin-bottom: 10px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: thin;
+}
+
+.dashboard-account-option {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 144px;
+  max-width: 210px;
+  padding: 6px 8px;
+  border: 1px solid var(--dashboard-line);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--theme-text) 2%, transparent);
+  text-align: left;
+  transition:
+    border-color 0.16s ease,
+    background 0.16s ease;
+}
+
+.dashboard-account-option:hover,
+.dashboard-account-option--active {
+  border-color: color-mix(in srgb, var(--theme-primary) 45%, var(--dashboard-line));
+  background: color-mix(in srgb, var(--theme-primary) 9%, transparent);
+}
+
+.dashboard-account-option-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dashboard-account-option-copy strong,
+.dashboard-account-option-copy small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-account-option-copy strong {
+  color: var(--theme-text);
+  font-size: 11px;
+  font-weight: 750;
+}
+
+.dashboard-account-option-copy small {
+  color: var(--dashboard-muted);
+  font-size: 9px;
+}
+
+.dashboard-account-add,
+.dashboard-account-empty-strip button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  flex: 0 0 auto;
+  min-height: 31px;
+  padding: 0 9px;
+  border: 1px dashed color-mix(in srgb, var(--theme-primary) 45%, var(--dashboard-line));
+  border-radius: 7px;
+  background: transparent;
+  color: var(--theme-primary);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.dashboard-account-empty-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding: 8px 9px;
+  border: 1px solid var(--dashboard-line);
+  border-radius: 7px;
+  color: var(--dashboard-muted);
+  font-size: 10px;
+}
+
+.dashboard-account-empty-strip > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.dashboard-account-empty-strip > span > span {
+  color: var(--theme-primary);
+  font-size: 14px;
+}
+
+.dashboard-account-focus :deep(.account-card) {
+  border-color: var(--dashboard-line);
+  box-shadow: none;
+}
+
+.dashboard-insight-grid {
+  grid-template-columns: minmax(0, 1.12fr) minmax(260px, 0.88fr);
+  align-items: start;
+  gap: 14px;
+}
+
+.dashboard-insight-grid > :deep(.overview-card),
+.dashboard-priority-panel {
+  padding: 14px;
+  border-radius: 8px;
+  box-shadow: none;
+}
+
+.dashboard-insight-grid > :deep(.overview-card) .mb-3 {
+  margin-bottom: 10px;
+}
+
+.dashboard-insight-grid > :deep(.overview-card) [class*='py-6'],
+.dashboard-insight-grid > :deep(.overview-card) [class*='py-8'] {
+  padding-top: 18px;
+  padding-bottom: 18px;
+}
+
+.dashboard-log-panel :deep(.overview-card) {
+  flex: 0 0 auto;
+  padding: 0;
+}
+
+.dashboard-log-panel :deep(.ui-subtle-panel) {
+  max-height: 230px !important;
+  min-height: 130px;
+}
+
+.dashboard-rail-panel .section-heading {
+  margin-bottom: 10px;
+}
+
+.dashboard-rail-panel .section-heading h2 {
+  font-size: 14px;
+}
+
+.dashboard-rail-summary .section-heading {
+  margin-bottom: 9px;
+}
+
+.run-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.run-summary-grid > div {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px;
+  border: 1px solid var(--dashboard-line);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--theme-text) 2%, transparent);
+}
+
+.run-summary-grid strong {
+  overflow: hidden;
+  color: var(--theme-text);
+  font-size: 14px;
+  font-weight: 800;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.run-summary-grid span {
+  color: var(--dashboard-muted);
+  font-size: 9px;
+}
+
+.run-summary-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 32px;
+  margin-top: 8px;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--theme-primary) 10%, transparent);
+  color: var(--theme-primary);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+@media (max-width: 1180px) {
+  .dashboard-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-overview-rail {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+@media (max-width: 820px) {
+  .dashboard-hero {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 14px;
+  }
+
+  .dashboard-hero-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .dashboard-live-summary {
+    margin-right: auto;
+  }
+
+  .dashboard-switcher {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .dashboard-switcher-copy {
+    width: 100%;
+  }
+
+  .account-card-details {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-insight-grid,
+  .dashboard-overview-rail {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .dashboard-hero h1 {
+    font-size: 20px;
+  }
+
+  .dashboard-hero p {
+    font-size: 10px;
+  }
+
+  .dashboard-hero-actions {
+    flex-wrap: wrap;
+  }
+
+  .dashboard-live-summary {
+    width: 100%;
+  }
+
+  .dashboard-account-focus,
+  .dashboard-log-panel,
+  .dashboard-rail-panel,
+  .dashboard-priority-panel,
+  .dashboard-insight-grid > :deep(.overview-card) {
+    padding: 12px;
+  }
+
+  .dashboard-account-empty-strip {
+    align-items: flex-start;
+    flex-direction: column;
   }
 }
 </style>
