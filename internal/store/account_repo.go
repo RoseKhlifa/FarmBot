@@ -26,8 +26,10 @@ type Account struct {
 	Avatar         string
 	OwnerUser      string
 	YYBOpenID      string
+	TenantID       string
 	Remark         string
 	ThirdPartyJSON json.RawMessage
+	Running        bool
 	CreatedAt      int64
 	UpdatedAt      int64
 }
@@ -186,9 +188,9 @@ func (r *SQLiteAccountRepo) Upsert(ctx context.Context, account Account) error {
 	_, err = tx.ExecContext(ctx, `
 INSERT INTO accounts (
     id, name, code, platform, login_type, provider, wxid, uin, qq, gid,
-    open_id, avatar, owner_user, yyb_openid, remark, thirdparty_json,
-    created_at, updated_at
-) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    open_id, avatar, owner_user, yyb_openid, tenant_id, remark, thirdparty_json,
+    running, created_at, updated_at
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT(id) DO UPDATE SET
     name = excluded.name,
     code = excluded.code,
@@ -203,6 +205,7 @@ ON CONFLICT(id) DO UPDATE SET
     avatar = excluded.avatar,
     owner_user = excluded.owner_user,
     yyb_openid = excluded.yyb_openid,
+    tenant_id = COALESCE(excluded.tenant_id, accounts.tenant_id),
     remark = excluded.remark,
     thirdparty_json = excluded.thirdparty_json,
     created_at = excluded.created_at,
@@ -210,7 +213,8 @@ ON CONFLICT(id) DO UPDATE SET
 		accountID, account.Name, account.Code, platform, loginType, provider,
 		account.WXID, account.UIN, account.QQ, account.GID, account.OpenID,
 		account.Avatar, accountNullableText(account.OwnerUser), accountNullableText(account.YYBOpenID),
-		accountNullableText(account.Remark), thirdParty, createdAt, updatedAt,
+		accountNullableText(account.TenantID), accountNullableText(account.Remark), thirdParty,
+		accountBoolInt(account.Running), createdAt, updatedAt,
 	)
 	if err != nil {
 		return fmt.Errorf("upsert account %q: %w", accountID, err)
@@ -434,8 +438,8 @@ func (r *SQLiteAccountRepo) checkDB() error {
 
 const accountSelectSQL = `SELECT
     id, name, code, platform, login_type, provider, wxid, uin, qq, gid,
-    open_id, avatar, owner_user, yyb_openid, remark, thirdparty_json,
-    created_at, updated_at
+    open_id, avatar, owner_user, yyb_openid, tenant_id, remark, thirdparty_json,
+    running, created_at, updated_at
 FROM accounts`
 
 const accountConfigSelectSQL = `SELECT
@@ -458,21 +462,24 @@ type accountScanner interface {
 
 func scanAccount(scanner accountScanner) (Account, error) {
 	var account Account
-	var ownerUser, yybOpenID, remark sql.NullString
+	var ownerUser, yybOpenID, tenantID, remark sql.NullString
 	var thirdParty string
+	var running int
 	err := scanner.Scan(
 		&account.ID, &account.Name, &account.Code, &account.Platform,
 		&account.LoginType, &account.Provider, &account.WXID, &account.UIN,
 		&account.QQ, &account.GID, &account.OpenID, &account.Avatar,
-		&ownerUser, &yybOpenID, &remark, &thirdParty,
-		&account.CreatedAt, &account.UpdatedAt,
+		&ownerUser, &yybOpenID, &tenantID, &remark, &thirdParty,
+		&running, &account.CreatedAt, &account.UpdatedAt,
 	)
 	if err != nil {
 		return Account{}, err
 	}
 	account.OwnerUser = ownerUser.String
 	account.YYBOpenID = yybOpenID.String
+	account.TenantID = tenantID.String
 	account.Remark = remark.String
+	account.Running = running != 0
 	account.ThirdPartyJSON = json.RawMessage(thirdParty)
 	return account, nil
 }

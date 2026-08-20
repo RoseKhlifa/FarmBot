@@ -93,6 +93,8 @@ type User struct {
 	Password           string
 	Role               string
 	Status             string
+	TenantID           string
+	Plan               string
 	ExpireAt           *int64
 	AccountLimit       int
 	CardCode           string
@@ -252,10 +254,10 @@ func (r *SQLiteUserRepo) Create(ctx context.Context, user User) error {
 	_, err = r.DB.ExecContext(ctx, `
 INSERT INTO users
     (username, pwd_hash, salt, role, status, expire_at, account_limit,
-     card_code, card_json, must_change_password, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+     tenant_id, plan, card_code, card_json, must_change_password, created_at, updated_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 		user.Username, pwdHash, salt, user.Role, user.Status, nullableInt64(user.ExpireAt),
-		user.AccountLimit, nullableString(user.CardCode), user.CardJSON,
+		user.AccountLimit, nullableString(user.TenantID), nullableString(defaultPlan(user.Plan)), nullableString(user.CardCode), user.CardJSON,
 		boolInt(user.MustChangePassword), user.CreatedAt, user.UpdatedAt,
 	)
 	if err != nil {
@@ -327,11 +329,11 @@ func (r *SQLiteUserRepo) Update(ctx context.Context, user User) error {
 	}
 	_, err = r.DB.ExecContext(ctx, `
 UPDATE users SET pwd_hash = ?, salt = ?, role = ?, status = ?, expire_at = ?,
-    account_limit = ?, card_code = ?, card_json = ?, must_change_password = ?,
+    account_limit = ?, tenant_id = ?, plan = ?, card_code = ?, card_json = ?, must_change_password = ?,
     created_at = ?, updated_at = ?
 WHERE username = ?`,
 		pwdHash, salt, merged.Role, merged.Status, nullableInt64(merged.ExpireAt),
-		merged.AccountLimit, nullableString(merged.CardCode), merged.CardJSON,
+		merged.AccountLimit, nullableString(merged.TenantID), nullableString(defaultPlan(merged.Plan)), nullableString(merged.CardCode), merged.CardJSON,
 		boolInt(merged.MustChangePassword), merged.CreatedAt, merged.UpdatedAt,
 		merged.Username,
 	)
@@ -626,7 +628,7 @@ func (r *SQLiteUserRepo) ClearLoginLogs(ctx context.Context) error {
 
 const userSelectSQL = `
 SELECT username, pwd_hash, salt, role, status, expire_at, account_limit,
-       card_code, card_json, must_change_password, created_at, updated_at
+       tenant_id, plan, card_code, card_json, must_change_password, created_at, updated_at
 FROM users`
 
 type rowScanner interface {
@@ -636,17 +638,23 @@ type rowScanner interface {
 func scanUser(row rowScanner) (*User, error) {
 	var user User
 	var expireAt sql.NullInt64
-	var cardCodeText sql.NullString
+	var tenantID, planText, cardCodeText sql.NullString
 	var mustChange int
 	if err := row.Scan(
 		&user.Username, &user.PwdHash, &user.Salt, &user.Role, &user.Status,
-		&expireAt, &user.AccountLimit, &cardCodeText, &user.CardJSON, &mustChange,
+		&expireAt, &user.AccountLimit, &tenantID, &planText, &cardCodeText, &user.CardJSON, &mustChange,
 		&user.CreatedAt, &user.UpdatedAt,
 	); err != nil {
 		return nil, err
 	}
 	if expireAt.Valid {
 		user.ExpireAt = &expireAt.Int64
+	}
+	if tenantID.Valid {
+		user.TenantID = tenantID.String
+	}
+	if planText.Valid {
+		user.Plan = planText.String
 	}
 	if cardCodeText.Valid {
 		user.CardCode = cardCodeText.String
@@ -705,6 +713,12 @@ func mergeUser(current, update User) User {
 	if update.Status != "" {
 		current.Status = update.Status
 	}
+	if update.TenantID != "" {
+		current.TenantID = update.TenantID
+	}
+	if update.Plan != "" {
+		current.Plan = update.Plan
+	}
 	if update.ExpireAt != nil {
 		current.ExpireAt = update.ExpireAt
 	}
@@ -727,6 +741,14 @@ func mergeUser(current, update User) User {
 		current.UpdatedAt = update.UpdatedAt
 	}
 	return current
+}
+
+func defaultPlan(value string) string {
+	value = strings.ToLower(strings.TrimSpace(value))
+	if value == "" {
+		return "starter"
+	}
+	return value
 }
 
 func boolInt(value bool) int {
