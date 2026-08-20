@@ -1,13 +1,13 @@
 <!-- eslint-disable ts/no-use-before-define, regexp/no-unused-capturing-group -->
 <script setup lang="ts">
 import { useIntervalFn } from '@vueuse/core'
+import { BarChart3, BookOpen, ClipboardList, LayoutDashboard, Package, PawPrint, Settings, Settings2, Sprout, Users } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
-import { computed, defineAsyncComponent, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { accountApi } from '@/api'
 import AccountHeader from '@/components/dashboard/AccountHeader.vue'
 import LogConsole from '@/components/dashboard/LogConsole.vue'
 import TodayStatsPanel from '@/components/dashboard/TodayStatsPanel.vue'
-import DashboardTabs from '@/components/DashboardTabs.vue'
 import { useAutomationSettings } from '@/composables/settings/useAutomationSettings'
 import { useStrategySettings } from '@/composables/settings/useStrategySettings'
 import { useAccountScope } from '@/composables/useAccountScope'
@@ -189,6 +189,7 @@ const hasActiveLogFilter = computed(() =>
 )
 const activeTab = ref('overview')
 const panelEl = ref<HTMLElement | null>(null)
+const tabScrollContainer = ref<HTMLElement | null>(null)
 const loadedTabs = reactive(new Set<string>(['overview']))
 
 const swipeStart = { x: 0, y: 0 }
@@ -228,17 +229,32 @@ watch(activeTab, () => {
 })
 
 const dashboardTabs = [
-  { key: 'overview', label: '概览', icon: 'i-carbon-chart-pie' },
-  { key: 'farm', label: '农场', icon: 'i-carbon-tree' },
-  { key: 'bag', label: '背包', icon: 'i-carbon-backpack' },
-  { key: 'friends', label: '好友', icon: 'i-carbon-user-multiple' },
-  { key: 'pet', label: '宠物', icon: 'i-carbon-dog-walker' },
-  { key: 'tasks', label: '任务', icon: 'i-carbon-task' },
-  { key: 'automation', label: '自动控制', icon: 'i-carbon-settings-adjust' },
-  { key: 'strategy', label: '策略设置', icon: 'i-carbon-settings' },
-  { key: 'illustrated', label: '图鉴', icon: 'i-carbon-book' },
-  { key: 'analytics', label: '分析', icon: 'i-carbon-analytics' },
+  { key: 'overview', label: '概览', icon: LayoutDashboard },
+  { key: 'farm', label: '农场', icon: Sprout },
+  { key: 'bag', label: '背包', icon: Package },
+  { key: 'friends', label: '好友', icon: Users },
+  { key: 'pet', label: '宠物', icon: PawPrint },
+  { key: 'tasks', label: '任务', icon: ClipboardList },
+  { key: 'automation', label: '自动控制', icon: Settings2 },
+  { key: 'strategy', label: '策略设置', icon: Settings },
+  { key: 'illustrated', label: '图鉴', icon: BookOpen },
+  { key: 'analytics', label: '分析', icon: BarChart3 },
 ]
+
+async function selectDashboardTab(key: string) {
+  activeTab.value = key
+  await nextTick()
+  const container = tabScrollContainer.value
+  const activeEl = container?.querySelector(`[data-tab-key="${key}"]`) as HTMLElement | null
+  if (!container || !activeEl)
+    return
+  const containerRect = container.getBoundingClientRect()
+  const elRect = activeEl.getBoundingClientRect()
+  container.scrollTo({
+    left: container.scrollLeft + elRect.left - containerRect.left - containerRect.width / 2 + elRect.width / 2,
+    behavior: 'smooth',
+  })
+}
 
 const settingStore = useSettingStore()
 function showAlert(message: string, _type: 'primary' | 'danger' = 'primary') {
@@ -626,11 +642,24 @@ useIntervalFn(updateCountdowns, 1000)
       <div class="dashboard-switcher-copy">
         <span>工作区</span><strong>{{ dashboardTabs.find(tab => tab.key === activeTab)?.label || '概览' }}</strong>
       </div>
-      <DashboardTabs
-        :tabs="dashboardTabs"
-        :active-tab="activeTab"
-        @update:active-tab="activeTab = $event"
-      />
+      <div class="dashboard-tabs-wrapper">
+        <div ref="tabScrollContainer" class="dashboard-tabs" role="tablist" aria-label="工作区导航">
+          <button
+            v-for="tab in dashboardTabs"
+            :key="tab.key"
+            :data-tab-key="tab.key"
+            class="tab-item"
+            :class="{ 'tab-item--active': activeTab === tab.key }"
+            type="button"
+            role="tab"
+            :aria-selected="activeTab === tab.key"
+            @click="selectDashboardTab(tab.key)"
+          >
+            <component :is="tab.icon" class="tab-icon" :size="15" :stroke-width="1.8" aria-hidden="true" />
+            <span class="tab-label">{{ tab.label }}</span>
+          </button>
+        </div>
+      </div>
     </section>
 
     <section v-show="activeTab === 'overview'" class="dashboard-overview">
@@ -2281,5 +2310,73 @@ useIntervalFn(updateCountdowns, 1000)
   border-top: 1px solid var(--dashboard-line) !important;
   border-radius: 0 !important;
   background: transparent !important;
+}
+
+.dashboard-tabs-wrapper {
+  position: relative;
+  min-width: 0;
+  flex: 1;
+}
+
+.dashboard-tabs {
+  display: flex;
+  gap: 2px;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 3px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.dashboard-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 0 9px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: color-mix(in srgb, var(--theme-text) 58%, transparent);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+  transition:
+    color 0.16s ease,
+    background 0.16s ease;
+}
+
+.tab-item:hover:not(.tab-item--active) {
+  background: color-mix(in srgb, var(--theme-text) 5%, transparent);
+  color: var(--theme-text);
+}
+
+.tab-item--active {
+  background: color-mix(in srgb, var(--theme-primary) 13%, transparent);
+  color: var(--theme-primary);
+}
+
+.tab-icon {
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 820px) {
+  .dashboard-tabs-wrapper {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-item {
+    transition: none;
+  }
 }
 </style>
