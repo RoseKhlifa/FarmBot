@@ -263,7 +263,18 @@ func (s *Server) handleHealth(c *gin.Context) {
 
 func (s *Server) handleGameConfig(c *gin.Context) {
 	name, ok := cleanFSName(c.Param("path"))
-	if !ok || s.gameConfigFS == nil || !s.serveFSFile(c, s.gameConfigFS, name) {
+	if !ok || s.gameConfigFS == nil {
+		s.notFoundJSON(c)
+		return
+	}
+	if s.serveFSFile(c, s.gameConfigFS, name) {
+		return
+	}
+	// Go module paths reject full-width punctuation in embedded filenames.
+	// The two affected seed images are stored with ASCII parentheses and keep
+	// their original URL working through this narrow fallback.
+	compatName := strings.NewReplacer("（", "(", "）", ")").Replace(name)
+	if compatName == name || !s.serveFSFile(c, s.gameConfigFS, compatName) {
 		s.notFoundJSON(c)
 	}
 }
