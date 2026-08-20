@@ -1959,6 +1959,218 @@ useIntervalFn(updateCountdowns, 1000)
   font-weight: 750;
 }
 
+/* Flat workspace hierarchy: use rhythm and dividers instead of nested cards. */
+.dashboard-view {
+  gap: 10px;
+}
+
+.dashboard-hero {
+  padding: 8px 0 10px;
+  border: 0;
+  border-bottom: 1px solid var(--dashboard-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.dashboard-hero h1 {
+  margin-top: 4px;
+  font-size: 23px;
+}
+
+.dashboard-switcher {
+  padding: 0 0 8px;
+  border-bottom: 1px solid var(--dashboard-line);
+}
+
+.dashboard-switcher :deep(.dashboard-tabs) {
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.dashboard-switcher :deep(.tab-item) {
+  border-radius: 6px;
+}
+
+.dashboard-overview {
+  grid-template-columns: minmax(0, 1fr) 248px;
+  gap: 28px;
+}
+
+.dashboard-overview-main,
+.dashboard-overview-rail {
+  gap: 0;
+}
+
+.dashboard-account-focus,
+.dashboard-priority-panel,
+.dashboard-log-panel,
+.dashboard-rail-panel,
+.dashboard-insight-grid > :deep(.overview-card) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.dashboard-account-focus {
+  padding: 0 0 18px;
+  border-bottom: 1px solid var(--dashboard-line);
+}
+
+.dashboard-account-toolbar {
+  margin-bottom: 8px;
+}
+
+.dashboard-account-picker {
+  margin-bottom: 8px;
+}
+
+.dashboard-account-option {
+  background: transparent;
+}
+
+.dashboard-account-empty-strip {
+  margin-bottom: 8px;
+  padding: 6px 0;
+  border: 0;
+  border-bottom: 1px solid var(--dashboard-line);
+  border-radius: 0;
+}
+
+.dashboard-account-focus :deep(.account-card) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.dashboard-account-focus :deep(.account-card-top) {
+  padding: 12px 0;
+  border-top: 1px solid var(--dashboard-line);
+  border-bottom: 1px solid var(--dashboard-line);
+}
+
+.dashboard-account-focus :deep(.account-card-details) {
+  padding: 14px 0 0;
+}
+
+.dashboard-insight-grid {
+  gap: 28px;
+}
+
+.dashboard-insight-grid > :deep(.overview-card),
+.dashboard-priority-panel {
+  padding: 18px 0;
+}
+
+.dashboard-priority-panel {
+  border-bottom: 1px solid var(--dashboard-line);
+}
+
+.priority-item,
+.schedule-row {
+  border: 0;
+  border-bottom: 1px solid var(--dashboard-line);
+  border-radius: 0;
+  background: transparent;
+  transform: none;
+}
+
+.priority-item {
+  padding: 10px 0;
+}
+
+.priority-item:hover,
+.schedule-row:hover,
+.account-list-item:hover {
+  border-color: var(--dashboard-line);
+  background: color-mix(in srgb, var(--theme-primary, #10b981) 5%, transparent);
+  transform: none;
+}
+
+.priority-item:last-child,
+.schedule-row:last-child {
+  border-bottom: 0;
+}
+
+.dashboard-log-panel {
+  padding: 18px 0 0;
+  border-top: 1px solid var(--dashboard-line);
+}
+
+.dashboard-overview-rail {
+  padding-left: 22px;
+  border-left: 1px solid var(--dashboard-line);
+}
+
+.dashboard-rail-panel {
+  padding: 0 0 18px;
+  margin-bottom: 18px;
+  border-bottom: 1px solid var(--dashboard-line);
+}
+
+.dashboard-rail-panel:last-child {
+  padding-bottom: 0;
+  margin-bottom: 0;
+  border-bottom: 0;
+}
+
+.resource-item,
+.run-summary-grid > div {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.resource-item {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--dashboard-line);
+}
+
+.resource-item:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.run-summary-grid > div {
+  padding: 7px 0;
+  border-bottom: 1px solid var(--dashboard-line);
+}
+
+.run-summary-grid > div:nth-last-child(-n + 2) {
+  border-bottom: 0;
+}
+
+.run-summary-action {
+  border: 1px solid color-mix(in srgb, var(--theme-primary) 35%, var(--dashboard-line));
+  background: transparent;
+}
+
+@media (max-width: 1180px) {
+  .dashboard-overview-rail {
+    padding-left: 0;
+    border-left: 0;
+    border-top: 1px solid var(--dashboard-line);
+    padding-top: 18px;
+  }
+}
+
+@media (max-width: 560px) {
+  .dashboard-hero {
+    padding: 6px 0 10px;
+  }
+
+  .dashboard-account-focus,
+  .dashboard-log-panel,
+  .dashboard-rail-panel,
+  .dashboard-priority-panel,
+  .dashboard-insight-grid > :deep(.overview-card) {
+    padding-right: 0;
+    padding-left: 0;
+    border-radius: 0;
+  }
+}
+
 @media (max-width: 1180px) {
   .dashboard-overview {
     grid-template-columns: minmax(0, 1fr);
@@ -2036,5 +2248,38 @@ useIntervalFn(updateCountdowns, 1000)
     align-items: flex-start;
     flex-direction: column;
   }
+}
+
+.dashboard-insight-grid > :deep(.overview-card) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.dashboard-insight-grid > :deep(.overview-card) :deep(.ui-subtle-panel) {
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.dashboard-account-focus :deep(.account-metric) {
+  padding: 8px 0;
+  border: 0;
+  border-bottom: 1px solid var(--dashboard-line);
+  border-radius: 0;
+  background: transparent;
+}
+
+.dashboard-account-focus :deep(.account-metric:last-child) {
+  border-bottom: 0;
+}
+
+.dashboard-log-panel :deep(.ui-subtle-panel) {
+  min-height: 130px;
+  border: 0 !important;
+  border-top: 1px solid var(--dashboard-line) !important;
+  border-radius: 0 !important;
+  background: transparent !important;
 }
 </style>
