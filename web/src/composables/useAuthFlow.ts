@@ -1,6 +1,6 @@
 import type { InjectionKey } from 'vue'
 import type { PasswordStrength } from '@/composables/usePasswordStrength'
-import { computed, inject, onMounted, reactive, watch } from 'vue'
+import { computed, inject, onMounted, onScopeDispose, reactive, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { cardApi, systemApi, userApi } from '@/api'
 import { getPasswordStrength } from '@/composables/usePasswordStrength'
@@ -107,6 +107,14 @@ export function useAuthFlow(): AuthFlow {
   const appStore = useAppStore()
   const route = useRoute()
   const router = useRouter()
+  let navigationTimer: ReturnType<typeof setTimeout> | undefined
+
+  onScopeDispose(() => {
+    if (navigationTimer !== undefined) {
+      clearTimeout(navigationTimer)
+      navigationTimer = undefined
+    }
+  })
 
   const flow = reactive({
     gameVersion: '',
@@ -226,7 +234,10 @@ export function useAuthFlow(): AuthFlow {
         if (result.ok) {
           if (result.data?.mustChangePassword)
             flow.success = '登录成功！请修改默认密码以确保账户安全'
-          setTimeout(() => {
+          if (navigationTimer !== undefined)
+            clearTimeout(navigationTimer)
+          navigationTimer = setTimeout(() => {
+            navigationTimer = undefined
             void router.push({ name: 'dashboard' })
           }, 500)
         }
