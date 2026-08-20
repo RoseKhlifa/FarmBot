@@ -1,79 +1,42 @@
 <script setup lang="ts">
-import type { PasswordStrength } from '@/composables/usePasswordStrength'
 import BaseInput from '@/components/ui/BaseInput.vue'
+import { useAuthFlowContext } from '@/composables/useAuthFlow'
 import PasswordStrengthMeter from './PasswordStrengthMeter.vue'
 
-interface ClaimModalContent {
-  success: boolean
-  title: string
-  message: string
-  cardCode: string
-}
-
-defineProps<{
-  claimModalContent: ClaimModalContent
-  resetError: string
-  resetLoading: boolean
-  resetPasswordStrength: PasswordStrength
-  renewalError: string
-  renewalSuccess: string
-  renewalLoading: boolean
-}>()
-
-const emit = defineEmits<{
-  (e: 'closeClaim'): void
-  (e: 'closeRenewal'): void
-  (e: 'closeResetVerify'): void
-  (e: 'closeResetPassword'): void
-  (e: 'submitRenewal'): void
-  (e: 'verifyResetPassword'): void
-  (e: 'submitResetPassword'): void
-}>()
-
-const showClaimModal = defineModel<boolean>('showClaimModal', { required: true })
-const showRenewalModal = defineModel<boolean>('showRenewalModal', { required: true })
-const showResetVerifyModal = defineModel<boolean>('showResetVerifyModal', { required: true })
-const showResetPasswordModal = defineModel<boolean>('showResetPasswordModal', { required: true })
-const renewalUsername = defineModel<string>('renewalUsername', { required: true })
-const renewalCardCode = defineModel<string>('renewalCardCode', { required: true })
-const resetUsername = defineModel<string>('resetUsername', { required: true })
-const resetCardCode = defineModel<string>('resetCardCode', { required: true })
-const resetNewPassword = defineModel<string>('resetNewPassword', { required: true })
-const resetConfirmPassword = defineModel<string>('resetConfirmPassword', { required: true })
-const resetPasswordTouched = defineModel<boolean>('resetPasswordTouched', { required: true })
+const flow = useAuthFlowContext()
 </script>
 
 <template>
   <Teleport to="body">
     <Transition name="modal">
       <div
-        v-if="showClaimModal"
+        v-if="flow.showClaimModal"
         class="claim-modal-overlay"
-        @click.self="emit('closeClaim')"
+        @click.self="flow.closeClaimModal()"
       >
         <div class="claim-modal">
           <div class="claim-modal-header">
-            <span class="claim-modal-icon">{{ claimModalContent.success ? '🎉' : '⚠️' }}</span>
+            <span class="claim-modal-icon">{{ flow.claimModalContent.success ? '🎉' : '⚠️' }}</span>
             <h3 class="claim-modal-title">
-              {{ claimModalContent.title }}
+              {{ flow.claimModalContent.title }}
             </h3>
           </div>
           <div class="claim-modal-body">
             <p class="claim-modal-message">
-              {{ claimModalContent.message }}
+              {{ flow.claimModalContent.message }}
             </p>
-            <div v-if="claimModalContent.success && claimModalContent.cardCode" class="claim-modal-card-info">
+            <div v-if="flow.claimModalContent.success && flow.claimModalContent.cardCode" class="claim-modal-card-info">
               <div class="card-code-label">
                 卡密已自动填入
               </div>
               <div class="card-code-value">
-                {{ claimModalContent.cardCode }}
+                {{ flow.claimModalContent.cardCode }}
               </div>
             </div>
           </div>
           <div class="claim-modal-footer">
-            <button class="claim-modal-btn" @click="emit('closeClaim')">
-              {{ claimModalContent.success ? '开始注册' : '我知道了' }}
+            <button class="claim-modal-btn" @click="flow.closeClaimModal()">
+              {{ flow.claimModalContent.success ? '开始注册' : '我知道了' }}
             </button>
           </div>
         </div>
@@ -84,9 +47,9 @@ const resetPasswordTouched = defineModel<boolean>('resetPasswordTouched', { requ
   <Teleport to="body">
     <Transition name="modal">
       <div
-        v-if="showRenewalModal"
+        v-if="flow.showRenewalModal"
         class="claim-modal-overlay"
-        @click.self="emit('closeRenewal')"
+        @click.self="flow.closeRenewalModal()"
       >
         <div class="claim-modal reset-modal">
           <div class="claim-modal-header">
@@ -97,24 +60,24 @@ const resetPasswordTouched = defineModel<boolean>('resetPasswordTouched', { requ
               账号续费
             </h3>
           </div>
-          <form class="reset-modal-body" @submit.prevent="emit('submitRenewal')">
+          <form class="reset-modal-body" @submit.prevent="flow.submitRenewal()">
             <p class="reset-modal-tip">
               输入用户名和续费卡密，确认后会直接为该账号续费。
             </p>
-            <BaseInput v-model="renewalUsername" label="用户名" placeholder="请输入用户名" />
-            <BaseInput v-model="renewalCardCode" label="续费卡密" placeholder="请输入续费卡密" />
-            <div v-if="renewalError" class="reset-modal-error">
-              {{ renewalError }}
+            <BaseInput v-model="flow.renewalUsername" label="用户名" placeholder="请输入用户名" />
+            <BaseInput v-model="flow.renewalCardCode" label="续费卡密" placeholder="请输入续费卡密" />
+            <div v-if="flow.renewalError" class="reset-modal-error">
+              {{ flow.renewalError }}
             </div>
-            <div v-if="renewalSuccess" class="reset-modal-success">
-              {{ renewalSuccess }}
+            <div v-if="flow.renewalSuccess" class="reset-modal-success">
+              {{ flow.renewalSuccess }}
             </div>
             <div class="reset-modal-actions">
-              <button type="button" class="claim-modal-btn secondary" :disabled="renewalLoading" @click="emit('closeRenewal')">
-                {{ renewalSuccess ? '关闭' : '取消' }}
+              <button type="button" class="claim-modal-btn secondary" :disabled="flow.renewalLoading" @click="flow.closeRenewalModal()">
+                {{ flow.renewalSuccess ? '关闭' : '取消' }}
               </button>
-              <button type="submit" class="claim-modal-btn" :disabled="renewalLoading">
-                {{ renewalLoading ? '续费中...' : '确认续费' }}
+              <button type="submit" class="claim-modal-btn" :disabled="flow.renewalLoading">
+                {{ flow.renewalLoading ? '续费中...' : '确认续费' }}
               </button>
             </div>
           </form>
@@ -126,9 +89,9 @@ const resetPasswordTouched = defineModel<boolean>('resetPasswordTouched', { requ
   <Teleport to="body">
     <Transition name="modal">
       <div
-        v-if="showResetVerifyModal"
+        v-if="flow.showResetVerifyModal"
         class="claim-modal-overlay"
-        @click.self="emit('closeResetVerify')"
+        @click.self="flow.closeResetVerifyModal()"
       >
         <div class="claim-modal reset-modal">
           <div class="claim-modal-header">
@@ -139,21 +102,21 @@ const resetPasswordTouched = defineModel<boolean>('resetPasswordTouched', { requ
               找回密码
             </h3>
           </div>
-          <form class="reset-modal-body" @submit.prevent="emit('verifyResetPassword')">
+          <form class="reset-modal-body" @submit.prevent="flow.verifyResetPassword()">
             <p class="reset-modal-tip">
               输入用户名和注册时使用的卡密，通过验证后即可设置新密码。
             </p>
-            <BaseInput v-model="resetUsername" label="用户名" placeholder="请输入用户名" />
-            <BaseInput v-model="resetCardCode" label="卡密" placeholder="请输入注册时使用的卡密" />
-            <div v-if="resetError" class="reset-modal-error">
-              {{ resetError }}
+            <BaseInput v-model="flow.resetUsername" label="用户名" placeholder="请输入用户名" />
+            <BaseInput v-model="flow.resetCardCode" label="卡密" placeholder="请输入注册时使用的卡密" />
+            <div v-if="flow.resetError" class="reset-modal-error">
+              {{ flow.resetError }}
             </div>
             <div class="reset-modal-actions">
-              <button type="button" class="claim-modal-btn secondary" :disabled="resetLoading" @click="emit('closeResetVerify')">
+              <button type="button" class="claim-modal-btn secondary" :disabled="flow.resetLoading" @click="flow.closeResetVerifyModal()">
                 取消
               </button>
-              <button type="submit" class="claim-modal-btn" :disabled="resetLoading">
-                {{ resetLoading ? '验证中...' : '验证' }}
+              <button type="submit" class="claim-modal-btn" :disabled="flow.resetLoading">
+                {{ flow.resetLoading ? '验证中...' : '验证' }}
               </button>
             </div>
           </form>
@@ -165,9 +128,9 @@ const resetPasswordTouched = defineModel<boolean>('resetPasswordTouched', { requ
   <Teleport to="body">
     <Transition name="modal">
       <div
-        v-if="showResetPasswordModal"
+        v-if="flow.showResetPasswordModal"
         class="claim-modal-overlay"
-        @click.self="emit('closeResetPassword')"
+        @click.self="flow.closeResetPasswordModal()"
       >
         <div class="claim-modal reset-modal">
           <div class="claim-modal-header">
@@ -178,33 +141,33 @@ const resetPasswordTouched = defineModel<boolean>('resetPasswordTouched', { requ
               设置新密码
             </h3>
           </div>
-          <form class="reset-modal-body" @submit.prevent="emit('submitResetPassword')">
+          <form class="reset-modal-body" @submit.prevent="flow.submitResetPassword()">
             <BaseInput
-              v-model="resetNewPassword"
+              v-model="flow.resetNewPassword"
               label="新密码"
               type="password"
               placeholder="请输入新密码"
-              @input="resetPasswordTouched = true"
+              @input="flow.resetPasswordTouched = true"
             />
             <PasswordStrengthMeter
-              v-if="resetPasswordTouched && resetNewPassword"
-              :strength="resetPasswordStrength"
+              v-if="flow.resetPasswordTouched && flow.resetNewPassword"
+              :strength="flow.resetPasswordStrength"
             />
             <BaseInput
-              v-model="resetConfirmPassword"
+              v-model="flow.resetConfirmPassword"
               label="确认密码"
               type="password"
               placeholder="请再次输入新密码"
             />
-            <div v-if="resetError" class="reset-modal-error">
-              {{ resetError }}
+            <div v-if="flow.resetError" class="reset-modal-error">
+              {{ flow.resetError }}
             </div>
             <div class="reset-modal-actions">
-              <button type="button" class="claim-modal-btn secondary" :disabled="resetLoading" @click="emit('closeResetPassword')">
+              <button type="button" class="claim-modal-btn secondary" :disabled="flow.resetLoading" @click="flow.closeResetPasswordModal()">
                 取消
               </button>
-              <button type="submit" class="claim-modal-btn" :disabled="resetLoading">
-                {{ resetLoading ? '提交中...' : '确认修改' }}
+              <button type="submit" class="claim-modal-btn" :disabled="flow.resetLoading">
+                {{ flow.resetLoading ? '提交中...' : '确认修改' }}
               </button>
             </div>
           </form>
