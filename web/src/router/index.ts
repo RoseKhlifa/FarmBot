@@ -26,12 +26,12 @@ async function ensureTokenValid() {
   validatingPromise = axios.get('/api/auth/validate', {
     headers: { 'x-admin-token': token },
     timeout: 6000,
-  }).then((res) => {
+  }).then(async (res) => {
     const ok = !!(res.data && res.data.ok)
     if (ok) {
       validatedToken = token
       const userStore = useUserStore()
-      userStore.fetchUserInfo().catch(() => {})
+      await userStore.fetchUserInfo()
     }
     return ok
   }).catch(() => false).finally(() => {
@@ -46,12 +46,23 @@ const router = createRouter({
   routes: [
     {
       path: '/',
-      component: () => import('@/layouts/DefaultLayout.vue'),
-      children: menuRoutes.map(route => ({
+      component: () => import('@/components/wangui/UserLayout.vue'),
+      children: menuRoutes.filter(route => !route.adminOnly).map(route => ({
         path: route.path,
         name: route.name,
         component: route.component,
       })),
+    },
+    {
+      path: '/admin',
+      component: () => import('@/components/wangui/AdminLayout.vue'),
+      children: [
+        {
+          path: '',
+          name: 'admin',
+          component: () => import('@/views/AdminPanel.vue'),
+        },
+      ],
     },
     {
       path: '/login',
@@ -105,6 +116,11 @@ router.beforeEach(async (to) => {
     adminToken.value = ''
     validatedToken = ''
     return { name: 'login' }
+  }
+
+  const userStore = useUserStore()
+  if (to.path.startsWith('/admin') && !userStore.isAdmin) {
+    return { name: 'dashboard' }
   }
 
   return true

@@ -1,0 +1,71 @@
+/* Directly migrated from wangui-henau. Tailwind build directives were removed
+   because FarmBot already compiles utilities with UnoCSS. */
+
+/* ----- Card hover lift ----- */
+.card-lift {
+  transition: transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.card-lift:hover {
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+/* ----- Subtle inner glow on focus ----- */
+.focus-ring {
+  outline: none;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+.focus-ring:focus-visible {
+  border-color: rgb(16 185 129 / 0.6);
+  box-shadow: 0 0 0 3px rgb(16 185 129 / 0.15);
+}
+
+/* ----- Scrollbar (theme-aware) ----- */
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-track { background: transparent; }
+*::-webkit-scrollbar-thumb { background: rgb(212 212 216); border-radius: 8px; border: 2px solid #fafafa; }
+*::-webkit-scrollbar-thumb:hover { background: rgb(161 161 170); }
+html.dark *::-webkit-scrollbar-thumb { background: rgb(63 63 70); border-color: #09090b; }
+html.dark *::-webkit-scrollbar-thumb:hover { background: rgb(82 82 91); }
+
+/* ----- Selection ----- */
+::selection {
+  background: rgb(16 185 129 / 0.25);
+  color: #ecfdf5;
+}
+
+/* ----- Spin animation (used for loaders) ----- */
+@keyframes wangui-spin {
+  to { transform: rotate(360deg); }
+}
+.wangui-spin {
+  animation: wangui-spin 0.8s linear infinite;
+}
+
+/* ----- Diagonally-scrolling "勿外传" watermark (fills the side margins) ----- */
+.watermark-bg {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='60'><text x='6' y='40' fill='%23000000' fill-opacity='0.05' font-size='26' font-weight='700' font-family='sans-serif'>勿外传</text></svg>");
+  background-size: 140px 60px;
+  background-repeat: repeat;
+  transform: rotate(-15deg);
+  animation: watermark-scroll 10s linear infinite;
+  will-change: background-position;
+}
+html.dark .watermark-bg {
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='140' height='60'><text x='6' y='40' fill='%23ffffff' fill-opacity='0.045' font-size='26' font-weight='700' font-family='sans-serif'>勿外传</text></svg>");
+}
+@keyframes watermark-scroll {
+  from { background-position: 0 0; }
+  to   { background-position: -140px 60px; }
+}
+
+/* ----- Ambient glow for hero card ----- */
+.ambient-glow::before {
+  content: "";
+  position: absolute;
+  top: -80px;
+  right: -80px;
+  width: 240px;
+  height: 240px;
+  background: radial-gradient(circle, rgb(16 185 129 / 0.12), transparent 70%);
+  pointer-events: none;
+}
