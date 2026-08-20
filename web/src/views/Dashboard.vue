@@ -1,33 +1,41 @@
+<!-- eslint-disable ts/no-use-before-define, regexp/no-unused-capturing-group -->
 <script setup lang="ts">
 import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import api from '@/api'
+import AccountModal from '@/components/AccountModal.vue'
+import BagPanel from '@/components/BagPanel.vue'
+import CareerModal from '@/components/CareerModal.vue'
+import AccountHeader from '@/components/dashboard/AccountHeader.vue'
+import LogConsole from '@/components/dashboard/LogConsole.vue'
+import TodayStatsPanel from '@/components/dashboard/TodayStatsPanel.vue'
+import FriendsTabContent from '@/components/DashboardFriendsTab.vue'
+import DashboardTabs from '@/components/DashboardTabs.vue'
+import DogGiftsPanel from '@/components/DogGiftsPanel.vue'
+import FarmPanel from '@/components/FarmPanel.vue'
+import AutomationSettingsTab from '@/components/settings/AutomationSettingsTab.vue'
+import StrategySettingsTab from '@/components/settings/StrategySettingsTab.vue'
+import TaskPanel from '@/components/TaskPanel.vue'
+import ThemeToggle from '@/components/ThemeToggle.vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
-import DashboardTabs from '@/components/DashboardTabs.vue'
-import FarmPanel from '@/components/FarmPanel.vue'
-import BagPanel from '@/components/BagPanel.vue'
-import TaskPanel from '@/components/TaskPanel.vue'
-import DogGiftsPanel from '@/components/DogGiftsPanel.vue'
-import FriendsTabContent from '@/components/DashboardFriendsTab.vue'
-import AutomationSettingsTab from '@/components/settings/AutomationSettingsTab.vue'
-import StrategySettingsTab from '@/components/settings/StrategySettingsTab.vue'
-import Illustrated from '@/views/Illustrated.vue'
-import Analytics from '@/views/Analytics.vue'
 import { useAutomationSettings } from '@/composables/settings/useAutomationSettings'
 import { useStrategySettings } from '@/composables/settings/useStrategySettings'
-import { useSettingStore } from '@/stores/setting'
-import AccountModal from '@/components/AccountModal.vue'
-import CareerModal from '@/components/CareerModal.vue'
+import { useAccountScope } from '@/composables/useAccountScope'
+import { useDashboardCountdown } from '@/composables/useDashboardCountdown'
+import { useTodayStats } from '@/composables/useTodayStats'
 import { useAccountStore } from '@/stores/account'
+import { useAppStore } from '@/stores/app'
 import { useBagStore } from '@/stores/bag'
+import { useSettingStore } from '@/stores/setting'
 import { useStatusStore } from '@/stores/status'
 import { useToastStore } from '@/stores/toast'
 import { formatCouponAmount, formatGoldAmount, formatGoldBeanAmount } from '@/utils/number-format'
-import ThemeToggle from '@/components/ThemeToggle.vue'
-import { useAppStore } from '@/stores/app'
+import Analytics from '@/views/Analytics.vue'
+import Illustrated from '@/views/Illustrated.vue'
+
 const statusStore = useStatusStore()
 const accountStore = useAccountStore()
 const bagStore = useBagStore()
@@ -42,6 +50,11 @@ const {
 } = storeToRefs(statusStore)
 const { currentAccountId, currentAccount } = storeToRefs(accountStore)
 const { dashboardItems } = storeToRefs(bagStore)
+const dashboardCountdown = useDashboardCountdown(() => currentStatusReady.value && !status.value?.connection?.connected)
+const todayStats = useTodayStats(computed(() => status.value?.operations || {}))
+function toggleTodayStats() {
+  todayStats.expanded.value = !todayStats.expanded.value
+}
 
 const showAccountDropdown = ref(false)
 const showAccountModal = ref(false)
@@ -51,7 +64,7 @@ const startBtnStyle = computed(() => appStore.isDark
   ? { background: 'linear-gradient(135deg, #1e3a8a, #3730a3)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.4)' }
   : { background: 'linear-gradient(135deg, #3b82f6, #6366f1)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)' })
 const startAllLoading = ref(false)
-const startAllResults = ref<{ name: string; ok: boolean; msg: string }[]>([])
+const startAllResults = ref<{ name: string, ok: boolean, msg: string }[]>([])
 const showStartAllModal = ref(false)
 const accountToEdit = ref<any>(null)
 
@@ -71,8 +84,9 @@ onUnmounted(() => {
   document.removeEventListener('click', closeAccountDropdown)
 })
 function closeAccountDropdown(e: MouseEvent) {
-  const el = (e.target as HTMLElement)
-  if (!el.closest('[data-account-dropdown]')) showAccountDropdown.value = false
+  const el = e.target as HTMLElement
+  if (!el.closest('[data-account-dropdown]'))
+    showAccountDropdown.value = false
 }
 async function handleAccountSaved() {
   showAccountModal.value = false
@@ -87,7 +101,8 @@ const allAccountsRunning = computed(() => {
 })
 
 async function startAllAccounts() {
-  if (startAllLoading.value) return
+  if (startAllLoading.value)
+    return
   startAllLoading.value = true
   startAllResults.value = []
 
@@ -100,16 +115,19 @@ async function startAllAccounts() {
       try {
         await accountStore.stopAccount(String(acc.id))
         startAllResults.value.push({ name: acc.name || acc.nick || acc.id, ok: true, msg: '已停止' })
-      } catch {
+      }
+      catch {
         startAllResults.value.push({ name: acc.name || acc.nick || acc.id, ok: false, msg: '停止失败' })
       }
     }
-  } else {
+  }
+  else {
     // 启动所有离线账号
     for (const acc of toStart) {
       try {
         await api.post(`/api/accounts/${acc.id}/start`)
-      } catch {
+      }
+      catch {
         startAllResults.value.push({ name: acc.name || acc.nick || acc.id, ok: false, msg: '启动失败，请重新扫码' })
       }
     }
@@ -121,7 +139,8 @@ async function startAllAccounts() {
       const updated = latest.find(a => String(a.id) === String(acc.id))
       if (updated?.running) {
         startAllResults.value.push({ name: acc.name || acc.nick || acc.id, ok: true, msg: '启动成功' })
-      } else {
+      }
+      else {
         startAllResults.value.push({ name: acc.name || acc.nick || acc.id, ok: false, msg: '启动失败，请重新扫码' })
       }
     }
@@ -134,7 +153,8 @@ async function startAllAccounts() {
 // 当前账号的微信昵称（去括号备注）
 const nickName = computed(() => {
   const acc = currentAccount.value
-  if (!acc) return '选择账号'
+  if (!acc)
+    return '选择账号'
   const status = statusStore.status?.status
   const live = status?.name && status?.name !== '未登录' ? String(status.name).trim() : ''
   return live || acc.nick || acc.name || acc.uin || acc.qq || '选择账号'
@@ -143,19 +163,23 @@ const nickName = computed(() => {
 // 当前账号的头像 URL
 const currentAvatarSrc = computed(() => {
   const acc = currentAccount.value
-  if (!acc) return ''
+  if (!acc)
+    return ''
   const status = statusStore.status?.status
   const live = status?.avatar || status?.avatarUrl || status?.avatar_url
-  if (live) return String(live).trim()
+  if (live)
+    return String(live).trim()
   const qq = String(acc.uin || acc.qq || '').trim()
-  if (/^\d+$/.test(qq)) return `https://q1.qlogo.cn/g?b=qq&nk=${qq}&s=100`
+  if (/^\d+$/.test(qq))
+    return `https://q1.qlogo.cn/g?b=qq&nk=${qq}&s=100`
   return ''
 })
 
 // 头像加载失败处理
 function onAvatarError(e: Event) {
   const t = e.target as HTMLImageElement | null
-  if (t) t.style.display = 'none'
+  if (t)
+    t.style.display = 'none'
 }
 
 const logContainer = ref<HTMLElement | null>(null)
@@ -179,29 +203,33 @@ const panelEl = ref<HTMLElement | null>(null)
 const swipeStart = { x: 0, y: 0 }
 function onSwipeStart(e: TouchEvent) {
   const t = e.changedTouches && e.changedTouches[0]
-  if (!t) return
+  if (!t)
+    return
   swipeStart.x = t.clientX
   swipeStart.y = t.clientY
 }
 function onSwipeEnd(e: TouchEvent) {
   const t = e.changedTouches && e.changedTouches[0]
-  if (!t) return
+  if (!t)
+    return
   const dx = t.clientX - swipeStart.x
   const dy = t.clientY - swipeStart.y
   if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-    const idx = dashboardTabs.findIndex((it) => it.key === activeTab.value)
-    if (idx === -1) return
+    const idx = dashboardTabs.findIndex(it => it.key === activeTab.value)
+    if (idx === -1)
+      return
     const next = dx < 0 ? idx + 1 : idx - 1
     const target = dashboardTabs[next]
-    if (target) activeTab.value = target.key
-
+    if (target)
+      activeTab.value = target.key
   }
 }
 
 // 切换 tab 时给内容区一个轻微淡入，缓解滑动卡顿观感
 watch(activeTab, () => {
   const el = panelEl.value
-  if (!el) return
+  if (!el)
+    return
   el.classList.remove('tab-fade')
   void el.offsetWidth
   el.classList.add('tab-fade')
@@ -432,58 +460,12 @@ const fertilizerOrganic = computed(() => dashboardItems.value.find((item: any) =
 const collectionNormal = computed(() => dashboardItems.value.find((item: any) => Number(item.id) === 3001))
 const collectionRare = computed(() => dashboardItems.value.find((item: any) => Number(item.id) === 3002))
 
-const nextFarmCheck = ref('--:--:--')
-const nextHelpCheck = ref('--:--:--')
-const nextStealCheck = ref('--:--:--')
-const localUptime = ref(0)
-
-let localNextFarmRemainSec = 0
-let localNextHelpRemainSec = 0
-let localNextStealRemainSec = 0
-let localFarmTotalSec = 120
-let localHelpTotalSec = 180
-let localStealTotalSec = 120
-let lastUpdateTime = Date.now()
-
-// 圆环进度（requestAnimationFrame 实时驱动）
-const farmPct = ref(0)
-const helpPct = ref(0)
-const stealPct = ref(0)
-
-function animateProgress() {
-  const now = Date.now()
-  const elapsed = (now - lastUpdateTime) / 1000
-  if (localNextFarmRemainSec > 0) {
-    const remain = Math.max(0, localNextFarmRemainSec - elapsed)
-    farmPct.value = localFarmTotalSec > 0 ? Math.min(1, remain / localFarmTotalSec) : 0
-  } else { farmPct.value = 0 }
-  if (localNextHelpRemainSec > 0) {
-    const remain = Math.max(0, localNextHelpRemainSec - elapsed)
-    helpPct.value = localHelpTotalSec > 0 ? Math.min(1, remain / localHelpTotalSec) : 0
-  } else { helpPct.value = 0 }
-  if (localNextStealRemainSec > 0) {
-    const remain = Math.max(0, localNextStealRemainSec - elapsed)
-    stealPct.value = localStealTotalSec > 0 ? Math.min(1, remain / localStealTotalSec) : 0
-  } else { stealPct.value = 0 }
-  requestAnimationFrame(animateProgress)
-}
-
-let rafStarted = false
-function startProgressAnimation() {
-  if (rafStarted) return
-  rafStarted = true
-  requestAnimationFrame(animateProgress)
-}
+const { nextFarmCheck, nextHelpCheck, nextStealCheck, localUptime, farmPct, helpPct, stealPct, formatDuration, update: updateCountdowns, setFromStatus: setCountdownStatus, reset: resetCountdown } = dashboardCountdown
 
 function resetDashboardState() {
   lastBagFetchAt.value = 0
   localUptime.value = 0
-  localNextFarmRemainSec = 0
-  localNextHelpRemainSec = 0
-  localNextStealRemainSec = 0
-  nextFarmCheck.value = '--:--:--'
-  nextHelpCheck.value = '--:--:--'
-  nextStealCheck.value = '--:--:--'
+  resetCountdown()
 }
 
 const OP_META: Record<string, { label: string, icon: string, color: string }> = {
@@ -531,8 +513,8 @@ const todayStatsRows = computed(() => {
   // 排成 2 列行
   const rows: { key: string }[][] = []
   for (let i = 0; i < keys.length; i += 2) {
-    const k1 = keys[i] || ""
-    const k2 = keys[i + 1] || ""
+    const k1 = keys[i] || ''
+    const k2 = keys[i + 1] || ''
     rows.push([{ key: k1 }, { key: k2 }])
   }
   return rows
@@ -550,76 +532,7 @@ function formatBucketTime(item: any) {
   return `${(Number(item.count || 0) / 3600).toFixed(1)}h`
 }
 
-function updateCountdowns() {
-  if (currentAccountDisconnected.value) {
-    nextFarmCheck.value = '账号未登录'
-    nextHelpCheck.value = '账号未登录'
-    nextStealCheck.value = '账号未登录'
-    return
-  }
-
-  localUptime.value++
-
-  if (localNextFarmRemainSec > 0) {
-    localNextFarmRemainSec--
-    nextFarmCheck.value = formatDuration(localNextFarmRemainSec)
-  }
-  else {
-    nextFarmCheck.value = '检查中...'
-  }
-
-  if (localNextHelpRemainSec > 0) {
-    localNextHelpRemainSec--
-    nextHelpCheck.value = formatDuration(localNextHelpRemainSec)
-  }
-  else {
-    nextHelpCheck.value = '检查中...'
-  }
-
-  if (localNextStealRemainSec > 0) {
-    localNextStealRemainSec--
-    nextStealCheck.value = formatDuration(localNextStealRemainSec)
-  }
-  else {
-    nextStealCheck.value = '检查中...'
-  }
-}
-
-watch(status, (newVal) => {
-  if (newVal?.nextChecks) {
-    const newFarmRemain = newVal.nextChecks.farmRemainSec || 0
-    const newHelpRemain = newVal.nextChecks.helpRemainSec || 0
-    const newStealRemain = newVal.nextChecks.stealRemainSec || 0
-    // 新一轮检查：剩余时间比上次大，说明刚检查完重置了，此时剩余=这轮总时间
-    if (newFarmRemain > localNextFarmRemainSec) localFarmTotalSec = newFarmRemain
-    if (newHelpRemain > localNextHelpRemainSec) localHelpTotalSec = newHelpRemain
-    if (newStealRemain > localNextStealRemainSec) localStealTotalSec = newStealRemain
-    localNextFarmRemainSec = newFarmRemain
-    localNextHelpRemainSec = newHelpRemain
-    localNextStealRemainSec = newStealRemain
-    lastUpdateTime = Date.now()
-    updateCountdowns()
-    startProgressAnimation()
-  }
-
-  if (newVal?.uptime !== undefined)
-    localUptime.value = newVal.uptime
-}, { deep: true })
-
-function formatDuration(seconds: number) {
-  if (seconds <= 0)
-    return '00:00:00'
-
-  const days = Math.floor(seconds / 86400)
-  const hours = Math.floor((seconds % 86400) / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const remainSeconds = Math.floor(seconds % 60)
-  const pad = (value: number) => value.toString().padStart(2, '0')
-
-  if (days > 0)
-    return `${days}天 ${pad(hours)}:${pad(minutes)}:${pad(remainSeconds)}`
-  return `${pad(hours)}:${pad(minutes)}:${pad(remainSeconds)}`
-}
+watch(status, newVal => setCountdownStatus(newVal), { deep: true })
 
 function getLogTagClass(tag: string) {
   if (tag === '错误')
@@ -641,7 +554,7 @@ function formatLogTime(timeStr: string) {
   if (!timeStr)
     return ''
   const parts = timeStr.split(' ')
-  return parts.length > 1 ? parts[1] : timeStr
+  return parts.length > 1 ? (parts[1] || timeStr) : timeStr
 }
 
 function getOpName(key: string | number) {
@@ -714,7 +627,7 @@ function onLogSearchTrigger() {
   refresh(true)
 }
 
-watch(currentAccountId, async (newId, oldId) => {
+useAccountScope(currentAccountId, async (newId, oldId) => {
   if (oldId !== undefined && newId !== oldId) {
     statusStore.clearAccountScopedData()
     bagStore.clearBag()
@@ -822,11 +735,10 @@ useIntervalFn(updateCountdowns, 1000)
       </linearGradient>
     </defs>
   </svg>
-  <div ref="panelEl" class="flex flex-col gap-2 pt-1 md:pt-2 overflow-x-hidden" @touchstart="onSwipeStart" @touchend="onSwipeEnd">
+  <div ref="panelEl" class="flex flex-col gap-2 overflow-x-hidden pt-1 md:pt-2" @touchstart="onSwipeStart" @touchend="onSwipeEnd">
     <!-- 首页子标签导航 -->
 
-    <div class="sticky top-0 z-30 -mx-1 px-1 pt-1" style="transform: translateZ(0);">
-
+    <div class="sticky top-0 z-30 px-1 pt-1 -mx-1" style="transform: translateZ(0);">
       <DashboardTabs
 
         :tabs="dashboardTabs"
@@ -834,33 +746,51 @@ useIntervalFn(updateCountdowns, 1000)
         :active-tab="activeTab"
 
         @update:active-tab="activeTab = $event"
-
       />
-
     </div>
 
     <!-- ===== 概览 ===== -->
     <div v-show="activeTab === 'overview'" class="overview-panel grid grid-cols-1 gap-4 lg:grid-cols-3 sm:grid-cols-2">
+      <AccountHeader
+        :name="String(nickName)"
+        :avatar="currentAvatarSrc"
+        :level="Number(status?.status?.level || 0)"
+        :gold="formatGoldAmount(status?.status?.gold || 0)"
+        :coupon="formatCouponAmount(status?.status?.coupon || 0)"
+        :gold-bean="formatGoldBeanAmount(status?.status?.goldBean || 0)"
+        :uptime="formatDuration(localUptime)"
+        :connected="!!status?.connection?.connected"
+        :exp-percent="getExpPercent(status?.levelProgress)"
+        :exp-current="status?.levelProgress?.current || 0"
+        :exp-needed="status?.levelProgress?.needed || '?'"
+        :exp-rate="expRate"
+        :time-to-level="timeToLevel"
+        :all-accounts-running="allAccountsRunning"
+        :start-all-loading="startAllLoading"
+        :start-btn-style="startBtnStyle"
+        @career="openCareerModal"
+        @start-all="startAllAccounts"
+      />
       <!-- 合并账号面板 -->
-      <div class="overview-card">
+      <div v-if="false" class="overview-card">
         <div class="flex flex-col">
           <!-- 第一行：主题切换 + 居中标题 -->
-          <div class="flex items-center px-5 py-3 border-b border-gray-100/80 dark:border-gray-700/80">
+          <div class="flex items-center border-b border-gray-100/80 px-5 py-3 dark:border-gray-700/80">
             <!-- 主题切换按钮 左 -->
-            <ThemeToggle class="shrink-0 mr-2" />
+            <ThemeToggle class="mr-2 shrink-0" />
             <div class="flex flex-1 items-center justify-center gap-2">
               <div class="i-fas-user-circle text-blue-500" />
-              <span class="text-sm font-semibold text-gray-700 dark:text-gray-200">QQ农场智能助手</span>
+              <span class="text-sm text-gray-700 font-semibold dark:text-gray-200">QQ农场智能助手</span>
             </div>
-                        <button
-              class="relative flex h-8 w-16 items-center justify-between rounded-full px-1.5 transition-all duration-300"
+            <button
+              class="relative h-8 w-16 flex items-center justify-between rounded-full px-1.5 transition-all duration-300"
               :style="startBtnStyle"
               :disabled="startAllLoading"
               :title="startAllLoading ? '启动中' : (allAccountsRunning ? '停止' : '一键启动')"
               @click="startAllAccounts"
             >
               <div
-                class="flex h-6 w-6 transform items-center justify-center rounded-full shadow-md transition-all duration-300"
+                class="h-6 w-6 flex transform items-center justify-center rounded-full shadow-md transition-all duration-300"
                 :class="[allAccountsRunning ? 'translate-x-[18px]' : 'translate-x-0', appStore.isDark ? 'bg-slate-700' : 'bg-white']"
               >
                 <span v-if="startAllLoading" class="i-svg-spinners-90-ring-with-bg text-sm text-blue-500" />
@@ -873,10 +803,10 @@ useIntervalFn(updateCountdowns, 1000)
           <!-- 第二行：头像 + 数据 -->
           <div class="flex gap-4 px-5 py-4">
             <!-- 左侧头像块 -->
-            <div class="flex w-[120px] shrink-0 flex-col items-center gap-2 pt-2">
+            <div class="w-[120px] flex shrink-0 flex-col items-center gap-2 pt-2">
               <!-- 头像 -->
               <div
-                class="relative flex h-[80px] w-[80px] cursor-pointer items-center justify-center overflow-hidden rounded-[20px] bg-gradient-to-br from-gray-200 to-gray-300 ring-1 ring-gray-200 transition-transform hover:scale-[1.02] dark:from-gray-600 dark:to-gray-700 dark:ring-gray-600"
+                class="relative h-[80px] w-[80px] flex cursor-pointer items-center justify-center overflow-hidden rounded-[20px] from-gray-200 to-gray-300 bg-gradient-to-br ring-1 ring-gray-200 transition-transform hover:scale-[1.02] dark:from-gray-600 dark:to-gray-700 dark:ring-gray-600"
                 title="查看生涯统计"
                 @click="openCareerModal"
               >
@@ -887,21 +817,19 @@ useIntervalFn(updateCountdowns, 1000)
                   class="h-full w-full object-cover"
                   @error="onAvatarError"
                 >
-                <div v-show="!currentAvatarSrc" class="text-3xl font-bold text-white dark:text-gray-300">
+                <div v-show="!currentAvatarSrc" class="text-3xl text-white font-bold dark:text-gray-300">
                   {{ (displayName || '?').charAt(0).toUpperCase() }}
                 </div>
-                <div class="absolute -bottom-[3px] left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full border-2 border-white bg-blue-500 px-2 py-[1px] text-[10px] font-semibold text-white dark:border-gray-800">
+                <div class="absolute left-1/2 whitespace-nowrap border-2 border-white rounded-full bg-blue-500 px-2 py-[1px] text-[10px] text-white font-semibold -bottom-[3px] -translate-x-1/2 dark:border-gray-800">
                   Lv.{{ String(status?.status?.level ?? 0) }}
                 </div>
               </div>
 
               <!-- 昵称 + 切换三角形（居中紧挨） -->
               <div data-account-dropdown class="relative flex items-center justify-center gap-0.5">
-                <span class="max-w-[80px] truncate text-xs font-semibold text-gray-800 dark:text-gray-200" :title="String(nickName)">
+                <span class="max-w-[80px] truncate text-xs text-gray-800 font-semibold dark:text-gray-200" :title="String(nickName)">
                   {{ nickName }}
                 </span>
-                
-
               </div>
 
               <!-- EXP 进度条 -->
@@ -915,46 +843,48 @@ useIntervalFn(updateCountdowns, 1000)
                 <div class="mt-0.5 text-center text-[9px] text-gray-400">
                   效率: {{ expRate }}
                 </div>
-                <div class="text-center text-[9px] text-gray-400">{{ timeToLevel }}</div>
+                <div class="text-center text-[9px] text-gray-400">
+                  {{ timeToLevel }}
+                </div>
               </div>
             </div>
 
             <!-- 右侧数据（纵向排列） -->
-            <div class="flex min-w-0 flex-1 flex-col">
+            <div class="min-w-0 flex flex-1 flex-col">
               <!-- 数据行 -->
               <div class="flex items-center border-b border-gray-100/80 py-2.5 dark:border-gray-700/80">
-                <div class="flex w-16 items-center gap-1.5 text-xs text-gray-500">
+                <div class="w-16 flex items-center gap-1.5 text-xs text-gray-500">
                   <div class="i-fas-coins text-yellow-500" />
                   <span>金币</span>
                 </div>
-                <div class="flex-1 text-right text-sm font-bold text-yellow-600 dark:text-yellow-500">
+                <div class="flex-1 text-right text-sm text-yellow-600 font-bold dark:text-yellow-500">
                   {{ formatGoldAmount(status?.status?.gold || 0) }}
                 </div>
               </div>
               <div class="flex items-center border-b border-gray-100/80 py-2.5 dark:border-gray-700/80">
-                <div class="flex w-16 items-center gap-1.5 text-xs text-gray-500">
+                <div class="w-16 flex items-center gap-1.5 text-xs text-gray-500">
                   <div class="i-fas-ticket-alt text-emerald-400" />
                   <span>点券</span>
                 </div>
-                <div class="flex-1 text-right text-sm font-bold text-emerald-500 dark:text-emerald-400">
+                <div class="flex-1 text-right text-sm text-emerald-500 font-bold dark:text-emerald-400">
                   {{ formatCouponAmount(status?.status?.coupon || 0) }}
                 </div>
               </div>
               <div class="flex items-center border-b border-gray-100/80 py-2.5 dark:border-gray-700/80">
-                <div class="flex w-16 items-center gap-1.5 text-xs text-gray-500">
+                <div class="w-16 flex items-center gap-1.5 text-xs text-gray-500">
                   <div class="i-carbon-circle text-amber-500" />
                   <span>金豆</span>
                 </div>
-                <div class="flex-1 text-right text-sm font-bold text-amber-500 dark:text-amber-400">
+                <div class="flex-1 text-right text-sm text-amber-500 font-bold dark:text-amber-400">
                   {{ formatGoldBeanAmount(status?.status?.goldBean || 0) }}
                 </div>
               </div>
               <div class="flex items-center py-2.5">
-                <div class="flex w-16 items-center gap-1.5 text-xs text-gray-500">
+                <div class="w-16 flex items-center gap-1.5 text-xs text-gray-500">
                   <div class="i-fas-clock text-purple-400" />
                   <span>在线</span>
                 </div>
-                <div class="flex flex-1 items-center justify-end gap-2 text-right text-sm font-bold text-gray-700 dark:text-gray-200">
+                <div class="flex flex-1 items-center justify-end gap-2 text-right text-sm text-gray-700 font-bold dark:text-gray-200">
                   <span class="inline-block h-2 w-2 rounded-full" :class="status?.connection?.connected ? 'bg-green-500' : currentStatusReady ? 'bg-red-500' : 'bg-gray-300'" />
                   {{ formatDuration(localUptime) }}
                 </div>
@@ -964,14 +894,24 @@ useIntervalFn(updateCountdowns, 1000)
         </div>
       </div>
 
-      <!-- 今日统计（展开/折叠） -->
-      <div class="overview-card p-5">
+      <TodayStatsPanel
+        :operations="todayStats.filteredOperations.value"
+        :rows="todayStats.rows.value"
+        :expanded="todayStats.expanded.value"
+        :disconnected="currentAccountDisconnected"
+        :get-name="todayStats.getOpName"
+        :get-icon="todayStats.getOpIcon"
+        :get-color="todayStats.getOpColor"
+        @toggle="toggleTodayStats"
+      />
+      <!-- 旧统计区块由 TodayStatsPanel 接管 -->
+      <div v-if="false" class="overview-card p-5">
         <div class="mb-3 flex items-center justify-between">
           <div class="flex items-center gap-2 text-sm text-gray-500">
             <div class="i-carbon-chart-column" />
             <span>今日统计</span>
           </div>
-          <div v-if="Object.keys(filteredOperations).length" class="flex items-center gap-1 text-xs text-gray-400 cursor-pointer select-none hover:text-blue-500" @click="todayStatsExpanded = !todayStatsExpanded">
+          <div v-if="Object.keys(filteredOperations).length" class="flex cursor-pointer select-none items-center gap-1 text-xs text-gray-400 hover:text-blue-500" @click="todayStatsExpanded = !todayStatsExpanded">
             <span>{{ todayStatsExpanded ? '收起' : '展开' }}</span>
             <div class="i-carbon-chevron-down text-sm transition-transform duration-200" :class="{ 'rotate-180': todayStatsExpanded }" />
           </div>
@@ -979,13 +919,21 @@ useIntervalFn(updateCountdowns, 1000)
 
         <div v-if="currentAccountDisconnected" class="flex flex-col items-center justify-center gap-4 py-8 text-center text-gray-500">
           <div class="i-carbon-connection-signal-off text-4xl text-gray-400" />
-          <div class="text-base font-medium text-gray-700 dark:text-gray-300">账号未登录</div>
-          <div class="text-sm text-gray-400">请先运行账号或检查网络连接。</div>
+          <div class="text-base text-gray-700 font-medium dark:text-gray-300">
+            账号未登录
+          </div>
+          <div class="text-sm text-gray-400">
+            请先运行账号或检查网络连接。
+          </div>
         </div>
         <div v-else-if="!Object.keys(filteredOperations).length" class="flex flex-col items-center justify-center gap-3 py-6 text-center">
           <div class="i-carbon-chart-column text-3xl text-gray-300" />
-          <div class="text-sm font-medium text-gray-600 dark:text-gray-300">暂无主动作统计</div>
-          <div class="text-xs text-gray-400">通常是刚启动、刚切换账号，或本轮巡查尚未完成。</div>
+          <div class="text-sm text-gray-600 font-medium dark:text-gray-300">
+            暂无主动作统计
+          </div>
+          <div class="text-xs text-gray-400">
+            通常是刚启动、刚切换账号，或本轮巡查尚未完成。
+          </div>
         </div>
         <div v-else class="flex flex-col gap-2">
           <div
@@ -1016,7 +964,7 @@ useIntervalFn(updateCountdowns, 1000)
       <!-- 倒计时圆环卡片 + 化肥容器（原 md:w-1/4，现放前面） -->
       <div class="flex flex-col gap-5 md:w-1/4">
         <div class="overview-card flex flex-col p-4">
-          <div class="mb-3 flex items-center justify-center gap-1.5 text-xs text-gray-400 dark:text-gray-300 font-medium">
+          <div class="mb-3 flex items-center justify-center gap-1.5 text-xs text-gray-400 font-medium dark:text-gray-300">
             <div class="i-carbon-hourglass" />
             <span>下次检查倒计时</span>
           </div>
@@ -1024,39 +972,51 @@ useIntervalFn(updateCountdowns, 1000)
             <!-- 农场 -->
             <div class="relative flex flex-col items-center gap-1.5">
               <div class="relative flex items-center justify-center" style="width:78px;height:78px;">
-                <svg class="absolute inset-0 w-full h-full" viewBox="0 0 36 36" style="transform:rotate(-90deg);">
+                <svg class="absolute inset-0 h-full w-full" viewBox="0 0 36 36" style="transform:rotate(-90deg);">
                   <circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(128,128,128,0.12)" stroke-width="4.5" />
                   <circle cx="18" cy="18" r="15.5" fill="none" stroke="url(#violetGrad)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="97.4" :stroke-dashoffset="(97.4 * (1 - farmPct)).toFixed(2)" style="transition: stroke-dashoffset 0.3s linear;" />
                 </svg>
                 <div class="flex flex-col items-center leading-none">
-                  <div class="text-xs font-bold tabular-nums" style="color:#a5b4fc;">{{ nextFarmCheck }}</div>
-                  <div class="text-[9px] text-gray-500 dark:text-gray-400 mt-0.5">农场</div>
+                  <div class="text-xs font-bold tabular-nums" style="color:#a5b4fc;">
+                    {{ nextFarmCheck }}
+                  </div>
+                  <div class="mt-0.5 text-[9px] text-gray-500 dark:text-gray-400">
+                    农场
+                  </div>
                 </div>
               </div>
             </div>
             <!-- 帮助 -->
             <div class="relative flex flex-col items-center gap-1.5">
               <div class="relative flex items-center justify-center" style="width:78px;height:78px;">
-                <svg class="absolute inset-0 w-full h-full" viewBox="0 0 36 36" style="transform:rotate(-90deg);">
+                <svg class="absolute inset-0 h-full w-full" viewBox="0 0 36 36" style="transform:rotate(-90deg);">
                   <circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(128,128,128,0.12)" stroke-width="4.5" />
                   <circle cx="18" cy="18" r="15.5" fill="none" stroke="url(#coralGrad)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="97.4" :stroke-dashoffset="(97.4 * (1 - helpPct)).toFixed(2)" style="transition: stroke-dashoffset 0.3s linear;" />
                 </svg>
                 <div class="flex flex-col items-center leading-none">
-                  <div class="text-xs font-bold tabular-nums" style="color:#fdba74;">{{ nextHelpCheck }}</div>
-                  <div class="text-[9px] text-gray-500 dark:text-gray-400 mt-0.5">帮助</div>
+                  <div class="text-xs font-bold tabular-nums" style="color:#fdba74;">
+                    {{ nextHelpCheck }}
+                  </div>
+                  <div class="mt-0.5 text-[9px] text-gray-500 dark:text-gray-400">
+                    帮助
+                  </div>
                 </div>
               </div>
             </div>
             <!-- 偷菜 -->
             <div class="relative flex flex-col items-center gap-1.5">
               <div class="relative flex items-center justify-center" style="width:78px;height:78px;">
-                <svg class="absolute inset-0 w-full h-full" viewBox="0 0 36 36" style="transform:rotate(-90deg);">
+                <svg class="absolute inset-0 h-full w-full" viewBox="0 0 36 36" style="transform:rotate(-90deg);">
                   <circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(128,128,128,0.12)" stroke-width="4.5" />
                   <circle cx="18" cy="18" r="15.5" fill="none" stroke="url(#emeraldGrad)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="97.4" :stroke-dashoffset="(97.4 * (1 - stealPct)).toFixed(2)" style="transition: stroke-dashoffset 0.3s linear;" />
                 </svg>
                 <div class="flex flex-col items-center leading-none">
-                  <div class="text-xs font-bold tabular-nums" style="color:#6ee7b7;">{{ nextStealCheck }}</div>
-                  <div class="text-[9px] text-gray-500 dark:text-gray-400 mt-0.5">偷菜</div>
+                  <div class="text-xs font-bold tabular-nums" style="color:#6ee7b7;">
+                    {{ nextStealCheck }}
+                  </div>
+                  <div class="mt-0.5 text-[9px] text-gray-500 dark:text-gray-400">
+                    偷菜
+                  </div>
                 </div>
               </div>
             </div>
@@ -1075,14 +1035,18 @@ useIntervalFn(updateCountdowns, 1000)
                 <div class="i-fas-flask text-emerald-400" />
                 普通
               </div>
-              <div class="font-bold text-gray-800 dark:text-gray-100">{{ formatBucketTime(fertilizerNormal) }}</div>
+              <div class="text-gray-800 font-bold dark:text-gray-100">
+                {{ formatBucketTime(fertilizerNormal) }}
+              </div>
             </div>
             <div>
               <div class="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-300">
                 <div class="i-fas-vial text-emerald-400" />
                 有机
               </div>
-              <div class="font-bold text-gray-800 dark:text-gray-100">{{ formatBucketTime(fertilizerOrganic) }}</div>
+              <div class="text-gray-800 font-bold dark:text-gray-100">
+                {{ formatBucketTime(fertilizerOrganic) }}
+              </div>
             </div>
           </div>
           <div class="my-3 border-t border-gray-100/80 dark:border-gray-700/80" />
@@ -1096,14 +1060,18 @@ useIntervalFn(updateCountdowns, 1000)
                 <div class="i-fas-bookmark text-emerald-400" />
                 普通
               </div>
-              <div class="font-bold text-gray-800 dark:text-gray-100">{{ collectionNormal?.count || 0 }}</div>
+              <div class="text-gray-800 font-bold dark:text-gray-100">
+                {{ collectionNormal?.count || 0 }}
+              </div>
             </div>
             <div>
               <div class="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-300">
                 <div class="i-fas-gem text-emerald-400" />
                 典藏
               </div>
-              <div class="font-bold text-gray-800 dark:text-gray-100">{{ collectionRare?.count || 0 }}</div>
+              <div class="text-gray-800 font-bold dark:text-gray-100">
+                {{ collectionRare?.count || 0 }}
+              </div>
             </div>
           </div>
         </div>
@@ -1111,7 +1079,23 @@ useIntervalFn(updateCountdowns, 1000)
 
       <!-- 运行日志卡片（原 md:w-3/4，现放后面） -->
       <div class="flex flex-1 flex-col gap-5 md:w-3/4">
-        <div class="overview-card flex flex-1 flex-col p-5 md:overflow-hidden">
+        <LogConsole
+          :logs="allLogs"
+          :modules="modules"
+          :events="events"
+          :levels="logLevels"
+          :filter="filter"
+          :clearing="clearingLogs"
+          :event-label="getEventLabel"
+          :tag-class="getLogTagClass"
+          :msg-class="getLogMsgClass"
+          :time="formatLogTime"
+          @filter="onLogFilterChange"
+          @update-filter="Object.assign(filter, $event)"
+          @search="onLogSearchTrigger"
+          @clear="clearLogs"
+        />
+        <div v-if="false" class="overview-card flex flex-1 flex-col p-5 md:overflow-hidden">
           <div class="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <h3 class="flex items-center gap-2 text-lg font-medium">
               <div class="i-carbon-document" />
@@ -1282,9 +1266,11 @@ useIntervalFn(updateCountdowns, 1000)
   <!-- 一键启动结果弹窗 -->
   <Teleport to="body">
     <Transition name="fade">
-      <div v-if="showStartAllModal" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" @click.self="showStartAllModal = false">
-        <div class="w-full max-w-sm rounded-2xl glass-card p-5">
-          <h3 class="mb-4 text-center text-base font-bold">🚀 一键启动结果</h3>
+      <div v-if="showStartAllModal" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" @click.self="showStartAllModal = false">
+        <div class="glass-card max-w-sm w-full rounded-2xl p-5">
+          <h3 class="mb-4 text-center text-base font-bold">
+            🚀 一键启动结果
+          </h3>
           <div class="flex flex-col gap-2">
             <div
               v-for="(r, i) in startAllResults"
@@ -1292,14 +1278,14 @@ useIntervalFn(updateCountdowns, 1000)
               class="flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm"
               :class="r.ok ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300'"
             >
-              <div class="flex h-5 w-5 items-center justify-center rounded-full text-xs font-bold text-white" :class="r.ok ? 'bg-green-500' : 'bg-red-500'">
+              <div class="h-5 w-5 flex items-center justify-center rounded-full text-xs text-white font-bold" :class="r.ok ? 'bg-green-500' : 'bg-red-500'">
                 {{ r.ok ? '✓' : '✕' }}
               </div>
               <span class="font-medium">{{ r.name }}</span>
               <span class="ml-auto text-xs opacity-75">{{ r.msg }}</span>
             </div>
           </div>
-          <button class="mt-4 w-full rounded-xl bg-blue-500 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-blue-600" @click="showStartAllModal = false">
+          <button class="mt-4 w-full rounded-xl bg-blue-500 py-2.5 text-sm text-white font-semibold transition-colors hover:bg-blue-600" @click="showStartAllModal = false">
             确定
           </button>
         </div>
@@ -1320,7 +1306,9 @@ useIntervalFn(updateCountdowns, 1000)
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   background: var(--theme-glass);
   border: 1px solid var(--theme-border);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.04),
+    0 1px 2px rgba(0, 0, 0, 0.02);
   transition: box-shadow 0.2s;
 }
 
@@ -1390,11 +1378,16 @@ useIntervalFn(updateCountdowns, 1000)
   border-color: var(--theme-border) !important;
 }
 
-
 /* 切 tab 淡入 */
-.tab-fade { animation: tabFadeIn 0.2s ease; }
+.tab-fade {
+  animation: tabFadeIn 0.2s ease;
+}
 @keyframes tabFadeIn {
-  from { opacity: 0.35; }
-  to { opacity: 1; }
+  from {
+    opacity: 0.35;
+  }
+  to {
+    opacity: 1;
+  }
 }
 </style>

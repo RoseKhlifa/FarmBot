@@ -5,16 +5,22 @@ import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import api from '@/api'
 import ConfirmModal from '@/components/ConfirmModal.vue'
+import BatchAddGidModal from '@/components/friends/BatchAddGidModal.vue'
+import DeleteConfirmModal from '@/components/friends/DeleteConfirmModal.vue'
 import FriendsAddPanel from '@/components/friends/FriendsAddPanel.vue'
+import FriendsBlacklistTab from '@/components/friends/FriendsBlacklistTab.vue'
 import FriendsFriendList from '@/components/friends/FriendsFriendList.vue'
 import FriendsPageHeader from '@/components/friends/FriendsPageHeader.vue'
 import FriendsSyncSettings from '@/components/friends/FriendsSyncSettings.vue'
 import FriendsTabs from '@/components/friends/FriendsTabs.vue'
+import FriendsVisitorsTab from '@/components/friends/FriendsVisitorsTab.vue'
+import GidManagerModal from '@/components/friends/GidManagerModal.vue'
+import { useAccountScope } from '@/composables/useAccountScope'
+import { formatFriendGold, formatInteractTime, getFriendAvatar, getFriendAvatarKey, getFriendGold, getFriendLevel, getFriendStatusHint, getFriendStatusText, getInteractAvatar, getInteractAvatarKey, getInteractBadgeClass } from '@/composables/useFriendFormatters'
 import { useAccountStore } from '@/stores/account'
 import { useFriendStore } from '@/stores/friend'
 import { useStatusStore } from '@/stores/status'
 import { useToastStore } from '@/stores/toast'
-import { formatGoldAmount } from '@/utils/number-format'
 
 const GID_BATCH_SEPARATOR_RE = /[,，\s]+/
 
@@ -353,14 +359,14 @@ useIntervalFn(() => {
   }
 }, 1000)
 
-watch(currentAccountId, (newId, oldId) => {
+useAccountScope(currentAccountId, (newId, oldId) => {
   expandedFriends.value.clear()
   if (oldId !== undefined && newId !== oldId) {
     friendStore.clearFriendData()
     statusStore.clearAccountScopedData()
   }
   loadData()
-}, { immediate: true })
+})
 
 watch(() => [currentAccount.value?.id, currentAccount.value?.running] as const, ([id, running], [oldId, oldRunning]) => {
   if (!id)
@@ -485,65 +491,6 @@ async function handleDeleteFriend(friend: any, e: Event) {
   )
 }
 
-function getFriendStatusText(friend: any) {
-  const p = friend.plant || {}
-  const info = []
-  if (p.stealNum)
-    info.push(`偷${p.stealNum}`)
-  if (p.dryNum)
-    info.push(`水${p.dryNum}`)
-  if (p.weedNum)
-    info.push(`草${p.weedNum}`)
-  if (p.insectNum)
-    info.push(`虫${p.insectNum}`)
-  return info.length ? info.join(' ') : '无操作'
-}
-
-function getFriendStatusHint(friend: any) {
-  const plant = friend?.plant || {}
-  if (Number(plant.stealNum || 0) > 0)
-    return `当前可偷 ${plant.stealNum} 块地，适合优先展开查看。`
-  if (Number(plant.dryNum || 0) > 0 || Number(plant.weedNum || 0) > 0 || Number(plant.insectNum || 0) > 0)
-    return '当前有可帮忙状态，可展开查看浇水、除草和除虫详情。'
-  return '当前没有明显的手动互动提示，可先作为普通好友资料查看。'
-}
-
-function getFriendLevel(friend: any) {
-  const level = Number.parseInt(String(friend?.level ?? ''), 10)
-  if (!Number.isFinite(level) || level <= 0)
-    return 0
-  return level
-}
-
-function getFriendGold(friend: any) {
-  const gold = Number.parseInt(String(friend?.gold ?? ''), 10)
-  if (!Number.isFinite(gold) || gold < 0)
-    return 0
-  return gold
-}
-
-function formatFriendGold(value: unknown) {
-  const gold = Number.parseInt(String(value ?? ''), 10)
-  if (!Number.isFinite(gold) || gold < 0)
-    return '0'
-  return formatGoldAmount(gold)
-}
-
-function getFriendAvatar(friend: any) {
-  const direct = String(friend?.avatarUrl || friend?.avatar_url || '').trim()
-  if (direct)
-    return direct
-  const uin = String(friend?.uin || '').trim()
-  if (uin)
-    return `https://q1.qlogo.cn/g?b=qq&nk=${uin}&s=100`
-  return ''
-}
-
-function getFriendAvatarKey(friend: any) {
-  const key = String(friend?.gid || friend?.uin || '').trim()
-  return key || String(friend?.name || '').trim()
-}
-
 function canShowFriendAvatar(friend: any) {
   const key = getFriendAvatarKey(friend)
   if (!key)
@@ -556,6 +503,17 @@ function handleFriendAvatarError(friend: any) {
   if (!key)
     return
   avatarErrorKeys.value.add(key)
+}
+
+function canShowInteractAvatar(record: any) {
+  const key = getInteractAvatarKey(record)
+  return !!key && !!getInteractAvatar(record) && !avatarErrorKeys.value.has(key)
+}
+
+function handleInteractAvatarError(record: any) {
+  const key = getInteractAvatarKey(record)
+  if (key)
+    avatarErrorKeys.value.add(key)
 }
 
 async function handleRemoveFromBlacklist(gid: number) {
@@ -574,85 +532,6 @@ async function refreshInteractRecords() {
   if (!currentAccountId.value)
     return
   await friendStore.fetchInteractRecords(currentAccountId.value)
-}
-
-function getInteractAvatar(record: any) {
-  return String(record?.avatarUrl || '').trim()
-}
-
-function getInteractAvatarKey(record: any) {
-  const key = String(record?.visitorGid || record?.key || record?.nick || '').trim()
-  return key ? `interact:${key}` : ''
-}
-
-function canShowInteractAvatar(record: any) {
-  const key = getInteractAvatarKey(record)
-  if (!key)
-    return false
-  return !!getInteractAvatar(record) && !avatarErrorKeys.value.has(key)
-}
-
-function handleInteractAvatarError(record: any) {
-  const key = getInteractAvatarKey(record)
-  if (!key)
-    return
-  avatarErrorKeys.value.add(key)
-}
-
-function getInteractBadgeClass(actionType: number) {
-  if (Number(actionType) === 1)
-    return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-  if (Number(actionType) === 2)
-    return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-  if (Number(actionType) === 3)
-    return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-  return 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300'
-}
-
-function formatInteractTime(timestamp: number) {
-  const ts = Number(timestamp) || 0
-  if (!ts)
-    return '--'
-
-  const date = new Date(ts)
-  const now = new Date()
-  const diff = now.getTime() - date.getTime()
-  const minute = 60 * 1000
-  const hour = 60 * minute
-
-  if (diff >= 0 && diff < minute)
-    return '刚刚'
-  if (diff >= minute && diff < hour)
-    return `${Math.floor(diff / minute)} 分钟前`
-
-  const sameDay = now.getFullYear() === date.getFullYear()
-    && now.getMonth() === date.getMonth()
-    && now.getDate() === date.getDate()
-
-  if (sameDay) {
-    return `今天 ${date.toLocaleTimeString('zh-CN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    })}`
-  }
-
-  if (now.getFullYear() === date.getFullYear()) {
-    return `${date.getMonth() + 1}-${date.getDate()} ${date.toLocaleTimeString('zh-CN', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: false,
-    })}`
-  }
-
-  return date.toLocaleString('zh-CN', {
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-    hour12: false,
-  })
 }
 
 function normalizeKnownFriendGidSyncCooldownSec(value: number) {
@@ -819,45 +698,45 @@ async function handleBatchAddKnownFriendGids() {
         />
 
         <div class="flex flex-wrap items-center gap-2 rounded-lg bg-white p-3 shadow dark:bg-gray-800">
-            <button
-              v-for="filter in dogFilters"
-              :key="filter.key"
-              class="rounded-full px-3 py-1 text-xs transition"
-              :class="dogFilter === filter.key
-                ? 'text-white'
-                : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
-              :style="dogFilter === filter.key ? { backgroundColor: 'var(--theme-primary)' } : {}"
-              @click="dogFilter = filter.key"
-            >
-              {{ filter.label }}
-              <span class="ml-1 opacity-75">
-                ({{
-                  filter.key === 'guardDog'
-                    ? guardDogCount
-                    : filter.key === 'noGuardDog'
-                      ? noGuardDogCount
-                      : friends.length
-                }})
-              </span>
-            </button>
-            <div class="flex-1" />
-            <button
-              class="rounded bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
-              :disabled="loading"
-              @click="handleRefreshFriends"
-            >
-              <div v-if="loading" class="i-svg-spinners-90-ring-with-bg mr-1 inline-block align-text-bottom" />
-              刷新列表
-            </button>
-            <button
-              class="rounded bg-blue-100 px-3 py-1.5 text-sm text-blue-700 transition dark:bg-blue-900/30 hover:bg-blue-200 dark:text-blue-400 disabled:opacity-50 dark:hover:bg-blue-900/50"
-              :disabled="dogInfoLoading || friends.length === 0"
-              @click="handleFetchDogInfo"
-            >
-              <div v-if="dogInfoLoading" class="i-svg-spinners-90-ring-with-bg mr-1 inline-block align-text-bottom" />
-              获取狗信息
-            </button>
-          </div>
+          <button
+            v-for="filter in dogFilters"
+            :key="filter.key"
+            class="rounded-full px-3 py-1 text-xs transition"
+            :class="dogFilter === filter.key
+              ? 'text-white'
+              : 'bg-gray-100 text-gray-600 dark:bg-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'"
+            :style="dogFilter === filter.key ? { backgroundColor: 'var(--theme-primary)' } : {}"
+            @click="dogFilter = filter.key"
+          >
+            {{ filter.label }}
+            <span class="ml-1 opacity-75">
+              ({{
+                filter.key === 'guardDog'
+                  ? guardDogCount
+                  : filter.key === 'noGuardDog'
+                    ? noGuardDogCount
+                    : friends.length
+              }})
+            </span>
+          </button>
+          <div class="flex-1" />
+          <button
+            class="rounded bg-gray-100 px-3 py-1.5 text-sm text-gray-600 transition dark:bg-gray-700 hover:bg-gray-200 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
+            :disabled="loading"
+            @click="handleRefreshFriends"
+          >
+            <div v-if="loading" class="i-svg-spinners-90-ring-with-bg mr-1 inline-block align-text-bottom" />
+            刷新列表
+          </button>
+          <button
+            class="rounded bg-blue-100 px-3 py-1.5 text-sm text-blue-700 transition dark:bg-blue-900/30 hover:bg-blue-200 dark:text-blue-400 disabled:opacity-50 dark:hover:bg-blue-900/50"
+            :disabled="dogInfoLoading || friends.length === 0"
+            @click="handleFetchDogInfo"
+          >
+            <div v-if="dogInfoLoading" class="i-svg-spinners-90-ring-with-bg mr-1 inline-block align-text-bottom" />
+            获取狗信息
+          </button>
+        </div>
 
         <div v-if="friends.length === 0" class="rounded-lg bg-white p-8 text-center text-gray-500 shadow dark:bg-gray-800">
           <div class="i-carbon-user-multiple mx-auto mb-3 text-4xl text-gray-300" />
@@ -869,36 +748,44 @@ async function handleBatchAddKnownFriendGids() {
           </p>
         </div>
 
-          <FriendsFriendList
-            v-model:current-page="currentPage"
-            :friends="paginatedFriends"
-            :total-friends="filteredFriends.length"
-            :total-pages="totalPages"
-            :page-size="pageSize"
-            :blacklist-gid-set="blacklistGidSet"
-            :known-friend-gid-set="knownFriendGidSet"
-            :expanded-friends="expandedFriends"
-            :friend-lands="friendLands"
-            :friend-lands-loading="friendLandsLoading"
-            :is-qq-account="isQqAccount"
-            :can-show-friend-avatar="canShowFriendAvatar"
-            :get-friend-avatar="getFriendAvatar"
-            :get-friend-level="getFriendLevel"
-            :get-friend-gold="getFriendGold"
-            :format-friend-gold="formatFriendGold"
-            :get-friend-status-text="getFriendStatusText"
-            :get-friend-status-hint="getFriendStatusHint"
-            @toggle-friend="toggleFriend"
-            @operate="handleOp"
-            @toggle-blacklist="handleToggleBlacklist"
-            @delete-friend="handleDeleteFriend"
-            @remove-known-friend-gid="handleRemoveKnownFriendGid"
-            @friend-avatar-error="handleFriendAvatarError"
-            v-if="friends.length > 0"
-          />
+        <FriendsFriendList
+          v-model:current-page="currentPage"
+          :friends="paginatedFriends"
+          :total-friends="filteredFriends.length"
+          :total-pages="totalPages"
+          :page-size="pageSize"
+          v-if="friends.length > 0"
+          :blacklist-gid-set="blacklistGidSet"
+          :known-friend-gid-set="knownFriendGidSet"
+          :expanded-friends="expandedFriends"
+          :friend-lands="friendLands"
+          :friend-lands-loading="friendLandsLoading"
+          :is-qq-account="isQqAccount"
+          :can-show-friend-avatar="canShowFriendAvatar"
+          :get-friend-avatar="getFriendAvatar"
+          :get-friend-level="getFriendLevel"
+          :get-friend-gold="getFriendGold"
+          :format-friend-gold="formatFriendGold"
+          :get-friend-status-text="getFriendStatusText"
+          :get-friend-status-hint="getFriendStatusHint"
+          @toggle-friend="toggleFriend"
+          @operate="handleOp"
+          @toggle-blacklist="handleToggleBlacklist"
+          @delete-friend="handleDeleteFriend"
+          @remove-known-friend-gid="handleRemoveKnownFriendGid"
+          @friend-avatar-error="handleFriendAvatarError"
+        />
       </div>
 
-      <div v-else-if="activeTab === 'blacklist'" class="space-y-4">
+      <FriendsBlacklistTab
+        v-else-if="activeTab === 'blacklist'"
+        :blacklist="blacklist"
+        :friends-count="friends.length"
+        @update="handleUpdateBlacklistItem"
+        @remove="handleRemoveFromBlacklist"
+      />
+
+      <div v-else-if="String(activeTab) === '__legacy_blacklist__'" class="space-y-4">
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <div class="rounded-2xl bg-white px-4 py-3 shadow dark:bg-gray-800">
             <div class="text-xs text-gray-500 dark:text-gray-400">
@@ -946,9 +833,9 @@ async function handleBatchAddKnownFriendGids() {
           <div
             v-for="item in blacklist"
             :key="item.gid"
-            class="flex flex-col gap-3 rounded-lg bg-white p-4 shadow dark:bg-gray-800 sm:flex-row sm:items-center sm:justify-between"
+            class="flex flex-col gap-3 rounded-lg bg-white p-4 shadow sm:flex-row sm:items-center sm:justify-between dark:bg-gray-800"
           >
-            <div class="flex min-w-0 items-center gap-3">
+            <div class="min-w-0 flex items-center gap-3">
               <div class="h-10 w-10 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-1 ring-gray-100 dark:bg-gray-600 dark:ring-gray-700">
                 <img
                   v-if="item.avatarUrl"
@@ -968,7 +855,7 @@ async function handleBatchAddKnownFriendGids() {
                   <label class="flex cursor-pointer items-center gap-1.5 text-sm text-gray-700 dark:text-gray-200">
                     <input
                       type="checkbox"
-                      class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+                      class="h-4 w-4 border-gray-300 rounded text-blue-600 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500"
                       :checked="item.skipSteal"
                       @change="handleUpdateBlacklistItem(item.gid, { skipSteal: ($event.target as HTMLInputElement).checked })"
                     >
@@ -977,7 +864,7 @@ async function handleBatchAddKnownFriendGids() {
                   <label class="flex cursor-pointer items-center gap-1.5 text-sm text-gray-700 dark:text-gray-200">
                     <input
                       type="checkbox"
-                      class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+                      class="h-4 w-4 border-gray-300 rounded text-blue-600 dark:border-gray-600 dark:bg-gray-700 focus:ring-blue-500"
                       :checked="item.skipHelp"
                       @change="handleUpdateBlacklistItem(item.gid, { skipHelp: ($event.target as HTMLInputElement).checked })"
                     >
@@ -993,7 +880,7 @@ async function handleBatchAddKnownFriendGids() {
               </div>
             </div>
             <button
-              class="w-full shrink-0 rounded bg-red-100 px-3 py-1.5 text-sm text-red-600 dark:bg-red-900/30 hover:bg-red-200 dark:text-red-400 dark:hover:bg-red-900/50 sm:w-auto"
+              class="w-full shrink-0 rounded bg-red-100 px-3 py-1.5 text-sm text-red-600 sm:w-auto dark:bg-red-900/30 hover:bg-red-200 dark:text-red-400 dark:hover:bg-red-900/50"
               @click="handleRemoveFromBlacklist(item.gid)"
             >
               移出黑名单
@@ -1002,7 +889,22 @@ async function handleBatchAddKnownFriendGids() {
         </div>
       </div>
 
-      <div v-else-if="activeTab === 'visitors'" class="space-y-4">
+      <FriendsVisitorsTab
+        v-else-if="activeTab === 'visitors'"
+        :records="interactRecords"
+        :filtered-records="filteredInteractRecords"
+        :visible-records="visibleInteractRecords"
+        :filter="interactFilter"
+        :filters="interactFilters"
+        :loading="interactLoading"
+        :error="interactError"
+        :avatar-error-keys="avatarErrorKeys"
+        @update:filter="interactFilter = $event"
+        @refresh="refreshInteractRecords"
+        @avatar-error="record => avatarErrorKeys.add(getFriendAvatarKey(record))"
+      />
+
+      <div v-else-if="String(activeTab) === '__legacy_visitors__'" class="space-y-4">
         <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
           <div class="rounded-2xl bg-white px-4 py-3 shadow dark:bg-gray-800">
             <div class="text-xs text-gray-500 dark:text-gray-400">
@@ -1160,7 +1062,43 @@ async function handleBatchAddKnownFriendGids() {
       @cancel="!confirmLoading && (showConfirm = false)"
     />
 
-    <Teleport to="body">
+    <BatchAddGidModal
+      v-model="batchGidInput"
+      :show="showBatchAddGidModal"
+      :saving="knownFriendSettingsSaving"
+      @close="showBatchAddGidModal = false"
+      @submit="handleBatchAddKnownFriendGids"
+    />
+    <GidManagerModal
+      :show="showGidListModal"
+      :gids="filteredKnownFriendGids"
+      :total="knownFriendGidCount"
+      :synced="syncedGidCount"
+      :unsynced="unsyncedGidCount"
+      :search="gidSearchKeyword"
+      :saving="knownFriendSettingsSaving"
+      @update:search="gidSearchKeyword = $event"
+      @close="showGidListModal = false"
+      @remove="handleRemoveGidFromList"
+      @remove-unsynced="handleRemoveUnsyncedGids"
+    />
+    <DeleteConfirmModal
+      :show="showDeleteModal"
+      :friends-count="friends.length"
+      :guard-dog-count="guardDogCount"
+      :target-count="deleteTargetFriends.length"
+      :threshold="deleteLevelThreshold"
+      :skip-guard-dog="skipGuardDog"
+      :password="deletePassword"
+      :submitting="deleteSubmitting"
+      @update:threshold="deleteLevelThreshold = $event"
+      @update:skip-guard-dog="skipGuardDog = $event"
+      @update:password="deletePassword = $event"
+      @close="closeDeleteModal"
+      @submit="handleBatchDeleteFriends"
+    />
+
+    <Teleport v-if="false" to="body">
       <div
         v-if="showBatchAddGidModal"
         class="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -1325,7 +1263,7 @@ async function handleBatchAddKnownFriendGids() {
           </div>
 
           <label class="mb-4 flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-            <input v-model="skipGuardDog" type="checkbox" class="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+            <input v-model="skipGuardDog" type="checkbox" class="h-4 w-4 border-gray-300 rounded text-blue-600 focus:ring-blue-500">
             <span>
               不删除有
               <span class="text-red-600 font-medium">护主犬</span>
