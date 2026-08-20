@@ -240,6 +240,7 @@ const dashboardTabs = [
   { key: 'illustrated', label: '图鉴', icon: BookOpen },
   { key: 'analytics', label: '分析', icon: BarChart3 },
 ]
+const activeDashboardTab = computed(() => dashboardTabs.find(tab => tab.key === activeTab.value) || dashboardTabs[0]!)
 
 async function selectDashboardTab(key: string) {
   activeTab.value = key
@@ -640,7 +641,10 @@ useIntervalFn(updateCountdowns, 1000)
 
     <section class="dashboard-switcher" aria-label="工作区视图">
       <div class="dashboard-switcher-copy">
-        <span>工作区</span><strong>{{ dashboardTabs.find(tab => tab.key === activeTab)?.label || '概览' }}</strong>
+        <component :is="activeDashboardTab.icon" class="dashboard-switcher-icon" :size="16" :stroke-width="1.8" aria-hidden="true" />
+        <div class="dashboard-switcher-copy-text">
+          <span>工作区</span><strong>{{ activeDashboardTab.label }}</strong>
+        </div>
       </div>
       <div class="dashboard-tabs-wrapper">
         <div ref="tabScrollContainer" class="dashboard-tabs" role="tablist" aria-label="工作区导航">
@@ -2310,6 +2314,35 @@ useIntervalFn(updateCountdowns, 1000)
   border-top: 1px solid var(--dashboard-line) !important;
   border-radius: 0 !important;
   background: transparent !important;
+}
+
+.dashboard-log-panel :deep(.overview-card) {
+  min-width: 0;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.dashboard-switcher-copy {
+  align-items: center;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.dashboard-switcher-copy-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.dashboard-switcher-icon {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  color: var(--theme-primary);
 }
 
 .dashboard-tabs-wrapper {
