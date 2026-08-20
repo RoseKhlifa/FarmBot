@@ -2,21 +2,12 @@
 <script setup lang="ts">
 import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { accountApi } from '@/api'
-import AccountModal from '@/components/AccountModal.vue'
-import BagPanel from '@/components/BagPanel.vue'
-import CareerModal from '@/components/CareerModal.vue'
 import AccountHeader from '@/components/dashboard/AccountHeader.vue'
 import LogConsole from '@/components/dashboard/LogConsole.vue'
 import TodayStatsPanel from '@/components/dashboard/TodayStatsPanel.vue'
-import FriendsTabContent from '@/components/DashboardFriendsTab.vue'
 import DashboardTabs from '@/components/DashboardTabs.vue'
-import DogGiftsPanel from '@/components/DogGiftsPanel.vue'
-import FarmPanel from '@/components/FarmPanel.vue'
-import AutomationSettingsTab from '@/components/settings/AutomationSettingsTab.vue'
-import StrategySettingsTab from '@/components/settings/StrategySettingsTab.vue'
-import TaskPanel from '@/components/TaskPanel.vue'
 import { useAutomationSettings } from '@/composables/settings/useAutomationSettings'
 import { useStrategySettings } from '@/composables/settings/useStrategySettings'
 import { useAccountScope } from '@/composables/useAccountScope'
@@ -29,8 +20,20 @@ import { useSettingStore } from '@/stores/setting'
 import { useStatusStore } from '@/stores/status'
 import { useToastStore } from '@/stores/toast'
 import { formatCouponAmount, formatGoldAmount, formatGoldBeanAmount } from '@/utils/number-format'
-import Analytics from '@/views/Analytics.vue'
-import Illustrated from '@/views/Illustrated.vue'
+
+// Keep the overview path light. Hidden workspaces are loaded on first visit and
+// remain mounted afterwards, so switching tabs does not discard local state.
+const AccountModal = defineAsyncComponent(() => import('@/components/AccountModal.vue'))
+const CareerModal = defineAsyncComponent(() => import('@/components/CareerModal.vue'))
+const FarmPanel = defineAsyncComponent(() => import('@/components/FarmPanel.vue'))
+const BagPanel = defineAsyncComponent(() => import('@/components/BagPanel.vue'))
+const FriendsTabContent = defineAsyncComponent(() => import('@/components/DashboardFriendsTab.vue'))
+const TaskPanel = defineAsyncComponent(() => import('@/components/TaskPanel.vue'))
+const DogGiftsPanel = defineAsyncComponent(() => import('@/components/DogGiftsPanel.vue'))
+const AutomationSettingsTab = defineAsyncComponent(() => import('@/components/settings/AutomationSettingsTab.vue'))
+const StrategySettingsTab = defineAsyncComponent(() => import('@/components/settings/StrategySettingsTab.vue'))
+const Illustrated = defineAsyncComponent(() => import('@/views/Illustrated.vue'))
+const Analytics = defineAsyncComponent(() => import('@/views/Analytics.vue'))
 
 const statusStore = useStatusStore()
 const accountStore = useAccountStore()
@@ -186,6 +189,7 @@ const hasActiveLogFilter = computed(() =>
 )
 const activeTab = ref('overview')
 const panelEl = ref<HTMLElement | null>(null)
+const loadedTabs = reactive(new Set<string>(['overview']))
 
 const swipeStart = { x: 0, y: 0 }
 function onSwipeStart(e: TouchEvent) {
@@ -214,6 +218,7 @@ function onSwipeEnd(e: TouchEvent) {
 
 // 切换 tab 时给内容区一个轻微淡入，缓解滑动卡顿观感
 watch(activeTab, () => {
+  loadedTabs.add(activeTab.value)
   const el = panelEl.value
   if (!el)
     return
@@ -826,27 +831,27 @@ useIntervalFn(updateCountdowns, 1000)
     </section>
 
     <!-- 农场（复用 FarmPanel） -->
-    <div v-show="activeTab === 'farm'" class="h-full">
+    <div v-if="loadedTabs.has('farm')" v-show="activeTab === 'farm'" class="h-full">
       <FarmPanel />
     </div>
 
     <!-- 背包（复用 BagPanel） -->
-    <div v-show="activeTab === 'bag'" class="h-full">
+    <div v-if="loadedTabs.has('bag')" v-show="activeTab === 'bag'" class="h-full">
       <BagPanel />
     </div>
 
     <!-- 好友（复用 FriendsFriendList） -->
-    <div v-show="activeTab === 'friends'" class="h-full">
+    <div v-if="loadedTabs.has('friends')" v-show="activeTab === 'friends'" class="h-full">
       <FriendsTabContent />
     </div>
 
     <!-- 任务（复用 TaskPanel） -->
-    <div v-show="activeTab === 'tasks'" class="h-full">
+    <div v-if="loadedTabs.has('tasks')" v-show="activeTab === 'tasks'" class="h-full">
       <TaskPanel />
     </div>
 
     <!-- 宠物（护主犬同气礼包） -->
-    <div v-show="activeTab === 'pet'" class="h-full">
+    <div v-if="loadedTabs.has('pet')" v-show="activeTab === 'pet'" class="h-full">
       <DogGiftsPanel
         :account-id="currentAccountId"
         :account-running="allAccountsRunning"
@@ -854,7 +859,7 @@ useIntervalFn(updateCountdowns, 1000)
     </div>
 
     <!-- 自动控制（完整设置） -->
-    <div v-show="activeTab === 'automation'" class="h-full">
+    <div v-if="loadedTabs.has('automation')" v-show="activeTab === 'automation'" class="h-full">
       <AutomationSettingsTab
         v-model:settings="localAutomationSettings"
         :current-account-name="currentAccount?.nick || currentAccount?.name || ''"
@@ -868,7 +873,7 @@ useIntervalFn(updateCountdowns, 1000)
     </div>
 
     <!-- 策略设置（完整设置） -->
-    <div v-show="activeTab === 'strategy'" class="h-full">
+    <div v-if="loadedTabs.has('strategy')" v-show="activeTab === 'strategy'" class="h-full">
       <StrategySettingsTab
         v-model:settings="localStrategySettings"
         :current-account-name="currentAccount?.nick || currentAccount?.name || ''"
@@ -894,24 +899,25 @@ useIntervalFn(updateCountdowns, 1000)
     </div>
 
     <!-- 图鉴 -->
-    <div v-show="activeTab === 'illustrated'" class="illustrated-container h-full">
+    <div v-if="loadedTabs.has('illustrated')" v-show="activeTab === 'illustrated'" class="illustrated-container h-full">
       <Illustrated />
     </div>
 
     <!-- 分析 -->
-    <div v-show="activeTab === 'analytics'" class="analytics-container h-full">
+    <div v-if="loadedTabs.has('analytics')" v-show="activeTab === 'analytics'" class="analytics-container h-full">
       <Analytics />
     </div>
   </div>
 
   <Teleport to="body">
     <AccountModal
+      v-if="showAccountModal"
       :show="showAccountModal"
       :edit-data="accountToEdit"
       @close="showAccountModal = false; accountToEdit = null"
       @saved="handleAccountSaved"
     />
-    <CareerModal :show="showCareerModal" @close="showCareerModal = false" />
+    <CareerModal v-if="showCareerModal" :show="showCareerModal" @close="showCareerModal = false" />
   </Teleport>
 
   <!-- 一键启动结果弹窗 -->
