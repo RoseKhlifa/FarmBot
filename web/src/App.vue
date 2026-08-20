@@ -1,11 +1,32 @@
 <script setup lang="ts">
 import type { Theme } from '@/stores/app'
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted, watch } from 'vue'
 import { RouterView } from 'vue-router'
 import ToastContainer from '@/components/ToastContainer.vue'
+import { useRealtime } from '@/composables/useRealtime'
+import { useAccountStore } from '@/stores/account'
 import { useAppStore } from '@/stores/app'
+import { useUserStore } from '@/stores/user'
 
 const appStore = useAppStore()
+const accountStore = useAccountStore()
+const userStore = useUserStore()
+const realtime = useRealtime({
+  getToken: () => String(userStore.token || ''),
+  disconnectOnScopeDispose: true,
+})
+
+watch([
+  () => String(userStore.token || ''),
+  () => String(accountStore.currentAccountId || ''),
+], ([token, accountId]) => {
+  if (token && accountId)
+    realtime.connect(accountId, token)
+  else
+    realtime.disconnect()
+}, { immediate: true })
+
+onUnmounted(() => realtime.disconnect())
 
 // 立即应用保存的主题（在组件挂载前）
 const savedTheme = localStorage.getItem('ui_theme') as Theme
@@ -19,7 +40,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="h-screen w-full overflow-hidden app-root" :style="{ color: 'var(--theme-text)' }">
+  <div class="app-root h-screen w-full overflow-hidden" :style="{ color: 'var(--theme-text)' }">
     <RouterView />
     <ToastContainer />
   </div>
@@ -32,7 +53,7 @@ body {
   font-family: 'DM Sans', sans-serif;
   background: var(--app-bg);
   color: var(--theme-text);
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
 }
 
 /* Color theme variables */
@@ -56,7 +77,9 @@ body {
 }
 
 .dark {
-  --app-bg: radial-gradient(circle at top left, color-mix(in srgb, var(--theme-primary) 16%, transparent) 0, transparent 28rem), linear-gradient(180deg, #0b1020 0%, color-mix(in srgb, var(--theme-bg) 74%, #020617) 100%);
+  --app-bg:
+    radial-gradient(circle at top left, color-mix(in srgb, var(--theme-primary) 16%, transparent) 0, transparent 28rem),
+    linear-gradient(180deg, #0b1020 0%, color-mix(in srgb, var(--theme-bg) 74%, #020617) 100%);
   --surface-1: color-mix(in srgb, var(--theme-bg) 72%, #ffffff 9%);
   --surface-2: color-mix(in srgb, var(--theme-bg) 78%, #ffffff 6%);
   --surface-3: color-mix(in srgb, var(--theme-bg) 84%, #ffffff 4%);
@@ -121,7 +144,7 @@ body {
 }
 
 .metric-card::before {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;

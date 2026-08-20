@@ -1,4 +1,3 @@
-import { useStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
 import api from '@/api'
@@ -34,7 +33,6 @@ export const useStatusStore = defineStore('status', () => {
   const error = ref('')
   const realtimeLogsEnabled = ref(true)
   const currentRealtimeAccountId = ref('')
-  const tokenRef = useStorage('admin_token', '')
 
   function getCurrentAccountId() {
     const accountStore = useAccountStore()
@@ -153,9 +151,10 @@ export const useStatusStore = defineStore('status', () => {
       : list.filter((item: any) => !shouldHideLogEntryInFrontend(item))
   }
 
-  const realtime = useRealtime({
-    getToken: () => String(tokenRef.value || ''),
-  })
+  // The app shell owns the connection. This store only translates frames into
+  // reactive status/log state and keeps the legacy account methods as no-op
+  // compatibility shims for existing views.
+  const realtime = useRealtime()
   const realtimeConnected = realtime.connected
 
   realtime.on(REALTIME_EVENTS.status, handleRealtimeStatus)
@@ -166,38 +165,20 @@ export const useStatusStore = defineStore('status', () => {
 
   function connectRealtime(accountId: string) {
     currentRealtimeAccountId.value = String(accountId || '').trim()
-    if (!tokenRef.value)
-      return
-    realtime.connect(currentRealtimeAccountId.value, String(tokenRef.value))
   }
 
   function disconnectRealtime() {
     currentRealtimeAccountId.value = ''
-    realtime.disconnect()
   }
 
-  // The status store is created by the authenticated shell, so the shared
-  // client follows the app-level token/account lifecycle rather than a view.
+  // Keep account-scoped state aligned with the app-owned connection.
   watch(() => getCurrentAccountId(), (accountId, previousAccountId) => {
     const next = String(accountId || '').trim()
     currentRealtimeAccountId.value = next
     if (previousAccountId && previousAccountId !== next)
       clearAccountScopedData()
-    if (next && tokenRef.value)
-      realtime.connect(next, String(tokenRef.value))
-    else
-      realtime.disconnect()
+    // App.vue watches the same account ref and owns connect/disconnect.
   }, { immediate: true })
-
-  watch(tokenRef, (token) => {
-    const nextToken = String(token || '').trim()
-    if (!nextToken || !currentRealtimeAccountId.value) {
-      realtime.disconnect()
-      return
-    }
-    realtime.disconnect()
-    realtime.connect(currentRealtimeAccountId.value, nextToken)
-  })
 
   async function fetchStatus(accountId: string) {
     if (!accountId)

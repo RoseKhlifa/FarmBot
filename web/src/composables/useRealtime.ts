@@ -11,6 +11,7 @@ import { RealtimeClient } from '@/realtime/client'
 
 export interface UseRealtimeOptions extends RealtimeClientOptions {
   client?: RealtimeClient
+  disconnectOnScopeDispose?: boolean
 }
 
 export interface UseRealtime {
@@ -73,6 +74,8 @@ export function useRealtime(options: UseRealtimeOptions = {}): UseRealtime {
       for (const cleanup of cleanups)
         cleanup()
       cleanups.clear()
+      if (options.disconnectOnScopeDispose)
+        client.disconnect()
     })
   }
 
