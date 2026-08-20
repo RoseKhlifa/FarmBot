@@ -8,52 +8,104 @@ defineProps<{
 </script>
 
 <template>
-  <div class="mb-4 rounded-3xl bg-white p-6 shadow-sm dark:bg-gray-800">
-    <div class="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-      <div>
-        <h1 class="flex items-center gap-2 text-2xl text-gray-900 font-bold dark:text-gray-100">
-          <div class="i-fas-user-shield text-lg" />
-          后台管理
-        </h1>
-        <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
-          统一处理卡密、用户、登录日志与系统配置，优先关注库存、过期和异常登录。
-        </p>
-      </div>
-
-      <div class="grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
-        <div class="rounded-2xl bg-blue-50 px-4 py-3 text-blue-700 dark:bg-blue-900/20 dark:text-blue-300">
-          <div class="text-xs opacity-80">
-            卡密总数
-          </div>
-          <div class="mt-1 font-medium">
-            {{ totalCards }} 个
-          </div>
-        </div>
-        <div class="rounded-2xl bg-emerald-50 px-4 py-3 text-emerald-700 dark:bg-emerald-900/20 dark:text-emerald-300">
-          <div class="text-xs opacity-80">
-            可领时间卡
-          </div>
-          <div class="mt-1 font-medium">
-            {{ unusedTimeCardsCount }} 张
-          </div>
-        </div>
-        <div class="rounded-2xl bg-amber-50 px-4 py-3 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300">
-          <div class="text-xs opacity-80">
-            用户数量
-          </div>
-          <div class="mt-1 font-medium">
-            {{ totalUsers }} 人
-          </div>
-        </div>
-        <div class="rounded-2xl bg-rose-50 px-4 py-3 text-rose-700 dark:bg-rose-900/20 dark:text-rose-300">
-          <div class="text-xs opacity-80">
-            登录日志
-          </div>
-          <div class="mt-1 font-medium">
-            {{ loginLogsTotal }} 条
-          </div>
-        </div>
-      </div>
+  <header class="admin-panel-header">
+    <div class="admin-panel-intro">
+      <span class="page-kicker">FARMBOT / ADMIN</span>
+      <h1><span class="i-carbon-user-admin" />运营控制台</h1>
+      <p>管理卡密、用户、登录日志和公开配置，所有动作都会即时反馈。</p>
     </div>
-  </div>
+    <div class="admin-kpis" aria-label="运营概览">
+      <div><span>卡密总数</span><strong>{{ totalCards }}</strong></div>
+      <div><span>可领时间卡</span><strong class="is-green">{{ unusedTimeCardsCount }}</strong></div>
+      <div><span>用户数量</span><strong class="is-amber">{{ totalUsers }}</strong></div>
+      <div><span>登录日志</span><strong class="is-red">{{ loginLogsTotal }}</strong></div>
+    </div>
+  </header>
 </template>
+
+<style scoped>
+.admin-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  margin-bottom: 14px;
+  padding: 2px 2px 12px;
+}
+.admin-panel-intro {
+  min-width: 0;
+}
+.admin-panel-intro h1 {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin: 8px 0 6px;
+  color: var(--theme-text);
+  font-size: 24px;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+.admin-panel-intro h1 span {
+  color: var(--theme-primary);
+  font-size: 20px;
+}
+.admin-panel-intro p {
+  margin: 0;
+  color: var(--muted-text);
+  font-size: 12px;
+  line-height: 1.6;
+}
+.admin-kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(85px, 1fr));
+  gap: 8px;
+  min-width: min(100%, 390px);
+}
+.admin-kpis > div {
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--surface-border);
+  border-radius: 9px;
+  background: var(--surface-1);
+}
+.admin-kpis span {
+  display: block;
+  overflow: hidden;
+  color: var(--muted-text);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.admin-kpis strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--theme-text);
+  font-size: 19px;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.admin-kpis .is-green {
+  color: var(--theme-primary);
+}
+.admin-kpis .is-amber {
+  color: #d97706;
+}
+.admin-kpis .is-red {
+  color: #ef4444;
+}
+@media (max-width: 900px) {
+  .admin-panel-header {
+    flex-direction: column;
+    gap: 14px;
+  }
+  .admin-kpis {
+    width: 100%;
+    min-width: 0;
+  }
+}
+@media (max-width: 520px) {
+  .admin-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+</style>

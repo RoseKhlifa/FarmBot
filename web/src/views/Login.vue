@@ -14,11 +14,10 @@ const {
   gameVersion,
   loginLinks,
   showUpdateLog,
-  logoLoadFailed,
-  isLogin,
   username,
   password,
   cardCode,
+  isLogin,
   error,
   success,
   loading,
@@ -35,157 +34,117 @@ const { handleSubmit, toggleMode, openResetVerifyModal, openRenewal, claimFreeCa
 </script>
 
 <template>
-  <div class="auth-layout">
-    <section class="auth-showcase" aria-label="FarmBot">
-      <div class="showcase-topline">
-        <span class="showcase-brand-mark"><span class="i-carbon-sprout" /></span>
-        <span>FARMBOT / CONTROL CENTER</span>
-      </div>
-
-      <div class="showcase-copy">
-        <span class="showcase-kicker">AUTOMATION WORKSPACE</span>
-        <h1>把农场交给<br><em>可靠的流程。</em></h1>
-        <p>从账号状态到每日任务，集中在一个清晰、安静的工作台里。</p>
-      </div>
-
-      <div class="showcase-board" aria-hidden="true">
-        <div class="board-toolbar">
-          <span /><span /><span /><b>LIVE SYSTEM MAP</b>
+  <div class="auth-page">
+    <div class="auth-shell">
+      <header class="auth-brand">
+        <div class="auth-brand-mark">
+          <span class="i-carbon-sprout" />
         </div>
-        <div class="board-grid">
-          <div class="board-column board-column--wide">
-            <i /><i /><i /><i />
-          </div>
-          <div class="board-column">
-            <i /><i /><i />
-          </div>
-          <div class="board-column board-column--accent">
-            <i /><i /><i /><i />
-          </div>
+        <div>
+          <strong>{{ loginLinks.title || 'QQ农场智能助手' }}</strong>
+          <span>FARMBOT / CONTROL CENTER</span>
         </div>
-        <div class="board-footer">
-          <span class="status-dot status-dot--live" /> 运行环境已准备
-        </div>
-      </div>
+      </header>
 
-      <div class="showcase-footer">
-        <span>QQ FARM AUTOMATION</span>
-        <span>v{{ gameVersion || '2.2' }}</span>
-      </div>
-    </section>
-
-    <main class="auth-panel">
-      <div class="auth-panel-top">
-        <span class="auth-panel-label">账号访问</span>
-        <span class="auth-panel-meta"><span class="status-dot status-dot--live" /> SECURE SESSION</span>
-      </div>
-
-      <div class="auth-content">
-        <div class="auth-logo-row">
-          <div class="auth-logo">
-            <img
-              v-if="loginLinks.logoUrl && !logoLoadFailed"
-              :src="loginLinks.logoUrl"
-              :alt="`${loginLinks.title || 'QQ农场智能助手'}图标`"
-              @error="logoLoadFailed = true"
-            >
-            <span v-else class="i-carbon-sprout" />
+      <section class="auth-card">
+        <div class="auth-card-heading">
+          <div class="auth-card-kicker">
+            账号访问
           </div>
-          <div>
-            <span class="auth-logo-name">{{ loginLinks.title || 'QQ农场智能助手' }}</span>
-            <span class="auth-logo-caption">FARMBOT WORKSPACE</span>
+          <div class="auth-card-status">
+            <span class="status-dot status-dot--live" /> SECURE SESSION
           </div>
         </div>
 
-        <div class="auth-heading">
-          <span class="showcase-kicker">{{ isLogin ? 'WELCOME BACK' : 'NEW WORKSPACE' }}</span>
-          <h2>{{ isLogin ? '欢迎回来' : '创建账号' }}</h2>
-          <p>{{ isLogin ? (loginLinks.loginSubtitle || '登录后继续管理你的农场') : (loginLinks.registerSubtitle || '创建账号，开始使用 FarmBot') }}</p>
+        <div class="auth-tabs" role="tablist" aria-label="账号操作">
+          <button type="button" :class="{ 'auth-tab--active': isLogin }" @click="!isLogin && toggleMode()">
+            登录
+          </button>
+          <button type="button" :class="{ 'auth-tab--active': !isLogin }" @click="isLogin && toggleMode()">
+            注册
+          </button>
         </div>
 
-        <form class="auth-form" @submit.prevent="handleSubmit">
-          <div class="field-group">
-            <label for="username">用户名</label>
-            <div class="field-control">
-              <span class="field-icon i-carbon-user" />
+        <div class="auth-card-body">
+          <div class="auth-intro">
+            <span class="auth-intro-kicker">{{ isLogin ? 'WELCOME BACK' : 'NEW WORKSPACE' }}</span>
+            <h1>{{ isLogin ? '欢迎回来' : '创建账号' }}</h1>
+            <p>{{ isLogin ? (loginLinks.loginSubtitle || '登录后继续管理你的农场') : (loginLinks.registerSubtitle || '创建账号，开始使用 FarmBot') }}</p>
+          </div>
+
+          <form class="auth-form" @submit.prevent="handleSubmit">
+            <div class="auth-field">
+              <label for="username"><span class="i-carbon-user" />用户名</label>
               <BaseInput id="username" v-model="username" type="text" placeholder="请输入用户名" required />
+              <p v-if="username && !usernameValid.valid" class="auth-field-error">
+                {{ usernameValid.message }}
+              </p>
             </div>
-            <p v-if="username && !usernameValid.valid" class="field-hint field-hint--error">
-              {{ usernameValid.message }}
-            </p>
-          </div>
 
-          <div class="field-group">
-            <label for="password">密码</label>
-            <div class="field-control">
-              <span class="field-icon i-carbon-password" />
+            <div class="auth-field">
+              <label for="password"><span class="i-carbon-password" />密码</label>
               <BaseInput id="password" v-model="password" type="password" placeholder="请输入密码" required />
+              <PasswordStrengthMeter v-if="showPasswordStrength && password" :strength="passwordStrength" compact />
             </div>
-            <PasswordStrengthMeter v-if="showPasswordStrength && password" :strength="passwordStrength" compact />
-          </div>
 
-          <div v-if="!isLogin" class="field-group">
-            <div class="field-label-row">
-              <label for="cardCode">卡密</label>
-              <button v-if="cardClaimEnabled" type="button" class="free-card-button" :disabled="cardClaimLoading" @click="claimFreeCard">
-                <span v-if="cardClaimLoading" class="i-svg-spinners-90-ring-with-bg" />
-                <template v-else>
-                  <span class="i-carbon-gift" /> 免费领取
-                </template>
-              </button>
-            </div>
-            <div class="field-control">
-              <span class="field-icon i-carbon-ticket" />
+            <div v-if="!isLogin" class="auth-field">
+              <div class="auth-label-row">
+                <label for="cardCode"><span class="i-carbon-ticket" />卡密</label>
+                <button v-if="cardClaimEnabled" type="button" class="auth-free-card" :disabled="cardClaimLoading" @click="claimFreeCard">
+                  <span v-if="cardClaimLoading" class="i-svg-spinners-90-ring-with-bg" />
+                  <template v-else>
+                    <span class="i-carbon-gift" />免费领取
+                  </template>
+                </button>
+              </div>
               <BaseInput id="cardCode" v-model="cardCode" type="text" placeholder="请输入卡密" :required="!isLogin" />
             </div>
-          </div>
 
-          <Transition name="auth-message">
-            <div v-if="error" :key="`error-${error}`" class="auth-message auth-message--error">
-              <span class="i-carbon-warning-alt" />
-              <span>{{ error }}<small v-if="lockoutRemaining > 0">{{ lockoutRemaining }} 分钟后解锁</small><small v-if="rateLimitRemaining > 0">{{ rateLimitRemaining }} 秒后可重试</small></span>
-            </div>
-          </Transition>
-          <Transition name="auth-message">
-            <div v-if="success" :key="`success-${success}`" class="auth-message auth-message--success">
-              <span class="i-carbon-checkmark-filled" /> {{ success }}
-            </div>
-          </Transition>
+            <Transition name="auth-message">
+              <div v-if="error" :key="`error-${error}`" class="auth-message auth-message--error">
+                <span class="i-carbon-warning-alt" />
+                <span>{{ error }}<small v-if="lockoutRemaining > 0">{{ lockoutRemaining }} 分钟后解锁</small><small v-if="rateLimitRemaining > 0">{{ rateLimitRemaining }} 秒后可重试</small></span>
+              </div>
+            </Transition>
+            <Transition name="auth-message">
+              <div v-if="success" :key="`success-${success}`" class="auth-message auth-message--success">
+                <span class="i-carbon-checkmark-filled" />{{ success }}
+              </div>
+            </Transition>
 
-          <BaseButton type="submit" variant="primary" block :loading="loading" class="auth-submit">
-            <span v-if="!loading" class="submit-icon i-carbon-arrow-right" />
-            {{ isLogin ? '登录工作台' : '创建账号' }}
-          </BaseButton>
-        </form>
+            <BaseButton type="submit" variant="primary" block :loading="loading" class="auth-submit">
+              <span>{{ isLogin ? '登录工作台' : '创建账号' }}</span>
+              <span v-if="!loading" class="i-carbon-arrow-right" />
+            </BaseButton>
+          </form>
 
-        <div class="auth-actions">
-          <button type="button" class="auth-switch" @click="toggleMode">
-            <span>{{ isLogin ? '没有账号？' : '已有账号？' }}</span>
-            {{ isLogin ? '立即注册' : '立即登录' }}
-            <span class="i-carbon-arrow-right" />
-          </button>
-          <div v-if="isLogin" class="auth-secondary-actions">
-            <button type="button" @click="openResetVerifyModal">
-              <span class="i-carbon-reset" /> 忘记密码
+          <div class="auth-actions">
+            <button type="button" class="auth-switch" @click="toggleMode">
+              <span>{{ isLogin ? '没有账号？' : '已有账号？' }}</span>{{ isLogin ? '立即注册' : '立即登录' }}<span class="i-carbon-arrow-right" />
             </button>
-            <button type="button" @click="openRenewal">
-              <span class="i-carbon-renew" /> 账号续费
-            </button>
+            <div v-if="isLogin" class="auth-secondary-actions">
+              <button type="button" @click="openResetVerifyModal">
+                <span class="i-carbon-reset" />忘记密码
+              </button>
+              <button type="button" @click="openRenewal">
+                <span class="i-carbon-renew" />账号续费
+              </button>
+            </div>
           </div>
         </div>
+      </section>
 
-        <footer class="auth-footer">
-          <div class="auth-footer-links">
-            <a v-if="loginLinks.purchaseUrl" :href="loginLinks.purchaseUrl"><span class="i-carbon-shopping-cart" />购买卡密</a>
-            <a v-if="loginLinks.qqGroupUrl" :href="loginLinks.qqGroupUrl" target="_blank" rel="noopener noreferrer"><span class="i-carbon-logo-qq" />加入QQ群</a>
-            <button type="button" @click="showUpdateLog = true">
-              <span class="i-carbon-document" />更新日志
-            </button>
-          </div>
-          <span v-if="gameVersion">游戏版本 {{ gameVersion }}</span>
-        </footer>
-      </div>
-    </main>
+      <footer class="auth-footer">
+        <div class="auth-footer-links">
+          <a v-if="loginLinks.purchaseUrl" :href="loginLinks.purchaseUrl"><span class="i-carbon-shopping-cart" />购买卡密</a>
+          <a v-if="loginLinks.qqGroupUrl" :href="loginLinks.qqGroupUrl" target="_blank" rel="noopener noreferrer"><span class="i-carbon-logo-qq" />加入QQ群</a>
+          <button type="button" @click="showUpdateLog = true">
+            <span class="i-carbon-document" />更新日志
+          </button>
+        </div>
+        <span>{{ gameVersion ? `游戏版本 ${gameVersion}` : 'FarmBot operations' }}</span>
+      </footer>
+    </div>
 
     <LoginModals />
     <UpdateLogModal :show="showUpdateLog" @close="showUpdateLog = false" />
@@ -193,416 +152,255 @@ const { handleSubmit, toggleMode, openResetVerifyModal, openRenewal, claimFreeCa
 </template>
 
 <style scoped>
-.auth-layout {
+.auth-page {
   min-height: 100dvh;
-  display: grid;
-  grid-template-columns: minmax(360px, 0.88fr) minmax(440px, 1.12fr);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 40px 16px;
   background: var(--app-bg);
-  color: var(--theme-text);
 }
-.auth-showcase {
-  position: relative;
-  display: flex;
-  min-height: 100dvh;
-  flex-direction: column;
-  overflow: hidden;
-  padding: 36px clamp(28px, 5vw, 84px);
-  background: #173c2c;
-  color: #f4fbf6;
+.auth-shell {
+  width: min(100%, 440px);
 }
-.auth-showcase::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  opacity: 0.34;
-  background-image:
-    linear-gradient(rgba(255, 255, 255, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255, 255, 255, 0.07) 1px, transparent 1px);
-  background-size: 32px 32px;
-  pointer-events: none;
-}
-.auth-showcase::after {
-  content: '';
-  position: absolute;
-  right: -100px;
-  bottom: -160px;
-  width: 420px;
-  height: 420px;
-  border: 1px solid rgba(203, 242, 218, 0.18);
-  border-radius: 50%;
-  box-shadow:
-    0 0 0 52px rgba(203, 242, 218, 0.04),
-    0 0 0 104px rgba(203, 242, 218, 0.03);
-  pointer-events: none;
-}
-.showcase-topline,
-.showcase-copy,
-.showcase-board,
-.showcase-footer {
-  position: relative;
-  z-index: 1;
-}
-.showcase-topline {
+.auth-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
-  color: #b6d8c3;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-}
-.showcase-brand-mark {
-  width: 30px;
-  height: 30px;
-  display: grid;
-  place-items: center;
-  border: 1px solid rgba(220, 255, 231, 0.3);
-  border-radius: 8px;
-  color: #baf0cb;
-  font-size: 16px;
-}
-.showcase-copy {
-  margin-top: auto;
-  margin-bottom: 38px;
-  max-width: 470px;
-}
-.showcase-kicker {
-  color: var(--theme-primary);
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-}
-.auth-showcase .showcase-kicker {
-  color: #a5e0b8;
-}
-.showcase-copy h1 {
-  margin: 12px 0 16px;
-  font-size: clamp(32px, 4vw, 58px);
-  font-weight: 700;
-  letter-spacing: -0.04em;
-  line-height: 1.04;
-}
-.showcase-copy h1 em {
-  color: #9ee0b1;
-  font-style: normal;
-}
-.showcase-copy p {
-  max-width: 360px;
-  margin: 0;
-  color: #c0d9c8;
-  font-size: 14px;
-  line-height: 1.8;
-}
-.showcase-board {
-  max-width: 440px;
-  padding: 16px;
-  border: 1px solid rgba(220, 255, 231, 0.18);
-  border-radius: 10px;
-  background: rgba(8, 37, 24, 0.32);
-}
-.board-toolbar {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  color: #9cc9aa;
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-}
-.board-toolbar span {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: #8bc39a;
-  opacity: 0.7;
-}
-.board-toolbar b {
-  margin-left: auto;
-  font-size: 8px;
-  font-weight: 700;
-}
-.board-grid {
-  height: 118px;
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
-  margin-top: 18px;
-  padding: 0 4px;
-  border-bottom: 1px solid rgba(220, 255, 231, 0.18);
-}
-.board-column {
-  width: 24%;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-.board-column--wide {
-  width: 40%;
-}
-.board-column i {
-  height: 12px;
-  display: block;
-  border-radius: 3px;
-  background: rgba(181, 233, 194, 0.18);
-}
-.board-column i:nth-child(2) {
-  width: 80%;
-  background: rgba(181, 233, 194, 0.32);
-}
-.board-column i:nth-child(3) {
-  width: 64%;
-}
-.board-column i:nth-child(4) {
-  width: 92%;
-  background: rgba(181, 233, 194, 0.24);
-}
-.board-column--accent i:nth-child(2) {
-  background: #b7e7c1;
-}
-.board-column--accent i:nth-child(4) {
-  background: #78c591;
-}
-.board-footer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
-  color: #b5d9be;
-  font-size: 10px;
-  font-weight: 700;
-}
-.showcase-footer {
-  display: flex;
-  justify-content: space-between;
-  margin-top: 28px;
-  color: #8fb69b;
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.12em;
-}
-.auth-panel {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  background: var(--surface-1);
-}
-.auth-panel-top {
-  min-height: 76px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 0 clamp(24px, 5vw, 84px);
-  border-bottom: 1px solid var(--surface-border);
-}
-.auth-panel-label {
-  color: var(--theme-text);
-  font-size: 13px;
-  font-weight: 750;
-}
-.auth-panel-meta {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--muted-text);
-  font-size: 9px;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-}
-.auth-content {
-  width: min(100%, 460px);
-  margin: auto;
-  padding: 42px 28px 36px;
-}
-.auth-logo-row {
-  display: flex;
-  align-items: center;
+  justify-content: center;
   gap: 11px;
+  margin-bottom: 22px;
 }
-.auth-logo {
-  width: 38px;
-  height: 38px;
+.auth-brand-mark {
+  width: 42px;
+  height: 42px;
   display: grid;
   place-items: center;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--theme-primary) 28%, var(--surface-border));
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--theme-primary) 10%, var(--surface-1));
+  border: 1px solid color-mix(in srgb, var(--theme-primary) 35%, var(--surface-border));
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--theme-primary) 12%, var(--surface-1));
   color: var(--theme-primary);
-  font-size: 20px;
+  font-size: 22px;
 }
-.auth-logo img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-.auth-logo-row > div:last-child {
+.auth-brand div:last-child {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
-.auth-logo-name {
+.auth-brand strong {
   color: var(--theme-text);
-  font-size: 13px;
-  font-weight: 750;
-}
-.auth-logo-caption {
-  color: var(--muted-text);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-}
-.auth-heading {
-  margin-top: 42px;
-}
-.auth-heading h2 {
-  margin: 8px 0 7px;
-  color: var(--theme-text);
-  font-size: 32px;
-  letter-spacing: -0.03em;
+  font-size: 17px;
   line-height: 1.1;
 }
-.auth-heading p {
+.auth-brand span:not(.i-carbon-sprout) {
+  color: var(--muted-text);
+  font-size: 9px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+.auth-card {
+  overflow: hidden;
+  border: 1px solid var(--surface-border);
+  border-radius: 14px;
+  background: color-mix(in srgb, var(--surface-1) 88%, transparent);
+  box-shadow: var(--surface-shadow-soft);
+}
+.auth-card-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 0 18px;
+  border-bottom: 1px solid var(--surface-border);
+}
+.auth-card-kicker,
+.auth-card-status {
+  color: var(--muted-text);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+.auth-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 9px;
+}
+.auth-tabs {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  border-bottom: 1px solid var(--surface-border);
+}
+.auth-tabs button {
+  position: relative;
+  min-height: 44px;
+  border: 0;
+  background: transparent;
+  color: var(--muted-text);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+}
+.auth-tabs button::after {
+  position: absolute;
+  right: 0;
+  bottom: -1px;
+  left: 0;
+  height: 2px;
+  background: transparent;
+  content: '';
+  transition: background 0.18s ease;
+}
+.auth-tabs .auth-tab--active {
+  color: var(--theme-text);
+}
+.auth-tabs .auth-tab--active::after {
+  background: var(--theme-primary);
+}
+.auth-card-body {
+  padding: 24px;
+}
+.auth-intro-kicker {
+  color: var(--theme-primary);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+}
+.auth-intro h1 {
+  margin: 8px 0 6px;
+  color: var(--theme-text);
+  font-size: 27px;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+.auth-intro p {
   margin: 0;
   color: var(--muted-text);
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1.7;
 }
 .auth-form {
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  margin-top: 28px;
+  gap: 15px;
+  margin-top: 22px;
 }
-.field-group {
+.auth-field {
   display: flex;
   flex-direction: column;
   gap: 7px;
 }
-.field-group label {
-  color: var(--theme-text);
-  font-size: 12px;
+.auth-field label,
+.auth-label-row label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted-text);
+  font-size: 11px;
   font-weight: 700;
 }
-.field-label-row {
+.auth-field label span,
+.auth-label-row label span {
+  color: var(--theme-primary);
+  font-size: 14px;
+}
+.auth-field :deep(.base-input) {
+  min-height: 42px;
+  border-radius: 9px;
+  background: var(--input-bg);
+}
+.auth-label-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-.field-control {
-  position: relative;
-}
-.field-icon {
-  position: absolute;
-  z-index: 1;
-  top: 50%;
-  left: 13px;
-  color: var(--muted-text);
-  font-size: 16px;
-  pointer-events: none;
-  transform: translateY(-50%);
-}
-.field-control :deep(.base-input) {
-  padding-left: 40px;
-}
-.field-control:focus-within .field-icon {
-  color: var(--theme-primary);
-}
-.field-hint {
-  margin: 0;
-  padding-left: 2px;
-  color: var(--muted-text);
-  font-size: 11px;
-}
-.field-hint--error {
-  color: #c45353;
-}
-.free-card-button {
+.auth-free-card,
+.auth-secondary-actions button,
+.auth-switch,
+.auth-footer-links button,
+.auth-footer-links a {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   border: 0;
   background: transparent;
-  color: var(--theme-primary);
+  color: var(--muted-text);
   cursor: pointer;
   font-size: 11px;
-  font-weight: 750;
+  text-decoration: none;
+  transition: color 0.18s ease;
 }
-.free-card-button:disabled {
-  cursor: wait;
-  opacity: 0.6;
+.auth-free-card:hover,
+.auth-secondary-actions button:hover,
+.auth-footer-links button:hover,
+.auth-footer-links a:hover {
+  color: var(--theme-primary);
+}
+.auth-free-card {
+  color: var(--theme-primary);
+  font-weight: 700;
+}
+.auth-field-error {
+  margin: 0;
+  color: #ef4444;
+  font-size: 11px;
 }
 .auth-message {
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  padding: 10px 12px;
-  border: 1px solid;
+  padding: 9px 11px;
   border-radius: 8px;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.5;
 }
 .auth-message small {
-  display: inline-block;
-  margin-left: 8px;
-  opacity: 0.78;
+  display: block;
+  margin-top: 2px;
+  opacity: 0.8;
 }
 .auth-message--error {
-  border-color: #edcaca;
-  background: #fff5f5;
-  color: #a84242;
+  background: color-mix(in srgb, #ef4444 10%, transparent);
+  color: #ef4444;
 }
 .auth-message--success {
-  border-color: #bfe2cb;
-  background: #f2fbf5;
-  color: #247548;
-}
-.dark .auth-message--error {
-  border-color: #5b3333;
-  background: #2a1d1d;
-  color: #f3a6a6;
-}
-.dark .auth-message--success {
-  border-color: #315a40;
-  background: #19291e;
-  color: #91d4a4;
+  background: color-mix(in srgb, var(--theme-primary) 10%, transparent);
+  color: var(--theme-primary);
 }
 .auth-submit {
-  min-height: 46px;
-  margin-top: 4px;
-  border-radius: 8px !important;
+  min-height: 42px;
+  border-radius: 9px !important;
+  background: var(--theme-primary) !important;
+  color: #052e1b !important;
+  box-shadow: none !important;
   font-size: 13px;
-  font-weight: 750;
-  letter-spacing: 0.01em;
+  font-weight: 800;
 }
-.submit-icon {
-  margin-right: 7px;
+.auth-submit:hover {
+  filter: brightness(1.06);
+  transform: none !important;
+}
+.auth-submit > span:last-child {
+  margin-left: 8px;
 }
 .auth-actions {
   margin-top: 18px;
+  text-align: center;
 }
 .auth-switch {
-  width: 100%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  border: 0;
-  background: transparent;
   color: var(--theme-primary);
-  cursor: pointer;
   font-size: 12px;
-  font-weight: 750;
+  font-weight: 700;
 }
 .auth-switch span:first-child {
+  margin-right: 4px;
   color: var(--muted-text);
   font-weight: 500;
 }
-.auth-switch > span:last-child {
-  margin-left: 3px;
-  transition: transform 0.18s ease;
-}
-.auth-switch:hover > span:last-child {
-  transform: translateX(3px);
+.auth-switch span:last-child {
+  margin-left: 5px;
 }
 .auth-secondary-actions {
   display: flex;
@@ -610,116 +408,57 @@ const { handleSubmit, toggleMode, openResetVerifyModal, openRenewal, claimFreeCa
   gap: 18px;
   margin-top: 14px;
 }
-.auth-secondary-actions button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 0;
-  background: transparent;
-  color: var(--muted-text);
-  cursor: pointer;
-  font-size: 11px;
-}
-.auth-secondary-actions button:hover {
-  color: var(--theme-text);
-}
 .auth-footer {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 42px;
-  padding-top: 16px;
-  border-top: 1px solid var(--surface-border);
+  gap: 14px;
+  margin-top: 16px;
   color: var(--muted-text);
   font-size: 10px;
 }
 .auth-footer-links {
   display: flex;
   flex-wrap: wrap;
-  gap: 13px;
+  gap: 12px;
 }
-.auth-footer a,
-.auth-footer button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 0;
-  background: transparent;
-  color: var(--muted-text);
-  cursor: pointer;
-  font-size: 10px;
-  text-decoration: none;
+.status-dot {
+  width: 6px;
+  height: 6px;
+  display: inline-block;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: currentColor;
 }
-.auth-footer a:hover,
-.auth-footer button:hover {
+.status-dot--live {
   color: var(--theme-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary) 15%, transparent);
 }
 .auth-message-enter-active,
 .auth-message-leave-active {
   transition:
-    opacity 0.18s ease,
-    transform 0.18s ease;
+    opacity 0.15s ease,
+    transform 0.15s ease;
 }
 .auth-message-enter-from,
 .auth-message-leave-to {
   opacity: 0;
-  transform: translateY(-4px);
+  transform: translateY(-3px);
 }
-
-@media (max-width: 800px) {
-  .auth-layout {
-    display: block;
+@media (max-width: 480px) {
+  .auth-page {
+    align-items: flex-start;
+    padding: 24px 12px;
   }
-  .auth-showcase {
-    min-height: 190px;
-    padding: 22px 24px;
+  .auth-brand {
+    margin-bottom: 18px;
   }
-  .showcase-copy {
-    margin: 44px 0 0;
-  }
-  .showcase-copy h1 {
-    margin: 8px 0 0;
-    font-size: 28px;
-  }
-  .showcase-copy p,
-  .showcase-board,
-  .showcase-footer {
-    display: none;
-  }
-  .auth-panel-top {
-    min-height: 62px;
-    padding: 0 24px;
-  }
-  .auth-content {
-    padding: 32px 24px 28px;
-  }
-  .auth-heading {
-    margin-top: 34px;
-  }
-}
-
-@media (max-width: 420px) {
-  .auth-showcase {
-    min-height: 158px;
-    padding: 18px 18px;
-  }
-  .showcase-copy {
-    margin-top: 32px;
-  }
-  .showcase-copy h1 {
-    font-size: 25px;
-  }
-  .auth-panel-top {
-    padding: 0 18px;
-  }
-  .auth-content {
-    padding: 26px 18px 24px;
+  .auth-card-body {
+    padding: 20px 16px;
   }
   .auth-footer {
     align-items: flex-start;
     flex-direction: column;
-    margin-top: 30px;
   }
 }
 </style>

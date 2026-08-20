@@ -7,7 +7,7 @@ export interface DashboardTab {
   icon: string
 }
 
-const props = defineProps<{
+defineProps<{
   tabs: DashboardTab[]
   activeTab: string
 }>()
@@ -61,7 +61,7 @@ function selectTab(key: string) {
 <style scoped>
 .dashboard-tabs-wrapper {
   position: relative;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
   z-index: 1;
 }
 
@@ -71,27 +71,27 @@ function selectTab(key: string) {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 80%;
-  height: 100%;
-  background: radial-gradient(ellipse, color-mix(in srgb, var(--theme-primary) 10%, transparent) 0%, transparent 70%);
+  width: 60%;
+  height: 80%;
+  background: transparent;
   pointer-events: none;
-  filter: blur(20px);
+  filter: none;
 }
 
 .dashboard-tabs {
   display: flex;
-  gap: 6px;
+  gap: 2px;
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
   padding: 4px;
-  border-radius: 16px;
+  border-radius: 11px;
   position: relative;
-  background: var(--theme-glass);
-  backdrop-filter: blur(14px) saturate(150%);
-  -webkit-backdrop-filter: blur(14px) saturate(150%);
+  background: var(--surface-1);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
   border: 1px solid var(--theme-border);
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--theme-primary) 6%, transparent), 0 1px 2px rgba(0,0,0,0.03);
+  box-shadow: var(--surface-shadow-soft);
 }
 
 .dashboard-tabs::-webkit-scrollbar {
@@ -101,23 +101,25 @@ function selectTab(key: string) {
 .tab-item {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding: 8px 14px;
+  gap: 7px;
+  padding: 7px 11px;
   border: none;
-  border-radius: 12px;
+  border-radius: 8px;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
   background: transparent;
   color: color-mix(in srgb, var(--theme-text) 55%, transparent);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
   -webkit-tap-highlight-color: transparent;
   position: relative;
   user-select: none;
 }
 
 .tab-item:active {
-  transform: scale(0.95);
+  transform: none;
 }
 
 .tab-icon {
@@ -126,7 +128,7 @@ function selectTab(key: string) {
 }
 
 .tab-label {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.01em;
   transition: all 0.3s ease;
@@ -144,11 +146,11 @@ function selectTab(key: string) {
 .tab-item--active {
   color: var(--theme-primary);
   background: color-mix(in srgb, var(--theme-primary) 10%, transparent);
-  box-shadow: 0 0 16px color-mix(in srgb, var(--theme-primary) 12%, transparent), 0 1px 3px color-mix(in srgb, var(--theme-primary) 8%, transparent);
+  box-shadow: none;
 }
 
 .tab-item--active .tab-icon {
-  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--theme-primary) 50%, transparent));
+  filter: none;
 }
 
 /* 移动端适配 */

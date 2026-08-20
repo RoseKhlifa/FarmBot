@@ -1,3 +1,14 @@
+/* Reference UI baseline: compact zinc surfaces, emerald action color. */
+html,
+body {
+  background: var(--app-bg, #f4f4f5);
+  color: var(--theme-text, #18181b);
+}
+
+html.dark body {
+  background: #09090b;
+}
+
 /* Global Scrollbar Customization */
 ::-webkit-scrollbar {
   width: 8px;
@@ -9,7 +20,7 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background-color: #cbd5e1; /* slate-300 */
+  background-color: #d4d4d8;
   border-radius: 9999px;
   border: 2px solid transparent;
   background-clip: content-box;
@@ -21,11 +32,11 @@
 
 /* Dark mode scrollbar */
 .dark ::-webkit-scrollbar-thumb {
-  background-color: #475569; /* slate-600 */
+  background-color: #3f3f46;
 }
 
 .dark ::-webkit-scrollbar-thumb:hover {
-  background-color: #64748b; /* slate-500 */
+  background-color: #52525b;
 }
 
 /* Base styles to reset some defaults if needed, though UnoCSS reset handles most */
@@ -38,6 +49,52 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+}
+
+button,
+a,
+input,
+select,
+textarea {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.font-mono-token {
+  font-variant-numeric: tabular-nums;
+}
+
+.page-kicker {
+  color: var(--muted-text);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+.wangui-card {
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  background: var(--surface-1);
+  box-shadow: var(--surface-shadow-soft);
+}
+
+.wangui-card-muted {
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  background: var(--surface-2);
+}
+
+.wangui-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--theme-primary) 12%, transparent);
+  color: var(--theme-primary);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
 }
 
 * {
@@ -58,6 +115,6 @@ body {
 
 /* 弹窗遮罩底部留安全区：让居中确认的弹窗整体上移，
    避免其底部按钮被底部悬浮导航栏(dock)遮挡 */
-[class*="overlay"] {
+[class*='overlay'] {
   padding-bottom: calc(96px + env(safe-area-inset-bottom, 0px)) !important;
 }

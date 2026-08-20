@@ -12,8 +12,7 @@ const appStore = useAppStore()
     :title="appStore.isDark ? '切换到浅色模式' : '切换到深色模式'"
     @click="appStore.toggleDark()"
   >
-    <span class="theme-toggle-icon" :class="appStore.isDark ? 'i-carbon-moon' : 'i-carbon-sun'" />
-    <span class="theme-toggle-label">{{ appStore.isDark ? '深色' : '浅色' }}</span>
+    <span class="theme-toggle-icon" :class="appStore.isDark ? 'i-carbon-sun' : 'i-carbon-moon'" />
   </button>
 
   <teleport to="body">
@@ -49,14 +48,15 @@ const appStore = useAppStore()
 
 <style scoped>
 .theme-toggle {
-  min-height: 34px;
+  width: 32px;
+  height: 32px;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 0 10px;
-  border: 1px solid var(--surface-border);
+  justify-content: center;
+  padding: 0;
+  border: 1px solid transparent;
   border-radius: 8px;
-  background: var(--surface-1);
+  background: transparent;
   color: var(--muted-text);
   cursor: pointer;
   font-size: 11px;
@@ -64,14 +64,12 @@ const appStore = useAppStore()
   transition: 0.18s ease;
 }
 .theme-toggle:hover {
-  border-color: var(--surface-border-strong);
+  border-color: var(--surface-border);
   color: var(--theme-text);
+  background: color-mix(in srgb, var(--theme-text) 5%, transparent);
 }
 .theme-toggle-icon {
-  font-size: 15px;
-}
-.theme-toggle-label {
-  line-height: 1;
+  font-size: 16px;
 }
 .theme-panel-backdrop {
   position: fixed;
@@ -155,13 +153,8 @@ const appStore = useAppStore()
   color: var(--theme-primary);
 }
 @media (max-width: 640px) {
-  .theme-toggle-label {
-    display: none;
-  }
   .theme-toggle {
-    width: 34px;
-    justify-content: center;
-    padding: 0;
+    width: 32px;
   }
 }
 </style>

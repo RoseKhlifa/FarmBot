@@ -7,35 +7,90 @@ export interface AdminTabItem {
   icon: string
 }
 
-defineProps<{
-  tabs: readonly AdminTabItem[]
-}>()
-
+defineProps<{ tabs: readonly AdminTabItem[] }>()
 const activeTab = defineModel<AdminTabKey>('activeTab', { required: true })
 </script>
 
 <template>
-  <div class="min-w-0 max-w-full border border-gray-200 rounded-lg bg-white shadow dark:border-gray-700 dark:bg-gray-800">
-    <div class="border-b border-gray-200 dark:border-gray-700">
-      <nav class="flex flex-wrap gap-1 p-2">
-        <button
-          v-for="tab in tabs"
-          :key="tab.key"
-          class="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-all"
-          :class="activeTab === tab.key
-            ? 'text-white shadow-sm'
-            : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-700'"
-          :style="activeTab === tab.key ? { backgroundColor: 'var(--theme-primary)' } : {}"
-          @click="activeTab = tab.key"
-        >
-          <div :class="tab.icon" />
-          {{ tab.label }}
-        </button>
-      </nav>
-    </div>
-
-    <div class="p-4">
+  <section class="admin-tabs-shell">
+    <nav class="admin-tabs-nav" aria-label="管理模块">
+      <button
+        v-for="tab in tabs"
+        :key="tab.key"
+        type="button"
+        class="admin-tab"
+        :class="{ 'admin-tab--active': activeTab === tab.key }"
+        @click="activeTab = tab.key"
+      >
+        <span :class="tab.icon" />
+        <span>{{ tab.label }}</span>
+      </button>
+    </nav>
+    <div class="admin-tab-content">
       <slot />
     </div>
-  </div>
+  </section>
 </template>
+
+<style scoped>
+.admin-tabs-shell {
+  min-width: 0;
+}
+.admin-tabs-nav {
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  padding: 4px;
+  border: 1px solid var(--surface-border);
+  border-radius: 11px;
+  background: var(--surface-1);
+  box-shadow: var(--surface-shadow-soft);
+  scrollbar-width: none;
+}
+.admin-tabs-nav::-webkit-scrollbar {
+  display: none;
+}
+.admin-tab {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 7px;
+  min-height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted-text);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease;
+}
+.admin-tab:hover {
+  background: color-mix(in srgb, var(--theme-text) 5%, transparent);
+  color: var(--theme-text);
+}
+.admin-tab--active {
+  background: color-mix(in srgb, var(--theme-primary) 13%, transparent);
+  color: var(--theme-primary);
+}
+.admin-tab > span:first-child {
+  font-size: 15px;
+}
+.admin-tab-content {
+  min-width: 0;
+  margin-top: 10px;
+  padding: 16px;
+  border: 1px solid var(--surface-border);
+  border-radius: 12px;
+  background: var(--surface-1);
+  box-shadow: var(--surface-shadow-soft);
+}
+@media (max-width: 640px) {
+  .admin-tab-content {
+    padding: 11px;
+  }
+}
+</style>

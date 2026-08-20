@@ -3,7 +3,7 @@
 import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
-import api from '@/api'
+import { accountApi } from '@/api'
 import AccountModal from '@/components/AccountModal.vue'
 import BagPanel from '@/components/BagPanel.vue'
 import CareerModal from '@/components/CareerModal.vue'
@@ -61,8 +61,8 @@ const showAccountModal = ref(false)
 const showCareerModal = ref(false)
 const appStore = useAppStore()
 const startBtnStyle = computed(() => appStore.isDark
-  ? { background: 'linear-gradient(135deg, #1e3a8a, #3730a3)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.4)' }
-  : { background: 'linear-gradient(135deg, #3b82f6, #6366f1)', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.1)' })
+  ? { background: '#34d399', boxShadow: 'none' }
+  : { background: '#10b981', boxShadow: 'none' })
 const startAllLoading = ref(false)
 const startAllResults = ref<{ name: string, ok: boolean, msg: string }[]>([])
 const showStartAllModal = ref(false)
@@ -125,7 +125,7 @@ async function startAllAccounts() {
     // 启动所有离线账号
     for (const acc of toStart) {
       try {
-        await api.post(`/api/accounts/${acc.id}/start`)
+        await accountApi.startAccount(acc.id)
       }
       catch {
         startAllResults.value.push({ name: acc.name || acc.nick || acc.id, ok: false, msg: '启动失败，请重新扫码' })
@@ -672,7 +672,7 @@ async function clearLogs() {
 
   clearingLogs.value = true
   try {
-    const { data } = await api.delete('/api/logs')
+    const { data } = await accountApi.clearLogs()
     if (data?.ok) {
       toastStore.success('日志已清空')
       await refresh(true)

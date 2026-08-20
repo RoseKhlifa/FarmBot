@@ -16,9 +16,17 @@ const statusStore = useStatusStore()
 const userStore = useUserStore()
 const sidebarCollapsed = ref(false)
 const mobileMenuOpen = ref(false)
-const navItems = computed(() => menuRoutes.filter(item => !item.adminOnly || userStore.isAdmin))
+const navItems = computed(() => {
+  const visible = menuRoutes.filter(item => !item.adminOnly || userStore.isAdmin)
+  // Keep the current admin route visible while the user profile is being
+  // hydrated after a fresh login, so the shell does not jump back to 首页.
+  if (route.name === 'admin' && !visible.some(item => item.name === 'admin')) {
+    return [...visible, menuRoutes.find(item => item.name === 'admin')!]
+  }
+  return visible
+})
 const primaryMobileItems = computed(() => navItems.value.filter(item => ['dashboard', 'personal', 'friends', 'activity'].includes(item.name)).slice(0, 4))
-const activeItem = computed(() => navItems.value.find(item => route.name === item.name) || navItems.value[0])
+const activeItem = computed(() => menuRoutes.find(item => route.name === item.name) || navItems.value[0])
 const pageTitle = computed(() => activeItem.value?.label || '工作台')
 const pageSubtitle = computed(() => ({
   dashboard: '账号运行概况与农场任务',
@@ -130,9 +138,10 @@ function goTo(path: string) {
 
 <style scoped>
 .workbench {
-  --sidebar-width: 240px;
+  --sidebar-width: 256px;
   display: flex;
-  width: 100%;
+  width: min(100%, 1700px);
+  margin: 0 auto;
   height: 100dvh;
   overflow: hidden;
   background: var(--app-bg);
@@ -155,12 +164,12 @@ function goTo(path: string) {
   flex-basis: 76px;
 }
 .sidebar-brand {
-  min-height: 76px;
+  min-height: 72px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  padding: 16px;
+  padding: 14px 16px;
   border-bottom: 1px solid var(--surface-border);
 }
 .brand-lockup {
@@ -172,13 +181,13 @@ function goTo(path: string) {
   text-decoration: none;
 }
 .brand-mark {
-  width: 36px;
-  height: 36px;
+  width: 34px;
+  height: 34px;
   display: grid;
   flex: 0 0 auto;
   place-items: center;
   border: 1px solid color-mix(in srgb, var(--theme-primary) 32%, var(--surface-border));
-  border-radius: 10px;
+  border-radius: 9px;
   background: color-mix(in srgb, var(--theme-primary) 10%, var(--surface-1));
   color: var(--theme-primary);
   font-size: 19px;
@@ -222,7 +231,7 @@ function goTo(path: string) {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 14px 16px 4px;
+  margin: 12px 16px 2px;
   color: var(--muted-text);
   font-size: 11px;
   font-weight: 600;
@@ -244,7 +253,7 @@ function goTo(path: string) {
 .sidebar-nav {
   flex: 1;
   overflow-y: auto;
-  padding: 20px 10px;
+  padding: 18px 10px;
 }
 .nav-section-label {
   margin: 0 10px 9px;
@@ -256,14 +265,14 @@ function goTo(path: string) {
 }
 .sidebar-nav-item {
   position: relative;
-  min-height: 42px;
+  min-height: 40px;
   display: flex;
   align-items: center;
   gap: 12px;
-  margin: 3px 0;
+  margin: 2px 0;
   padding: 0 12px;
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: 9px;
   color: var(--muted-text);
   font-size: 13px;
   font-weight: 600;
@@ -356,14 +365,14 @@ function goTo(path: string) {
   flex-direction: column;
 }
 .workbench-topbar {
-  min-height: 76px;
+  min-height: 72px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
-  padding: 14px 28px;
+  padding: 12px 28px;
   border-bottom: 1px solid var(--surface-border);
-  background: var(--surface-1);
+  background: color-mix(in srgb, var(--surface-1) 92%, transparent);
 }
 .topbar-leading,
 .topbar-actions {
@@ -387,7 +396,7 @@ function goTo(path: string) {
 .page-heading h1 {
   margin: 5px 0 0;
   color: var(--theme-text);
-  font-size: 20px;
+  font-size: 19px;
   font-weight: 750;
   line-height: 1.2;
 }
@@ -410,7 +419,8 @@ function goTo(path: string) {
   flex: 1;
   overflow-x: hidden;
   overflow-y: auto;
-  padding: 24px 28px 32px;
+  background: var(--app-bg);
+  padding: 22px 28px 32px;
 }
 .mobile-menu-button,
 .mobile-nav,
@@ -445,10 +455,10 @@ function goTo(path: string) {
     right: -1px;
   }
   .workbench-topbar {
-    padding: 12px 18px;
+    padding: 11px 18px;
   }
   .workbench-content {
-    padding: 20px 18px 28px;
+    padding: 18px 18px 28px;
   }
 }
 @media (max-width: 640px) {

@@ -23,7 +23,7 @@ watch(() => container.value, scrollBottom); defineExpose({ scrollBottom })
 <template>
   <div class="overview-card flex flex-1 flex-col p-5 md:overflow-hidden">
     <div class="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-      <h3 class="flex items-center gap-2 text-lg font-medium">
+      <h3 class="flex shrink-0 items-center gap-2 whitespace-nowrap text-lg font-medium">
         <div class="i-carbon-document" /><span>运行日志</span>
       </h3><div class="flex flex-wrap items-center gap-2 text-sm">
         <BaseSelect v-model="filterModel.module" :options="modules" class="w-32" @change="emit('filter')" /><BaseSelect v-model="filterModel.event" :options="events" class="w-32" @change="emit('filter')" /><BaseSelect v-model="filterModel.isWarn" :options="levels" class="w-32" @change="emit('filter')" /><BaseInput v-model="filterModel.keyword" placeholder="关键词..." class="w-32" clearable @keyup.enter="emit('search')" @clear="emit('search')" /><BaseButton variant="primary" size="sm" @click="emit('search')">

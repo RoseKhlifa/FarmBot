@@ -243,7 +243,7 @@ async function handleLogout() {
       class="account-trigger max-w-[min(76vw,280px)] flex items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-gray-100/70 dark:hover:bg-gray-700/50"
       @click="toggleDropdown"
     >
-      <div class="account-trigger-avatar h-9 w-9 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200 dark:bg-gray-700 dark:ring-gray-600">
+      <div class="account-trigger-avatar h-9 w-9 flex shrink-0 items-center justify-center overflow-hidden rounded-md bg-gray-100 ring-1 ring-gray-200 dark:bg-gray-700 dark:ring-gray-600">
         <img
           v-if="shouldShowAvatar(currentAccount)"
           :src="currentAvatarSrc"
@@ -440,8 +440,8 @@ async function handleLogout() {
 
 <style scoped>
 .account-trigger {
-  border: 1px solid var(--surface-border);
-  background: var(--surface-1);
+  border: 1px solid transparent;
+  background: transparent;
 }
 .account-trigger:hover {
   background: var(--surface-2) !important;
@@ -452,6 +452,7 @@ async function handleLogout() {
 }
 .account-menu-dropdown {
   border-color: var(--surface-border) !important;
+  border-radius: 10px !important;
   background: var(--surface-1) !important;
   box-shadow: var(--surface-shadow) !important;
   backdrop-filter: none !important;

@@ -35,47 +35,47 @@ onUnmounted(() => realtime.disconnect())
 
 <style>
 :root {
-  --theme-bg: #f5f8f5;
-  --theme-text: #17231d;
-  --theme-primary: #18794e;
-  --theme-secondary: #14613f;
-  --theme-accent: #c77926;
-  --theme-gradient: #18794e;
-  --theme-glass: #ffffff;
-  --theme-border: #d9e4dc;
-  --app-bg: #f1f5f2;
+  --theme-bg: #fafafa;
+  --theme-text: #18181b;
+  --theme-primary: #10b981;
+  --theme-secondary: #059669;
+  --theme-accent: #f59e0b;
+  --theme-gradient: #10b981;
+  --theme-glass: rgba(255, 255, 255, 0.88);
+  --theme-border: rgba(0, 0, 0, 0.08);
+  --app-bg: #f4f5f4;
   --surface-1: #ffffff;
-  --surface-2: #f5f8f5;
-  --surface-3: #eaf1ec;
-  --surface-border: #dce6df;
-  --surface-border-strong: #c7d6cb;
-  --surface-shadow: 0 14px 34px rgba(34, 63, 47, 0.1);
-  --surface-shadow-soft: 0 5px 16px rgba(34, 63, 47, 0.07);
-  --muted-text: #68786f;
-  --input-bg: #fbfdfb;
+  --surface-2: #f4f4f5;
+  --surface-3: #e4e4e7;
+  --surface-border: rgba(0, 0, 0, 0.08);
+  --surface-border-strong: rgba(0, 0, 0, 0.14);
+  --surface-shadow: 0 18px 44px rgba(24, 24, 27, 0.1);
+  --surface-shadow-soft: 0 4px 14px rgba(24, 24, 27, 0.06);
+  --muted-text: #71717a;
+  --input-bg: #ffffff;
   --panel-glow: transparent;
   color-scheme: light;
 }
 
 .dark {
-  --theme-bg: #121916;
-  --theme-text: #e9f1eb;
-  --theme-primary: #63c995;
-  --theme-secondary: #3da975;
-  --theme-accent: #e1a45b;
-  --theme-gradient: #3da975;
-  --theme-glass: #1b2520;
-  --theme-border: #2c3b32;
-  --app-bg: #111713;
-  --surface-1: #19221d;
-  --surface-2: #202c25;
-  --surface-3: #29382f;
-  --surface-border: #2c3b32;
-  --surface-border-strong: #3b4d41;
-  --surface-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
-  --surface-shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.16);
-  --muted-text: #9aac9f;
-  --input-bg: #131b16;
+  --theme-bg: #09090b;
+  --theme-text: #f4f4f5;
+  --theme-primary: #34d399;
+  --theme-secondary: #10b981;
+  --theme-accent: #fbbf24;
+  --theme-gradient: #34d399;
+  --theme-glass: rgba(24, 24, 27, 0.82);
+  --theme-border: rgba(255, 255, 255, 0.07);
+  --app-bg: #09090b;
+  --surface-1: #18181b;
+  --surface-2: #27272a;
+  --surface-3: #3f3f46;
+  --surface-border: rgba(255, 255, 255, 0.07);
+  --surface-border-strong: rgba(255, 255, 255, 0.14);
+  --surface-shadow: 0 18px 44px rgba(0, 0, 0, 0.3);
+  --surface-shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.2);
+  --muted-text: #a1a1aa;
+  --input-bg: #09090b;
   --panel-glow: transparent;
   color-scheme: dark;
 }
@@ -93,7 +93,7 @@ body {
   background: var(--app-bg);
   color: var(--theme-text);
   font-family:
-    Inter,
+    'DM Sans',
     ui-sans-serif,
     system-ui,
     -apple-system,
@@ -122,7 +122,7 @@ textarea:focus-visible {
   background: var(--app-bg);
 }
 
-/* Shared surfaces: keep dense operational pages coherent while old views migrate. */
+/* Shared surfaces: the reference UI uses quiet zinc surfaces and one accent. */
 .bg-white {
   background-color: var(--surface-1) !important;
 }
@@ -146,6 +146,40 @@ textarea:focus-visible {
   box-shadow: var(--surface-shadow-soft) !important;
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;
+}
+
+.overview-card,
+.ui-card,
+.ui-card-elevated,
+.glass-card,
+.glass-panel {
+  border-radius: 12px !important;
+}
+
+.workbench,
+.auth-page {
+  color: var(--theme-text);
+}
+
+.workbench .text-gray-900,
+.workbench .text-gray-800,
+.workbench .text-gray-700,
+.workbench .text-gray-600,
+.workbench .dark\:text-gray-100,
+.workbench .dark\:text-gray-200,
+.workbench .dark\:text-gray-300 {
+  color: var(--theme-text) !important;
+}
+
+.workbench .text-gray-500,
+.workbench .text-gray-400 {
+  color: var(--muted-text) !important;
+}
+
+.workbench .border-gray-100,
+.workbench .border-gray-200,
+.workbench .dark\:border-gray-700 {
+  border-color: var(--surface-border) !important;
 }
 .ui-subtle-panel {
   border: 1px solid var(--surface-border) !important;
