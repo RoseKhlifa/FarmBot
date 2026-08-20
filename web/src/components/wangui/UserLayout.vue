@@ -13,7 +13,7 @@ import {
   User as UserIcon,
   Users,
 } from 'lucide-vue-next'
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { systemApi } from '@/api'
 import { useAccountStore } from '@/stores/account'
@@ -52,6 +52,9 @@ const items: NavItem[] = [
 const navItems = computed(() => userStore.isAdmin
   ? [...items, { to: '/admin', label: '管理后台', icon: Activity }]
   : items)
+const mobilePrimaryItems = items.slice(0, 4)
+const mobileMoreItems = computed(() => navItems.value.filter(item => !mobilePrimaryItems.some(primary => primary.to === item.to)))
+const mobileMenuOpen = ref(false)
 
 const announcements = ref<FarmAnnouncement[]>([])
 async function loadAnnouncements() {
@@ -98,6 +101,9 @@ onMounted(() => {
 onUnmounted(() => {
   if (pollHandle)
     clearInterval(pollHandle)
+})
+watch(() => router.currentRoute.value.fullPath, () => {
+  mobileMenuOpen.value = false
 })
 </script>
 
@@ -222,9 +228,9 @@ onUnmounted(() => {
       </div>
 
       <!-- Mobile bottom nav -->
-      <nav class="fixed inset-x-0 bottom-0 z-30 flex justify-around border-t border-black/[0.08] bg-white/90 py-2 backdrop-blur-xl md:hidden dark:border-white/[0.06] dark:bg-zinc-950/90">
+      <nav class="fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-black/[0.08] bg-white/90 py-2 backdrop-blur-xl md:hidden dark:border-white/[0.06] dark:bg-zinc-950/90">
         <RouterLink
-          v-for="item in navItems"
+          v-for="item in mobilePrimaryItems"
           :key="item.to"
           v-slot="{ isExactActive }"
           :to="item.to"
@@ -240,7 +246,50 @@ onUnmounted(() => {
             <span class="text-[10px]">{{ item.label }}</span>
           </a>
         </RouterLink>
+        <button
+          type="button"
+          class="flex flex-col items-center gap-0.5 rounded-lg px-3 py-1.5 text-zinc-500"
+          :class="mobileMenuOpen ? 'text-emerald-400' : 'text-zinc-500'"
+          @click="mobileMenuOpen = !mobileMenuOpen"
+        >
+          <Settings class="h-5 w-5" />
+          <span class="text-[10px]">更多</span>
+        </button>
       </nav>
+
+      <Transition name="mobile-sheet">
+        <div v-if="mobileMenuOpen" class="fixed inset-0 z-40 md:hidden" @click.self="mobileMenuOpen = false">
+          <div class="absolute inset-0 bg-black/25 backdrop-blur-[2px]" aria-hidden="true" />
+          <div class="absolute inset-x-0 bottom-0 border-t border-black/[0.08] rounded-t-2xl bg-white px-4 pb-24 pt-4 shadow-2xl dark:border-white/[0.06] dark:bg-zinc-900">
+            <div class="mx-auto mb-3 h-1 w-10 rounded-full bg-zinc-200 dark:bg-zinc-700" />
+            <div class="mb-3 flex items-center justify-between">
+              <div>
+                <p class="text-sm text-zinc-900 font-semibold dark:text-zinc-100">
+                  更多功能
+                </p>
+                <p class="mt-0.5 text-[11px] text-zinc-500">
+                  进入完整管理与数据视图
+                </p>
+              </div>
+              <button type="button" class="rounded-lg p-2 text-zinc-500 hover:bg-black/5 dark:hover:bg-white/5" aria-label="关闭更多功能" @click="mobileMenuOpen = false">
+                <span class="i-carbon-close text-lg" />
+              </button>
+            </div>
+            <div class="grid grid-cols-2 gap-2">
+              <RouterLink
+                v-for="item in mobileMoreItems"
+                :key="item.to"
+                :to="item.to"
+                class="min-h-16 flex items-center gap-3 border border-black/[0.06] rounded-xl px-3 text-zinc-700 transition-colors dark:border-white/[0.06] hover:bg-emerald-50 dark:text-zinc-200 dark:hover:bg-emerald-950/30"
+                @click="mobileMenuOpen = false"
+              >
+                <component :is="item.icon" class="h-5 w-5 text-emerald-500" />
+                <span class="text-xs font-medium">{{ item.label }}</span>
+              </RouterLink>
+            </div>
+          </div>
+        </div>
+      </Transition>
     </main>
   </div>
 </template>

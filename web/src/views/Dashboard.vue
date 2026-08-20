@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
-import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { accountApi } from '@/api'
 import AccountModal from '@/components/AccountModal.vue'
 import BagPanel from '@/components/BagPanel.vue'
@@ -17,10 +17,6 @@ import FarmPanel from '@/components/FarmPanel.vue'
 import AutomationSettingsTab from '@/components/settings/AutomationSettingsTab.vue'
 import StrategySettingsTab from '@/components/settings/StrategySettingsTab.vue'
 import TaskPanel from '@/components/TaskPanel.vue'
-import ThemeToggle from '@/components/ThemeToggle.vue'
-import BaseButton from '@/components/ui/BaseButton.vue'
-import BaseInput from '@/components/ui/BaseInput.vue'
-import BaseSelect from '@/components/ui/BaseSelect.vue'
 import { useAutomationSettings } from '@/composables/settings/useAutomationSettings'
 import { useStrategySettings } from '@/composables/settings/useStrategySettings'
 import { useAccountScope } from '@/composables/useAccountScope'
@@ -175,15 +171,6 @@ const currentAvatarSrc = computed(() => {
   return ''
 })
 
-// 头像加载失败处理
-function onAvatarError(e: Event) {
-  const t = e.target as HTMLImageElement | null
-  if (t)
-    t.style.display = 'none'
-}
-
-const logContainer = ref<HTMLElement | null>(null)
-const autoScroll = ref(true)
 const lastBagFetchAt = ref(0)
 const clearingLogs = ref(false)
 
@@ -397,34 +384,6 @@ const eventLabelMap: Record<string, string> = Object.fromEntries(
   events.filter(event => event.value).map(event => [event.value, event.label]),
 )
 
-const displayName = computed(() => {
-  const account = accountStore.currentAccount
-  const gameName = status.value?.status?.name
-
-  if (gameName) {
-    if (account?.name)
-      return `${gameName} (${account.name})`
-    return gameName
-  }
-
-  if (currentAccountDisconnected.value) {
-    if (account) {
-      if (account.name && account.nick)
-        return `${account.nick} (${account.name})`
-      return account.name || account.nick || '未登录'
-    }
-    return '未登录'
-  }
-
-  if (account) {
-    if (account.name && account.nick)
-      return `${account.nick} (${account.name})`
-    return account.name || account.nick || '未命名'
-  }
-
-  return '未命名'
-})
-
 const expRate = computed(() => {
   const gain = status.value?.sessionExpGained || 0
   const uptime = status.value?.uptime || 0
@@ -468,58 +427,6 @@ function resetDashboardState() {
   resetCountdown()
 }
 
-const OP_META: Record<string, { label: string, icon: string, color: string }> = {
-  harvest: { label: '收获', icon: 'i-carbon-crop-growth', color: 'text-green-500' },
-  water: { label: '浇水', icon: 'i-carbon-rain-drop', color: 'text-blue-400' },
-  weed: { label: '除草', icon: 'i-carbon-cut', color: 'text-yellow-500' },
-  bug: { label: '除虫', icon: 'i-carbon-pest', color: 'text-red-400' },
-  farming: { label: '一键务农', icon: 'i-carbon-clean', color: 'text-teal-500' },
-  fertilize: { label: '施肥', icon: 'i-carbon-chemistry', color: 'text-emerald-500' },
-  plant: { label: '种植', icon: 'i-carbon-tree', color: 'text-lime-500' },
-  steal: { label: '偷菜', icon: 'i-carbon-run', color: 'text-orange-500' },
-  helpWater: { label: '帮浇水', icon: 'i-carbon-rain-drop', color: 'text-blue-300' },
-  goldenBugClear: { label: '清黄金虫', icon: 'i-carbon-clean', color: 'text-amber-500' },
-  goldenBugPut: { label: '放黄金虫', icon: 'i-carbon-pest', color: 'text-yellow-500' },
-  helpWeed: { label: '帮除草', icon: 'i-carbon-cut', color: 'text-yellow-400' },
-  helpBug: { label: '帮除虫', icon: 'i-carbon-pest', color: 'text-red-300' },
-  taskClaim: { label: '任务', icon: 'i-carbon-task-complete', color: 'text-indigo-500' },
-  sell: { label: '收益', icon: 'i-carbon-money', color: 'text-pink-500' },
-  tongQiGift: { label: '同气礼包', icon: 'i-carbon-gift', color: 'text-rose-500' },
-}
-
-const filteredOperations = computed(() => {
-  const operations = status.value?.operations || {}
-  const result: Record<string, number> = {}
-
-  for (const key of Object.keys(operations)) {
-    if (key !== 'upgrade' && key !== 'levelUp')
-      result[key] = operations[key]
-  }
-
-  return result
-})
-
-const todayStatsExpanded = ref(false)
-
-// 今日统计默认展示顺序（折叠时只看前6项）
-const DEFAULT_KEYS = ['sell', 'tongQiGift', 'harvest', 'steal', 'plant', 'fertilize']
-
-const todayStatsRows = computed(() => {
-  const allKeys = Object.keys(filteredOperations.value)
-  const keys = todayStatsExpanded.value
-    ? DEFAULT_KEYS.concat(allKeys.filter(k => !DEFAULT_KEYS.includes(k)))
-    : DEFAULT_KEYS
-
-  // 排成 2 列行
-  const rows: { key: string }[][] = []
-  for (let i = 0; i < keys.length; i += 2) {
-    const k1 = keys[i] || ''
-    const k2 = keys[i + 1] || ''
-    rows.push([{ key: k1 }, { key: k2 }])
-  }
-  return rows
-})
-
 function getEventLabel(event: string) {
   return eventLabelMap[event] || event
 }
@@ -555,18 +462,6 @@ function formatLogTime(timeStr: string) {
     return ''
   const parts = timeStr.split(' ')
   return parts.length > 1 ? (parts[1] || timeStr) : timeStr
-}
-
-function getOpName(key: string | number) {
-  return OP_META[String(key)]?.label || String(key)
-}
-
-function getOpIcon(key: string | number) {
-  return OP_META[String(key)]?.icon || 'i-carbon-circle-dash'
-}
-
-function getOpColor(key: string | number) {
-  return OP_META[String(key)]?.color || 'text-gray-400'
 }
 
 function getExpPercent(progress: any) {
@@ -640,7 +535,6 @@ useAccountScope(currentAccountId, async (newId, oldId) => {
     await loadStrategyData()
     syncLocalAutomationSettings()
   }
-  scrollToBottom()
 })
 
 watch(() => status.value?.connection?.connected, (connected) => {
@@ -658,13 +552,6 @@ watch(hasActiveLogFilter, (enabled) => {
   statusStore.setRealtimeLogsEnabled(!enabled)
   refresh()
 })
-
-function onLogScroll(event: Event) {
-  const element = event.target as HTMLElement
-  if (!element)
-    return
-  autoScroll.value = element.scrollHeight - element.scrollTop - element.clientHeight < 50
-}
 
 async function clearLogs() {
   if (!currentAccountId.value)
@@ -690,20 +577,6 @@ async function clearLogs() {
   }
 }
 
-watch(allLogs, () => {
-  nextTick(() => {
-    if (logContainer.value && autoScroll.value)
-      logContainer.value.scrollTop = logContainer.value.scrollHeight
-  })
-}, { deep: true })
-
-function scrollToBottom() {
-  nextTick(() => {
-    if (logContainer.value)
-      logContainer.value.scrollTop = logContainer.value.scrollHeight
-  })
-}
-
 onMounted(async () => {
   statusStore.setRealtimeLogsEnabled(!hasActiveLogFilter.value)
   syncRealtimeAccount()
@@ -712,7 +585,6 @@ onMounted(async () => {
     await loadStrategyData()
     syncLocalAutomationSettings()
   }
-  scrollToBottom()
 })
 
 // Auto refresh fallback every 10s (WS 断开或启用筛选时回退 HTTP)
@@ -722,457 +594,227 @@ useIntervalFn(updateCountdowns, 1000)
 </script>
 
 <template>
-  <svg width="0" height="0" style="position:absolute">
-    <defs>
-      <linearGradient id="violetGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#818cf8" /><stop offset="100%" stop-color="#6366f1" />
-      </linearGradient>
-      <linearGradient id="coralGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#fb923c" /><stop offset="100%" stop-color="#f97316" />
-      </linearGradient>
-      <linearGradient id="emeraldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-        <stop offset="0%" stop-color="#34d399" /><stop offset="100%" stop-color="#10b981" />
-      </linearGradient>
-    </defs>
-  </svg>
-  <div ref="panelEl" class="flex flex-col gap-2 overflow-x-hidden pt-1 md:pt-2" @touchstart="onSwipeStart" @touchend="onSwipeEnd">
-    <!-- 首页子标签导航 -->
+  <div ref="panelEl" class="dashboard-view" @touchstart="onSwipeStart" @touchend="onSwipeEnd">
+    <header class="dashboard-hero">
+      <div class="dashboard-hero-copy">
+        <div class="dashboard-eyebrow">
+          <span class="status-dot" :class="realtimeConnected ? 'status-dot--live' : 'status-dot--idle'" />
+          FARMBOT / CONTROL ROOM
+        </div>
+        <h1>农场运行总览</h1>
+        <p>集中查看账号状态、巡查节奏和最近动作，把需要处理的事情放在同一个视线里。</p>
+      </div>
+      <div class="dashboard-hero-actions">
+        <button class="dashboard-button dashboard-button--quiet" type="button" @click="showAccountModal = true">
+          <span class="i-carbon-add" />
+          添加账号
+        </button>
+        <button class="dashboard-button dashboard-button--primary" type="button" :disabled="startAllLoading" @click="startAllAccounts">
+          <span :class="startAllLoading ? 'i-svg-spinners-90-ring-with-bg' : (allAccountsRunning ? 'i-carbon-stop-filled' : 'i-carbon-play-filled-alt')" />
+          {{ startAllLoading ? '处理中' : (allAccountsRunning ? '停止全部' : '启动全部') }}
+        </button>
+      </div>
+    </header>
 
-    <div class="sticky top-0 z-30 px-1 pt-1 -mx-1" style="transform: translateZ(0);">
+    <section class="dashboard-switcher" aria-label="工作区视图">
+      <div class="dashboard-switcher-copy">
+        <span>当前工作区</span>
+        <strong>{{ dashboardTabs.find(tab => tab.key === activeTab)?.label || '概览' }}</strong>
+      </div>
       <DashboardTabs
-
         :tabs="dashboardTabs"
-
         :active-tab="activeTab"
-
         @update:active-tab="activeTab = $event"
       />
-    </div>
+    </section>
 
-    <!-- ===== 概览 ===== -->
-    <div v-show="activeTab === 'overview'" class="overview-panel grid grid-cols-1 gap-4 lg:grid-cols-3 sm:grid-cols-2">
-      <AccountHeader
-        :name="String(nickName)"
-        :avatar="currentAvatarSrc"
-        :level="Number(status?.status?.level || 0)"
-        :gold="formatGoldAmount(status?.status?.gold || 0)"
-        :coupon="formatCouponAmount(status?.status?.coupon || 0)"
-        :gold-bean="formatGoldBeanAmount(status?.status?.goldBean || 0)"
-        :uptime="formatDuration(localUptime)"
-        :connected="!!status?.connection?.connected"
-        :exp-percent="getExpPercent(status?.levelProgress)"
-        :exp-current="status?.levelProgress?.current || 0"
-        :exp-needed="status?.levelProgress?.needed || '?'"
-        :exp-rate="expRate"
-        :time-to-level="timeToLevel"
-        :all-accounts-running="allAccountsRunning"
-        :start-all-loading="startAllLoading"
-        :start-btn-style="startBtnStyle"
-        @career="openCareerModal"
-        @start-all="startAllAccounts"
-      />
-      <!-- 合并账号面板 -->
-      <div v-if="false" class="overview-card">
-        <div class="flex flex-col">
-          <!-- 第一行：主题切换 + 居中标题 -->
-          <div class="flex items-center border-b border-gray-100/80 px-5 py-3 dark:border-gray-700/80">
-            <!-- 主题切换按钮 左 -->
-            <ThemeToggle class="mr-2 shrink-0" />
-            <div class="flex flex-1 items-center justify-center gap-2">
-              <div class="i-fas-user-circle text-blue-500" />
-              <span class="text-sm text-gray-700 font-semibold dark:text-gray-200">QQ农场智能助手</span>
+    <section v-show="activeTab === 'overview'" class="dashboard-overview">
+      <div class="dashboard-overview-main">
+        <section class="dashboard-account-focus">
+          <div class="section-heading">
+            <div>
+              <span class="section-kicker">CURRENT ACCOUNT</span>
+              <h2>当前账号</h2>
             </div>
-            <button
-              class="relative h-8 w-16 flex items-center justify-between rounded-full px-1.5 transition-all duration-300"
-              :style="startBtnStyle"
-              :disabled="startAllLoading"
-              :title="startAllLoading ? '启动中' : (allAccountsRunning ? '停止' : '一键启动')"
-              @click="startAllAccounts"
-            >
-              <div
-                class="h-6 w-6 flex transform items-center justify-center rounded-full shadow-md transition-all duration-300"
-                :class="[allAccountsRunning ? 'translate-x-[18px]' : 'translate-x-0', appStore.isDark ? 'bg-slate-700' : 'bg-white']"
-              >
-                <span v-if="startAllLoading" class="i-svg-spinners-90-ring-with-bg text-sm text-blue-500" />
-                <span v-else-if="allAccountsRunning" class="i-carbon-stop-filled text-sm text-blue-600" />
-                <span v-else class="i-carbon-play text-sm text-blue-600" />
+            <span class="section-status" :class="status?.connection?.connected ? 'section-status--live' : 'section-status--idle'">
+              <span class="status-dot" :class="status?.connection?.connected ? 'status-dot--live' : 'status-dot--idle'" />
+              {{ status?.connection?.connected ? '正在运行' : (currentAccount ? '等待启动' : '未选择') }}
+            </span>
+          </div>
+          <AccountHeader
+            :name="String(nickName)"
+            :avatar="currentAvatarSrc"
+            :level="Number(status?.status?.level || 0)"
+            :gold="formatGoldAmount(status?.status?.gold || 0)"
+            :coupon="formatCouponAmount(status?.status?.coupon || 0)"
+            :gold-bean="formatGoldBeanAmount(status?.status?.goldBean || 0)"
+            :uptime="formatDuration(localUptime)"
+            :connected="!!status?.connection?.connected"
+            :exp-percent="getExpPercent(status?.levelProgress)"
+            :exp-current="status?.levelProgress?.current || 0"
+            :exp-needed="status?.levelProgress?.needed || '?'"
+            :exp-rate="expRate"
+            :time-to-level="timeToLevel"
+            :all-accounts-running="allAccountsRunning"
+            :start-all-loading="startAllLoading"
+            :start-btn-style="startBtnStyle"
+            @career="openCareerModal"
+            @start-all="startAllAccounts"
+          />
+        </section>
+
+        <div class="dashboard-insight-grid">
+          <TodayStatsPanel
+            :operations="todayStats.filteredOperations.value"
+            :rows="todayStats.rows.value"
+            :expanded="todayStats.expanded.value"
+            :disconnected="currentAccountDisconnected"
+            :get-name="todayStats.getOpName"
+            :get-icon="todayStats.getOpIcon"
+            :get-color="todayStats.getOpColor"
+            @toggle="toggleTodayStats"
+          />
+
+          <section class="dashboard-priority-panel">
+            <div class="section-heading section-heading--compact">
+              <div>
+                <span class="section-kicker">NEXT UP</span>
+                <h2>下一步</h2>
               </div>
+              <span class="i-carbon-arrow-up-right text-lg text-[var(--theme-primary)]" />
+            </div>
+            <div class="priority-list">
+              <button class="priority-item" type="button" @click="activeTab = 'farm'">
+                <span class="priority-icon priority-icon--farm i-carbon-tree" />
+                <span><strong>农场巡查</strong><small>下次检查 {{ nextFarmCheck }}</small></span>
+                <span class="i-carbon-chevron-right" />
+              </button>
+              <button class="priority-item" type="button" @click="activeTab = 'tasks'">
+                <span class="priority-icon priority-icon--task i-carbon-task" />
+                <span><strong>每日任务</strong><small>{{ currentAccount ? '查看今日成长进度' : '先选择一个账号' }}</small></span>
+                <span class="i-carbon-chevron-right" />
+              </button>
+              <button class="priority-item" type="button" @click="activeTab = 'automation'">
+                <span class="priority-icon priority-icon--setting i-carbon-settings-adjust" />
+                <span><strong>自动控制</strong><small>检查规则和执行策略</small></span>
+                <span class="i-carbon-chevron-right" />
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <section class="dashboard-log-panel">
+          <div class="section-heading">
+            <div>
+              <span class="section-kicker">ACTIVITY FEED</span>
+              <h2>运行日志</h2>
+            </div>
+            <span class="log-count">{{ allLogs.length }} 条记录</span>
+          </div>
+          <LogConsole
+            :logs="allLogs"
+            :modules="modules"
+            :events="events"
+            :levels="logLevels"
+            :filter="filter"
+            :clearing="clearingLogs"
+            :event-label="getEventLabel"
+            :tag-class="getLogTagClass"
+            :msg-class="getLogMsgClass"
+            :time="formatLogTime"
+            @filter="onLogFilterChange"
+            @update-filter="Object.assign(filter, $event)"
+            @search="onLogSearchTrigger"
+            @clear="clearLogs"
+          />
+        </section>
+      </div>
+
+      <aside class="dashboard-overview-rail">
+        <section class="dashboard-rail-panel">
+          <div class="section-heading section-heading--compact">
+            <div>
+              <span class="section-kicker">SCHEDULE</span>
+              <h2>下次巡查</h2>
+            </div>
+            <span class="i-carbon-hourglass text-lg text-[var(--theme-primary)]" />
+          </div>
+          <div class="schedule-list">
+            <button class="schedule-row" type="button" @click="activeTab = 'farm'">
+              <span class="schedule-label"><span class="schedule-dot schedule-dot--farm" />农场</span>
+              <span class="schedule-value">{{ nextFarmCheck }}</span>
+              <span class="schedule-track"><span :style="{ width: `${farmPct * 100}%` }" class="schedule-fill schedule-fill--farm" /></span>
+            </button>
+            <button class="schedule-row" type="button" @click="activeTab = 'friends'">
+              <span class="schedule-label"><span class="schedule-dot schedule-dot--help" />帮助</span>
+              <span class="schedule-value">{{ nextHelpCheck }}</span>
+              <span class="schedule-track"><span :style="{ width: `${helpPct * 100}%` }" class="schedule-fill schedule-fill--help" /></span>
+            </button>
+            <button class="schedule-row" type="button" @click="activeTab = 'friends'">
+              <span class="schedule-label"><span class="schedule-dot schedule-dot--steal" />偷菜</span>
+              <span class="schedule-value">{{ nextStealCheck }}</span>
+              <span class="schedule-track"><span :style="{ width: `${stealPct * 100}%` }" class="schedule-fill schedule-fill--steal" /></span>
             </button>
           </div>
+        </section>
 
-          <!-- 第二行：头像 + 数据 -->
-          <div class="flex gap-4 px-5 py-4">
-            <!-- 左侧头像块 -->
-            <div class="w-[120px] flex shrink-0 flex-col items-center gap-2 pt-2">
-              <!-- 头像 -->
-              <div
-                class="relative h-[80px] w-[80px] flex cursor-pointer items-center justify-center overflow-hidden rounded-[20px] from-gray-200 to-gray-300 bg-gradient-to-br ring-1 ring-gray-200 transition-transform hover:scale-[1.02] dark:from-gray-600 dark:to-gray-700 dark:ring-gray-600"
-                title="查看生涯统计"
-                @click="openCareerModal"
-              >
-                <img
-                  v-if="currentAvatarSrc"
-                  :src="currentAvatarSrc"
-                  :alt="displayName"
-                  class="h-full w-full object-cover"
-                  @error="onAvatarError"
-                >
-                <div v-show="!currentAvatarSrc" class="text-3xl text-white font-bold dark:text-gray-300">
-                  {{ (displayName || '?').charAt(0).toUpperCase() }}
-                </div>
-                <div class="absolute left-1/2 whitespace-nowrap border-2 border-white rounded-full bg-blue-500 px-2 py-[1px] text-[10px] text-white font-semibold -bottom-[3px] -translate-x-1/2 dark:border-gray-800">
-                  Lv.{{ String(status?.status?.level ?? 0) }}
-                </div>
-              </div>
-
-              <!-- 昵称 + 切换三角形（居中紧挨） -->
-              <div data-account-dropdown class="relative flex items-center justify-center gap-0.5">
-                <span class="max-w-[80px] truncate text-xs text-gray-800 font-semibold dark:text-gray-200" :title="String(nickName)">
-                  {{ nickName }}
-                </span>
-              </div>
-
-              <!-- EXP 进度条 -->
-              <div class="w-full px-1">
-                <div class="h-1.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-700">
-                  <div class="h-full rounded-full bg-blue-500 transition-all duration-500" :style="{ width: `${getExpPercent(status?.levelProgress)}%` }" />
-                </div>
-                <div class="mt-0.5 text-center text-[9px] text-gray-400">
-                  EXP {{ status?.levelProgress?.current || 0 }} / {{ status?.levelProgress?.needed || '?' }}
-                </div>
-                <div class="mt-0.5 text-center text-[9px] text-gray-400">
-                  效率: {{ expRate }}
-                </div>
-                <div class="text-center text-[9px] text-gray-400">
-                  {{ timeToLevel }}
-                </div>
-              </div>
+        <section class="dashboard-rail-panel">
+          <div class="section-heading section-heading--compact">
+            <div>
+              <span class="section-kicker">INVENTORY</span>
+              <h2>资源概览</h2>
             </div>
-
-            <!-- 右侧数据（纵向排列） -->
-            <div class="min-w-0 flex flex-1 flex-col">
-              <!-- 数据行 -->
-              <div class="flex items-center border-b border-gray-100/80 py-2.5 dark:border-gray-700/80">
-                <div class="w-16 flex items-center gap-1.5 text-xs text-gray-500">
-                  <div class="i-fas-coins text-yellow-500" />
-                  <span>金币</span>
-                </div>
-                <div class="flex-1 text-right text-sm text-yellow-600 font-bold dark:text-yellow-500">
-                  {{ formatGoldAmount(status?.status?.gold || 0) }}
-                </div>
-              </div>
-              <div class="flex items-center border-b border-gray-100/80 py-2.5 dark:border-gray-700/80">
-                <div class="w-16 flex items-center gap-1.5 text-xs text-gray-500">
-                  <div class="i-fas-ticket-alt text-emerald-400" />
-                  <span>点券</span>
-                </div>
-                <div class="flex-1 text-right text-sm text-emerald-500 font-bold dark:text-emerald-400">
-                  {{ formatCouponAmount(status?.status?.coupon || 0) }}
-                </div>
-              </div>
-              <div class="flex items-center border-b border-gray-100/80 py-2.5 dark:border-gray-700/80">
-                <div class="w-16 flex items-center gap-1.5 text-xs text-gray-500">
-                  <div class="i-carbon-circle text-amber-500" />
-                  <span>金豆</span>
-                </div>
-                <div class="flex-1 text-right text-sm text-amber-500 font-bold dark:text-amber-400">
-                  {{ formatGoldBeanAmount(status?.status?.goldBean || 0) }}
-                </div>
-              </div>
-              <div class="flex items-center py-2.5">
-                <div class="w-16 flex items-center gap-1.5 text-xs text-gray-500">
-                  <div class="i-fas-clock text-purple-400" />
-                  <span>在线</span>
-                </div>
-                <div class="flex flex-1 items-center justify-end gap-2 text-right text-sm text-gray-700 font-bold dark:text-gray-200">
-                  <span class="inline-block h-2 w-2 rounded-full" :class="status?.connection?.connected ? 'bg-green-500' : currentStatusReady ? 'bg-red-500' : 'bg-gray-300'" />
-                  {{ formatDuration(localUptime) }}
-                </div>
-              </div>
+            <span class="i-carbon-box text-lg text-[var(--theme-primary)]" />
+          </div>
+          <div class="resource-grid">
+            <div class="resource-item">
+              <span class="i-fas-flask text-emerald-500" /><small>普通化肥</small><strong>{{ formatBucketTime(fertilizerNormal) }}</strong>
+            </div>
+            <div class="resource-item">
+              <span class="i-fas-vial text-sky-500" /><small>有机化肥</small><strong>{{ formatBucketTime(fertilizerOrganic) }}</strong>
+            </div>
+            <div class="resource-item">
+              <span class="i-fas-bookmark text-amber-500" /><small>普通收藏</small><strong>{{ collectionNormal?.count || 0 }}</strong>
+            </div>
+            <div class="resource-item">
+              <span class="i-fas-gem text-violet-500" /><small>典藏收藏</small><strong>{{ collectionRare?.count || 0 }}</strong>
             </div>
           </div>
-        </div>
-      </div>
+        </section>
 
-      <TodayStatsPanel
-        :operations="todayStats.filteredOperations.value"
-        :rows="todayStats.rows.value"
-        :expanded="todayStats.expanded.value"
-        :disconnected="currentAccountDisconnected"
-        :get-name="todayStats.getOpName"
-        :get-icon="todayStats.getOpIcon"
-        :get-color="todayStats.getOpColor"
-        @toggle="toggleTodayStats"
-      />
-      <!-- 旧统计区块由 TodayStatsPanel 接管 -->
-      <div v-if="false" class="overview-card p-5">
-        <div class="mb-3 flex items-center justify-between">
-          <div class="flex items-center gap-2 text-sm text-gray-500">
-            <div class="i-carbon-chart-column" />
-            <span>今日统计</span>
+        <section class="dashboard-rail-panel account-switcher-panel">
+          <div class="section-heading section-heading--compact">
+            <div>
+              <span class="section-kicker">ACCOUNTS</span>
+              <h2>账号列表</h2>
+            </div>
+            <span class="account-count">{{ accountStore.accounts.length }}</span>
           </div>
-          <div v-if="Object.keys(filteredOperations).length" class="flex cursor-pointer select-none items-center gap-1 text-xs text-gray-400 hover:text-blue-500" @click="todayStatsExpanded = !todayStatsExpanded">
-            <span>{{ todayStatsExpanded ? '收起' : '展开' }}</span>
-            <div class="i-carbon-chevron-down text-sm transition-transform duration-200" :class="{ 'rotate-180': todayStatsExpanded }" />
-          </div>
-        </div>
-
-        <div v-if="currentAccountDisconnected" class="flex flex-col items-center justify-center gap-4 py-8 text-center text-gray-500">
-          <div class="i-carbon-connection-signal-off text-4xl text-gray-400" />
-          <div class="text-base text-gray-700 font-medium dark:text-gray-300">
-            账号未登录
-          </div>
-          <div class="text-sm text-gray-400">
-            请先运行账号或检查网络连接。
-          </div>
-        </div>
-        <div v-else-if="!Object.keys(filteredOperations).length" class="flex flex-col items-center justify-center gap-3 py-6 text-center">
-          <div class="i-carbon-chart-column text-3xl text-gray-300" />
-          <div class="text-sm text-gray-600 font-medium dark:text-gray-300">
-            暂无主动作统计
-          </div>
-          <div class="text-xs text-gray-400">
-            通常是刚启动、刚切换账号，或本轮巡查尚未完成。
-          </div>
-        </div>
-        <div v-else class="flex flex-col gap-2">
-          <div
-            v-for="(row, ri) in todayStatsRows"
-            :key="ri"
-            class="flex gap-2"
-          >
-            <div
-              v-for="cell in row"
-              :key="cell.key"
-              class="flex flex-1 items-center justify-between rounded-lg px-3 py-2"
-              :class="cell.key ? 'ui-subtle-panel' : 'invisible'"
+          <div v-if="accountStore.accounts.length" class="account-list">
+            <button
+              v-for="account in accountStore.accounts"
+              :key="account.id"
+              class="account-list-item"
+              :class="{ 'account-list-item--active': String(account.id) === String(currentAccountId) }"
+              type="button"
+              @click="accountStore.setCurrentAccount(account)"
             >
-              <template v-if="cell.key">
-                <div class="flex items-center gap-1.5">
-                  <div class="text-sm" :class="[getOpIcon(cell.key), getOpColor(cell.key)]" />
-                  <span class="text-xs text-gray-500">{{ getOpName(cell.key) }}</span>
-                </div>
-                <span class="text-sm font-bold">{{ filteredOperations[cell.key] }}</span>
-              </template>
-            </div>
+              <span class="account-list-avatar">{{ (account.nick || account.name || account.uin || '?').toString().charAt(0).toUpperCase() }}</span>
+              <span class="account-list-copy"><strong>{{ account.nick || account.name || account.uin || '未命名账号' }}</strong><small>{{ account.running ? '运行中' : '未启动' }}</small></span>
+              <span class="account-list-state" :class="account.running ? 'account-list-state--live' : ''" />
+            </button>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <div v-show="activeTab === 'overview'" class="flex flex-1 flex-col items-stretch gap-5 md:flex-row">
-      <!-- 倒计时圆环卡片 + 化肥容器（原 md:w-1/4，现放前面） -->
-      <div class="flex flex-col gap-5 md:w-1/4">
-        <div class="overview-card flex flex-col p-4">
-          <div class="mb-3 flex items-center justify-center gap-1.5 text-xs text-gray-400 font-medium dark:text-gray-300">
-            <div class="i-carbon-hourglass" />
-            <span>下次检查倒计时</span>
+          <div v-else class="account-empty">
+            <span class="i-carbon-user-follow text-xl" />
+            <p>还没有接入农场账号</p>
+            <small>添加账号后，运行状态和日志会显示在这里。</small>
           </div>
-          <div class="flex items-center justify-around py-1">
-            <!-- 农场 -->
-            <div class="relative flex flex-col items-center gap-1.5">
-              <div class="relative flex items-center justify-center" style="width:78px;height:78px;">
-                <svg class="absolute inset-0 h-full w-full" viewBox="0 0 36 36" style="transform:rotate(-90deg);">
-                  <circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(128,128,128,0.12)" stroke-width="4.5" />
-                  <circle cx="18" cy="18" r="15.5" fill="none" stroke="url(#violetGrad)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="97.4" :stroke-dashoffset="(97.4 * (1 - farmPct)).toFixed(2)" style="transition: stroke-dashoffset 0.3s linear;" />
-                </svg>
-                <div class="flex flex-col items-center leading-none">
-                  <div class="text-xs font-bold tabular-nums" style="color:#a5b4fc;">
-                    {{ nextFarmCheck }}
-                  </div>
-                  <div class="mt-0.5 text-[9px] text-gray-500 dark:text-gray-400">
-                    农场
-                  </div>
-                </div>
-              </div>
-            </div>
-            <!-- 帮助 -->
-            <div class="relative flex flex-col items-center gap-1.5">
-              <div class="relative flex items-center justify-center" style="width:78px;height:78px;">
-                <svg class="absolute inset-0 h-full w-full" viewBox="0 0 36 36" style="transform:rotate(-90deg);">
-                  <circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(128,128,128,0.12)" stroke-width="4.5" />
-                  <circle cx="18" cy="18" r="15.5" fill="none" stroke="url(#coralGrad)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="97.4" :stroke-dashoffset="(97.4 * (1 - helpPct)).toFixed(2)" style="transition: stroke-dashoffset 0.3s linear;" />
-                </svg>
-                <div class="flex flex-col items-center leading-none">
-                  <div class="text-xs font-bold tabular-nums" style="color:#fdba74;">
-                    {{ nextHelpCheck }}
-                  </div>
-                  <div class="mt-0.5 text-[9px] text-gray-500 dark:text-gray-400">
-                    帮助
-                  </div>
-                </div>
-              </div>
-            </div>
-            <!-- 偷菜 -->
-            <div class="relative flex flex-col items-center gap-1.5">
-              <div class="relative flex items-center justify-center" style="width:78px;height:78px;">
-                <svg class="absolute inset-0 h-full w-full" viewBox="0 0 36 36" style="transform:rotate(-90deg);">
-                  <circle cx="18" cy="18" r="15.5" fill="none" stroke="rgba(128,128,128,0.12)" stroke-width="4.5" />
-                  <circle cx="18" cy="18" r="15.5" fill="none" stroke="url(#emeraldGrad)" stroke-width="4.5" stroke-linecap="round" stroke-dasharray="97.4" :stroke-dashoffset="(97.4 * (1 - stealPct)).toFixed(2)" style="transition: stroke-dashoffset 0.3s linear;" />
-                </svg>
-                <div class="flex flex-col items-center leading-none">
-                  <div class="text-xs font-bold tabular-nums" style="color:#6ee7b7;">
-                    {{ nextStealCheck }}
-                  </div>
-                  <div class="mt-0.5 text-[9px] text-gray-500 dark:text-gray-400">
-                    偷菜
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- 化肥容器卡片（保留原样） -->
-        <div class="overview-card flex-1 p-5">
-          <div class="mb-2 flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
-            <div class="i-fas-flask text-emerald-400" />
-            化肥容器
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <div class="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-300">
-                <div class="i-fas-flask text-emerald-400" />
-                普通
-              </div>
-              <div class="text-gray-800 font-bold dark:text-gray-100">
-                {{ formatBucketTime(fertilizerNormal) }}
-              </div>
-            </div>
-            <div>
-              <div class="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-300">
-                <div class="i-fas-vial text-emerald-400" />
-                有机
-              </div>
-              <div class="text-gray-800 font-bold dark:text-gray-100">
-                {{ formatBucketTime(fertilizerOrganic) }}
-              </div>
-            </div>
-          </div>
-          <div class="my-3 border-t border-gray-100/80 dark:border-gray-700/80" />
-          <div class="mb-1 flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400">
-            <div class="i-fas-star text-emerald-400" />
-            收藏点
-          </div>
-          <div class="grid grid-cols-2 gap-2">
-            <div>
-              <div class="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-300">
-                <div class="i-fas-bookmark text-emerald-400" />
-                普通
-              </div>
-              <div class="text-gray-800 font-bold dark:text-gray-100">
-                {{ collectionNormal?.count || 0 }}
-              </div>
-            </div>
-            <div>
-              <div class="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-300">
-                <div class="i-fas-gem text-emerald-400" />
-                典藏
-              </div>
-              <div class="text-gray-800 font-bold dark:text-gray-100">
-                {{ collectionRare?.count || 0 }}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 运行日志卡片（原 md:w-3/4，现放后面） -->
-      <div class="flex flex-1 flex-col gap-5 md:w-3/4">
-        <LogConsole
-          :logs="allLogs"
-          :modules="modules"
-          :events="events"
-          :levels="logLevels"
-          :filter="filter"
-          :clearing="clearingLogs"
-          :event-label="getEventLabel"
-          :tag-class="getLogTagClass"
-          :msg-class="getLogMsgClass"
-          :time="formatLogTime"
-          @filter="onLogFilterChange"
-          @update-filter="Object.assign(filter, $event)"
-          @search="onLogSearchTrigger"
-          @clear="clearLogs"
-        />
-        <div v-if="false" class="overview-card flex flex-1 flex-col p-5 md:overflow-hidden">
-          <div class="mb-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <h3 class="flex items-center gap-2 text-lg font-medium">
-              <div class="i-carbon-document" />
-              <span>运行日志</span>
-            </h3>
-
-            <div class="flex flex-wrap items-center gap-2 text-sm">
-              <BaseSelect
-                v-model="filter.module"
-                :options="modules"
-                class="w-32"
-                @change="onLogFilterChange"
-              />
-
-              <BaseSelect
-                v-model="filter.event"
-                :options="events"
-                class="w-32"
-                @change="onLogFilterChange"
-              />
-
-              <BaseSelect
-                v-model="filter.isWarn"
-                :options="logLevels"
-                class="w-32"
-                @change="onLogFilterChange"
-              />
-
-              <BaseInput
-                v-model="filter.keyword"
-                placeholder="关键词..."
-                class="w-32"
-                clearable
-                @keyup.enter="onLogSearchTrigger"
-                @clear="onLogSearchTrigger"
-              />
-
-              <BaseButton
-                variant="primary"
-                size="sm"
-                @click="onLogSearchTrigger"
-              >
-                <div class="i-carbon-search" />
-              </BaseButton>
-
-              <BaseButton
-                variant="secondary"
-                size="sm"
-                :loading="clearingLogs"
-                @click="clearLogs"
-              >
-                <div class="i-carbon-trash-can mr-1" />
-                清空
-              </BaseButton>
-            </div>
-          </div>
-
-          <div ref="logContainer" class="ui-subtle-panel max-h-[50vh] min-h-0 flex-1 overflow-y-auto rounded-lg p-4 text-sm leading-relaxed font-mono" @scroll="onLogScroll">
-            <div v-if="!allLogs.length" class="py-8 text-center text-gray-400">
-              <div class="i-carbon-document-blank mx-auto mb-3 text-3xl text-gray-300" />
-              <div class="text-sm text-gray-500 dark:text-gray-400">
-                暂无日志
-              </div>
-              <div class="mt-1 text-xs text-gray-400">
-                运行账号后，这里会持续追加巡查、种植、任务和出售记录。
-              </div>
-            </div>
-            <div v-for="log in allLogs" :key="log.ts + log.msg" class="mb-1 break-all" :class="log.recovered ? 'opacity-45' : ''">
-              <span class="mr-2 select-none text-gray-400">[{{ formatLogTime(log.time) }}]</span>
-              <span class="mr-2 rounded px-1.5 py-0.5 text-xs font-bold" :class="getLogTagClass(log.tag)">{{ log.tag }}</span>
-              <span v-if="log.meta?.event" class="mr-2 rounded bg-blue-50 px-1.5 py-0.5 text-xs text-blue-500 dark:bg-blue-900/20 dark:text-blue-400">{{ getEventLabel(log.meta.event) }}</span>
-              <span :class="[getLogMsgClass(log.tag), log.recovered ? 'line-through decoration-gray-400' : '']">{{ log.msg }}<span v-if="log.recovered" class="ml-1 text-xs text-green-500">（已恢复）</span></span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
+          <button class="account-add-button" type="button" @click="showAccountModal = true">
+            <span class="i-carbon-add" />添加账号
+          </button>
+        </section>
+      </aside>
+    </section>
 
     <!-- 农场（复用 FarmPanel） -->
     <div v-show="activeTab === 'farm'" class="h-full">
@@ -1295,99 +937,689 @@ useIntervalFn(updateCountdowns, 1000)
 </template>
 
 <style scoped>
-.overview-panel {
-  --ov-glow: rgba(108, 92, 231, 0.06);
+.dashboard-view {
+  --dashboard-panel: var(--theme-glass, rgba(255, 255, 255, 0.78));
+  --dashboard-panel-strong: var(--surface-1, #fff);
+  --dashboard-muted: var(--muted-text, #64748b);
+  --dashboard-line: var(--theme-border, rgba(15, 23, 42, 0.1));
+  --dashboard-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  max-width: 1480px;
+  margin: 0 auto;
+  color: var(--theme-text, #0f172a);
 }
 
-.overview-card {
-  border-radius: 16px;
-  overflow: visible;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  background: var(--theme-glass);
-  border: 1px solid var(--theme-border);
-  box-shadow:
-    0 1px 3px rgba(0, 0, 0, 0.04),
-    0 1px 2px rgba(0, 0, 0, 0.02);
-  transition: box-shadow 0.2s;
+.dashboard-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 25px 28px;
+  border: 1px solid var(--dashboard-line);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--dashboard-panel-strong) 92%, var(--theme-primary, #10b981) 8%);
+  box-shadow: var(--dashboard-shadow);
 }
 
-.overview-card :deep(.ui-subtle-panel) {
-  background: var(--theme-glass) !important;
-  border: 1px solid var(--theme-border) !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
+.dashboard-hero-copy {
+  min-width: 0;
 }
 
-.overview-panel .ui-card {
-  border-radius: 16px;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  background: var(--theme-glass);
-  border: 1px solid var(--theme-border);
+.dashboard-eyebrow,
+.section-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--dashboard-muted);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: 0.12em;
+  line-height: 1.2;
+  text-transform: uppercase;
 }
 
-.overview-panel .ui-card-elevated {
-  border-radius: 16px;
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  background: var(--theme-glass);
-  border: 1px solid var(--theme-border);
+.dashboard-hero h1 {
+  margin: 9px 0 5px;
+  color: var(--theme-text, #0f172a);
+  font-size: clamp(25px, 3vw, 38px);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
 }
 
-.overview-panel .ui-subtle-panel {
-  background: color-mix(in srgb, var(--theme-bg) 40%, transparent) !important;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid var(--theme-border);
+.dashboard-hero p {
+  max-width: 650px;
+  margin: 0;
+  color: var(--dashboard-muted);
+  font-size: 13px;
+  line-height: 1.65;
 }
 
-/* 嵌入式组件玻璃覆盖 - 图鉴 / 分析 / 背包 / 好友 / 设置 */
+.dashboard-hero-actions {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 9px;
+}
+
+.dashboard-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid var(--dashboard-line);
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 700;
+  transition:
+    transform 0.18s ease,
+    background 0.18s ease,
+    border-color 0.18s ease;
+}
+
+.dashboard-button:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+
+.dashboard-button:disabled {
+  cursor: wait;
+  opacity: 0.6;
+}
+
+.dashboard-button--quiet {
+  background: transparent;
+  color: var(--theme-text, #0f172a);
+}
+
+.dashboard-button--quiet:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--theme-primary, #10b981) 40%, var(--dashboard-line));
+  background: color-mix(in srgb, var(--theme-primary, #10b981) 7%, transparent);
+}
+
+.dashboard-button--primary {
+  border-color: var(--theme-primary, #10b981);
+  background: var(--theme-primary, #10b981);
+  color: #062c20;
+}
+
+.dashboard-button--primary:hover:not(:disabled) {
+  filter: brightness(0.96);
+}
+
+.dashboard-switcher {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+  padding: 10px 12px 0;
+}
+
+.dashboard-switcher-copy {
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 100px;
+}
+
+.dashboard-switcher-copy span {
+  color: var(--dashboard-muted);
+  font-size: 10px;
+  font-weight: 650;
+}
+
+.dashboard-switcher-copy strong {
+  font-size: 15px;
+  line-height: 1.2;
+}
+
+.dashboard-switcher :deep(.dashboard-tabs-wrapper) {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+}
+
+.dashboard-switcher :deep(.dashboard-tabs) {
+  border-radius: 9px;
+  background: color-mix(in srgb, var(--dashboard-panel-strong) 82%, transparent);
+  box-shadow: none;
+}
+
+.dashboard-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  align-items: start;
+  gap: 18px;
+}
+
+.dashboard-overview-main,
+.dashboard-overview-rail {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.dashboard-account-focus,
+.dashboard-priority-panel,
+.dashboard-log-panel,
+.dashboard-rail-panel {
+  min-width: 0;
+  border: 1px solid var(--dashboard-line);
+  border-radius: 10px;
+  background: var(--dashboard-panel);
+  box-shadow: var(--dashboard-shadow);
+}
+
+.dashboard-account-focus,
+.dashboard-log-panel,
+.dashboard-rail-panel {
+  padding: 20px;
+}
+
+.dashboard-account-focus :deep(.overview-card),
+.dashboard-log-panel :deep(.overview-card) {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.dashboard-account-focus :deep(.overview-card) {
+  padding: 0;
+}
+
+.dashboard-log-panel :deep(.overview-card) {
+  padding: 0;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 17px;
+}
+
+.section-heading h2 {
+  margin: 5px 0 0;
+  color: var(--theme-text, #0f172a);
+  font-size: 18px;
+  font-weight: 780;
+  line-height: 1.2;
+}
+
+.section-heading--compact {
+  margin-bottom: 14px;
+}
+
+.section-heading--compact h2 {
+  font-size: 16px;
+}
+
+.section-status,
+.log-count,
+.account-count {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  color: var(--dashboard-muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.section-status--live {
+  color: #059669;
+}
+
+.section-status--idle {
+  color: var(--dashboard-muted);
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.status-dot--live {
+  color: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14);
+}
+
+.status-dot--idle {
+  color: #94a3b8;
+}
+
+.dashboard-insight-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(260px, 0.9fr);
+  gap: 18px;
+}
+
+.dashboard-insight-grid > :deep(.overview-card) {
+  min-width: 0;
+  border: 1px solid var(--dashboard-line);
+  border-radius: 10px;
+  background: var(--dashboard-panel);
+  box-shadow: var(--dashboard-shadow);
+}
+
+.dashboard-insight-grid > :deep(.overview-card) {
+  padding: 20px;
+}
+
+.dashboard-priority-panel {
+  padding: 20px;
+}
+
+.priority-list,
+.schedule-list,
+.account-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.priority-item,
+.schedule-row,
+.account-list-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--theme-text, #0f172a) 3%, transparent);
+  text-align: left;
+  transition:
+    background 0.18s ease,
+    border-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.priority-item {
+  gap: 10px;
+  padding: 10px;
+}
+
+.priority-item:hover,
+.schedule-row:hover,
+.account-list-item:hover {
+  border-color: color-mix(in srgb, var(--theme-primary, #10b981) 30%, var(--dashboard-line));
+  background: color-mix(in srgb, var(--theme-primary, #10b981) 7%, transparent);
+  transform: translateX(2px);
+}
+
+.priority-item > span:nth-child(2),
+.account-list-copy {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.priority-item strong,
+.account-list-copy strong {
+  overflow: hidden;
+  color: var(--theme-text, #0f172a);
+  font-size: 12px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.priority-item small,
+.account-list-copy small {
+  overflow: hidden;
+  color: var(--dashboard-muted);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.priority-icon {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 8px;
+  font-size: 15px;
+}
+
+.priority-icon--farm {
+  background: rgba(16, 185, 129, 0.13);
+  color: #059669;
+}
+
+.priority-icon--task {
+  background: rgba(14, 165, 233, 0.13);
+  color: #0284c7;
+}
+
+.priority-icon--setting {
+  background: rgba(245, 158, 11, 0.14);
+  color: #d97706;
+}
+
+.schedule-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 6px 12px;
+  padding: 10px;
+}
+
+.schedule-label,
+.schedule-value {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--theme-text, #0f172a);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.schedule-value {
+  color: var(--dashboard-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.schedule-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+
+.schedule-dot--farm,
+.schedule-fill--farm {
+  background: #10b981;
+}
+
+.schedule-dot--help,
+.schedule-fill--help {
+  background: #0ea5e9;
+}
+
+.schedule-dot--steal,
+.schedule-fill--steal {
+  background: #f59e0b;
+}
+
+.schedule-track {
+  grid-column: 1 / -1;
+  height: 4px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: color-mix(in srgb, var(--theme-text, #0f172a) 9%, transparent);
+}
+
+.schedule-fill {
+  display: block;
+  height: 100%;
+  min-width: 3px;
+  border-radius: inherit;
+  transition: width 0.3s ease;
+}
+
+.resource-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.resource-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 3px 7px;
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid var(--dashboard-line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--theme-text, #0f172a) 2%, transparent);
+}
+
+.resource-item > span {
+  grid-row: span 2;
+  align-self: center;
+  font-size: 15px;
+}
+
+.resource-item small {
+  overflow: hidden;
+  color: var(--dashboard-muted);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.resource-item strong {
+  overflow: hidden;
+  color: var(--theme-text, #0f172a);
+  font-size: 13px;
+  font-weight: 780;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-list-item {
+  gap: 9px;
+  padding: 8px;
+}
+
+.account-list-item--active {
+  border-color: color-mix(in srgb, var(--theme-primary, #10b981) 45%, var(--dashboard-line));
+  background: color-mix(in srgb, var(--theme-primary, #10b981) 10%, transparent);
+}
+
+.account-list-avatar {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--theme-primary, #10b981) 15%, var(--dashboard-panel-strong));
+  color: var(--theme-primary, #10b981);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.account-list-state {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #cbd5e1;
+}
+
+.account-list-state--live {
+  background: #10b981;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.14);
+}
+
+.account-empty {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 7px;
+  padding: 18px 10px;
+  color: var(--dashboard-muted);
+  text-align: center;
+}
+
+.account-empty p {
+  margin: 0;
+  color: var(--theme-text, #0f172a);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.account-empty small {
+  max-width: 220px;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.account-add-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+  min-height: 34px;
+  margin-top: 10px;
+  border: 1px dashed color-mix(in srgb, var(--theme-primary, #10b981) 45%, var(--dashboard-line));
+  border-radius: 8px;
+  background: transparent;
+  color: var(--theme-primary, #10b981);
+  font-size: 11px;
+  font-weight: 750;
+  transition: background 0.18s ease;
+}
+
+.account-add-button:hover {
+  background: color-mix(in srgb, var(--theme-primary, #10b981) 8%, transparent);
+}
+
+.dashboard-log-panel :deep(.ui-subtle-panel) {
+  min-height: 260px;
+  border-color: var(--dashboard-line) !important;
+  background: color-mix(in srgb, var(--theme-text, #0f172a) 3%, transparent) !important;
+}
+
+.dashboard-log-panel :deep(.flex.flex-1.flex-col > .mb-4) {
+  margin-bottom: 12px;
+}
+
+/* Keep embedded views on the same neutral surface when switching tabs. */
 :deep(.illustrated-container),
 :deep(.analytics-container),
 .illustrated-container :deep(.rounded-lg),
 .analytics-container :deep(.rounded-lg) {
-  background: var(--theme-glass) !important;
-  border: 1px solid var(--theme-border) !important;
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-}
-
-.illustrated-container :deep(.bg-white),
-.analytics-container :deep(.bg-white),
-.illustrated-container :deep(.bg-gray-50),
-.analytics-container :deep(.bg-gray-50),
-.illustrated-container :deep(.dark\\:bg-gray-800),
-.analytics-container :deep(.dark\\:bg-gray-800),
-.illustrated-container :deep(.dark\\:bg-gray-900),
-.analytics-container :deep(.dark\\:bg-gray-900) {
-  background: var(--theme-glass) !important;
-}
-
-.illustrated-container :deep(.shadow-sm),
-.analytics-container :deep(.shadow-sm),
-.illustrated-container :deep(.shadow),
-.analytics-container :deep(.shadow) {
+  background: var(--dashboard-panel) !important;
+  border-color: var(--dashboard-line) !important;
   box-shadow: none !important;
 }
 
-.illustrated-container :deep(.border-gray-200),
-.analytics-container :deep(.border-gray-200),
-.illustrated-container :deep(.dark\\:border-gray-700),
-.analytics-container :deep(.dark\\:border-gray-700) {
-  border-color: var(--theme-border) !important;
+:deep(.illustrated-container .bg-white),
+:deep(.analytics-container .bg-white),
+:deep(.illustrated-container .bg-gray-50),
+:deep(.analytics-container .bg-gray-50) {
+  background: transparent !important;
 }
 
-/* 切 tab 淡入 */
 .tab-fade {
   animation: tabFadeIn 0.2s ease;
 }
+
 @keyframes tabFadeIn {
   from {
     opacity: 0.35;
   }
   to {
     opacity: 1;
+  }
+}
+
+@media (max-width: 1180px) {
+  .dashboard-overview {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .dashboard-overview-rail {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: start;
+  }
+}
+
+@media (max-width: 820px) {
+  .dashboard-hero {
+    align-items: flex-start;
+    flex-direction: column;
+    padding: 21px 20px;
+  }
+
+  .dashboard-hero-actions {
+    width: 100%;
+  }
+
+  .dashboard-button {
+    flex: 1;
+  }
+
+  .dashboard-switcher {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+    padding: 3px 0 0;
+  }
+
+  .dashboard-switcher-copy {
+    flex-direction: row;
+    align-items: baseline;
+    gap: 8px;
+  }
+
+  .dashboard-overview-rail,
+  .dashboard-insight-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 560px) {
+  .dashboard-view {
+    gap: 14px;
+  }
+
+  .dashboard-hero {
+    border-radius: 10px;
+    padding: 18px 16px;
+  }
+
+  .dashboard-hero h1 {
+    font-size: 25px;
+  }
+
+  .dashboard-hero p {
+    font-size: 12px;
+  }
+
+  .dashboard-account-focus,
+  .dashboard-log-panel,
+  .dashboard-rail-panel,
+  .dashboard-priority-panel {
+    padding: 16px;
+    border-radius: 9px;
+  }
+
+  .dashboard-insight-grid > :deep(.overview-card) {
+    padding: 16px;
+  }
+
+  .dashboard-log-panel :deep(.ui-subtle-panel) {
+    min-height: 220px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dashboard-button,
+  .priority-item,
+  .schedule-row,
+  .account-list-item,
+  .tab-fade {
+    transition: none !important;
+    animation: none !important;
   }
 }
 </style>
