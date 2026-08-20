@@ -1,9 +1,9 @@
 <script setup lang="ts">
+import type { Account } from '@/stores/account'
 import { storeToRefs } from 'pinia'
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, useTemplateRef } from 'vue'
 import AccountModal from '@/components/AccountModal.vue'
 import RemarkModal from '@/components/RemarkModal.vue'
-import type { Account } from '@/stores/account'
 import { getPlatformClass, getPlatformLabel, useAccountStore } from '@/stores/account'
 import { useStatusStore } from '@/stores/status'
 import { useUserStore } from '@/stores/user'
@@ -212,17 +212,20 @@ async function submitRenew() {
   renewLoading.value = true
   renewError.value = ''
   try {
-    const { default: api } = await import('@/api')
-    const res = await api.post('/api/renew', { cardKey: renewCardKey.value.trim() })
+    const { userApi } = await import('@/api')
+    const res = await userApi.renewLegacy({ cardKey: renewCardKey.value.trim() })
     if (res.data.ok) {
       showRenewModal.value = false
       await userStore.fetchUserInfo?.()
-    } else {
+    }
+    else {
       renewError.value = res.data.error || '续费失败'
     }
-  } catch (e: any) {
+  }
+  catch (e: any) {
     renewError.value = e?.response?.data?.error || e?.message || '续费失败'
-  } finally {
+  }
+  finally {
     renewLoading.value = false
   }
 }
@@ -237,10 +240,10 @@ async function handleLogout() {
   <div class="relative">
     <button
       ref="trigger"
-      class="max-w-[min(76vw,280px)] flex items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-gray-100/70 dark:hover:bg-gray-700/50"
+      class="account-trigger max-w-[min(76vw,280px)] flex items-center gap-3 rounded-xl px-3 py-2 text-left transition hover:bg-gray-100/70 dark:hover:bg-gray-700/50"
       @click="toggleDropdown"
     >
-      <div class="h-9 w-9 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200 dark:bg-gray-700 dark:ring-gray-600">
+      <div class="account-trigger-avatar h-9 w-9 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-100 ring-1 ring-gray-200 dark:bg-gray-700 dark:ring-gray-600">
         <img
           v-if="shouldShowAvatar(currentAccount)"
           :src="currentAvatarSrc"
@@ -252,7 +255,7 @@ async function handleLogout() {
           {{ avatarInitial(currentAccount) }}
         </span>
       </div>
-      <div class="min-w-0 flex flex-col">
+      <div class="account-trigger-copy min-w-0 flex flex-col">
         <span class="truncate text-sm text-gray-900 font-semibold dark:text-gray-100">
           {{ displayName }}
         </span>
@@ -268,7 +271,7 @@ async function handleLogout() {
         </span>
       </div>
       <div
-        class="i-carbon-chevron-down shrink-0 text-gray-400 transition-transform duration-200"
+        class="account-trigger-chevron i-carbon-chevron-down shrink-0 text-gray-400 transition-transform duration-200"
         :class="{ 'rotate-180': showAccountDropdown }"
       />
     </button>
@@ -282,8 +285,8 @@ async function handleLogout() {
 
       <div
         v-if="showAccountDropdown"
-        class="fixed z-[9999] overflow-hidden border border-gray-200/70 rounded-xl bg-white/95 py-1 shadow-xl backdrop-blur-sm dark:border-gray-700/70 dark:bg-gray-900/95"
-        :style="{ top: dropdownPos.top + 'px', left: dropdownPos.left + 'px', width: dropdownPos.width + 'px' }"
+        class="account-menu-dropdown fixed z-[9999] overflow-hidden border border-gray-200/70 rounded-xl bg-white/95 py-1 shadow-xl backdrop-blur-sm dark:border-gray-700/70 dark:bg-gray-900/95"
+        :style="{ top: `${dropdownPos.top}px`, left: `${dropdownPos.left}px`, width: `${dropdownPos.width}px` }"
       >
         <div class="custom-scrollbar max-h-72 overflow-y-auto">
           <template v-if="accounts.length > 0">
@@ -393,15 +396,15 @@ async function handleLogout() {
         class="fixed inset-0 z-[10002] flex items-center justify-center bg-black/50 backdrop-blur-sm"
         @click.self="showRenewModal = false"
       >
-        <div class="w-full max-w-sm mx-4 rounded-xl p-5 shadow-2xl" :style="{ background: 'var(--surface-1, #fff)' }">
-          <h3 class="text-base font-semibold mb-3" :style="{ color: 'var(--theme-text)' }">
+        <div class="mx-4 max-w-sm w-full rounded-xl p-5 shadow-2xl" :style="{ background: 'var(--surface-1, #fff)' }">
+          <h3 class="mb-3 text-base font-semibold" :style="{ color: 'var(--theme-text)' }">
             续费卡密/额度
           </h3>
           <input
             v-model="renewCardKey"
             type="text"
             placeholder="请输入卡密"
-            class="w-full rounded-lg border px-3 py-2 text-sm outline-none mb-3"
+            class="mb-3 w-full border rounded-lg px-3 py-2 text-sm outline-none"
             :style="{
               borderColor: 'color-mix(in srgb, var(--theme-text) 15%, transparent)',
               background: 'var(--surface-1, #fff)',
@@ -409,19 +412,19 @@ async function handleLogout() {
             }"
             @keyup.enter="submitRenew"
           >
-          <div v-if="renewError" class="text-sm text-red-500 mb-2">
+          <div v-if="renewError" class="mb-2 text-sm text-red-500">
             {{ renewError }}
           </div>
           <div class="flex justify-end gap-2">
             <button
-              class="px-4 py-1.5 rounded-lg text-sm transition-colors"
+              class="rounded-lg px-4 py-1.5 text-sm transition-colors"
               :style="{ color: 'var(--theme-text)' }"
               @click="showRenewModal = false"
             >
               取消
             </button>
             <button
-              class="px-4 py-1.5 rounded-lg text-sm text-white transition-opacity"
+              class="rounded-lg px-4 py-1.5 text-sm text-white transition-opacity"
               :style="{ background: 'var(--theme-gradient)' }"
               :disabled="renewLoading"
               @click="submitRenew"
@@ -436,6 +439,23 @@ async function handleLogout() {
 </template>
 
 <style scoped>
+.account-trigger {
+  border: 1px solid var(--surface-border);
+  background: var(--surface-1);
+}
+.account-trigger:hover {
+  background: var(--surface-2) !important;
+}
+.account-trigger-avatar {
+  background: color-mix(in srgb, var(--theme-primary) 12%, var(--surface-2)) !important;
+  border-color: color-mix(in srgb, var(--theme-primary) 24%, var(--surface-border)) !important;
+}
+.account-menu-dropdown {
+  border-color: var(--surface-border) !important;
+  background: var(--surface-1) !important;
+  box-shadow: var(--surface-shadow) !important;
+  backdrop-filter: none !important;
+}
 .custom-scrollbar::-webkit-scrollbar {
   width: 4px;
 }

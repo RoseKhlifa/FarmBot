@@ -1,14 +1,11 @@
 <script setup lang="ts">
-import type { Theme } from '@/stores/app'
-import { onMounted, onUnmounted, watch } from 'vue'
+import { onUnmounted, watch } from 'vue'
 import { RouterView } from 'vue-router'
 import ToastContainer from '@/components/ToastContainer.vue'
 import { useRealtime } from '@/composables/useRealtime'
 import { useAccountStore } from '@/stores/account'
-import { useAppStore } from '@/stores/app'
 import { useUserStore } from '@/stores/user'
 
-const appStore = useAppStore()
 const accountStore = useAccountStore()
 const userStore = useUserStore()
 const realtime = useRealtime({
@@ -27,16 +24,6 @@ watch([
 }, { immediate: true })
 
 onUnmounted(() => realtime.disconnect())
-
-// 立即应用保存的主题（在组件挂载前）
-const savedTheme = localStorage.getItem('ui_theme') as Theme
-if (savedTheme && appStore.themes[savedTheme]) {
-  appStore.applyTheme(savedTheme)
-}
-
-onMounted(() => {
-  appStore.fetchTheme()
-})
 </script>
 
 <template>
@@ -47,165 +34,153 @@ onMounted(() => {
 </template>
 
 <style>
-/* Global styles */
-body {
-  margin: 0;
-  font-family: 'DM Sans', sans-serif;
-  background: var(--app-bg);
-  color: var(--theme-text);
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
-}
-
-/* Color theme variables */
 :root {
-  --theme-bg: #f8fafc;
-  --theme-text: #172033;
-  --theme-primary: #3b82f6;
-  --theme-secondary: #2563eb;
-  --theme-gradient: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
-  --app-bg: linear-gradient(180deg, #f6f8fb 0%, #eef3f8 100%);
-  --surface-1: color-mix(in srgb, var(--theme-bg) 8%, #ffffff);
-  --surface-2: color-mix(in srgb, var(--theme-bg) 22%, #ffffff);
-  --surface-3: color-mix(in srgb, var(--theme-bg) 40%, #ffffff);
-  --surface-border: rgba(15, 23, 42, 0.09);
-  --surface-border-strong: rgba(15, 23, 42, 0.14);
-  --surface-shadow: 0 16px 45px rgba(15, 23, 42, 0.08);
-  --surface-shadow-soft: 0 8px 24px rgba(15, 23, 42, 0.06);
-  --muted-text: #64748b;
-  --input-bg: rgba(255, 255, 255, 0.84);
-  --panel-glow: color-mix(in srgb, var(--theme-primary) 14%, transparent);
+  --theme-bg: #f5f8f5;
+  --theme-text: #17231d;
+  --theme-primary: #18794e;
+  --theme-secondary: #14613f;
+  --theme-accent: #c77926;
+  --theme-gradient: #18794e;
+  --theme-glass: #ffffff;
+  --theme-border: #d9e4dc;
+  --app-bg: #f1f5f2;
+  --surface-1: #ffffff;
+  --surface-2: #f5f8f5;
+  --surface-3: #eaf1ec;
+  --surface-border: #dce6df;
+  --surface-border-strong: #c7d6cb;
+  --surface-shadow: 0 14px 34px rgba(34, 63, 47, 0.1);
+  --surface-shadow-soft: 0 5px 16px rgba(34, 63, 47, 0.07);
+  --muted-text: #68786f;
+  --input-bg: #fbfdfb;
+  --panel-glow: transparent;
+  color-scheme: light;
 }
 
 .dark {
-  --app-bg:
-    radial-gradient(circle at top left, color-mix(in srgb, var(--theme-primary) 16%, transparent) 0, transparent 28rem),
-    linear-gradient(180deg, #0b1020 0%, color-mix(in srgb, var(--theme-bg) 74%, #020617) 100%);
-  --surface-1: color-mix(in srgb, var(--theme-bg) 72%, #ffffff 9%);
-  --surface-2: color-mix(in srgb, var(--theme-bg) 78%, #ffffff 6%);
-  --surface-3: color-mix(in srgb, var(--theme-bg) 84%, #ffffff 4%);
-  --surface-border: rgba(255, 255, 255, 0.09);
-  --surface-border-strong: rgba(255, 255, 255, 0.14);
-  --surface-shadow: 0 18px 55px rgba(0, 0, 0, 0.34);
-  --surface-shadow-soft: 0 10px 28px rgba(0, 0, 0, 0.24);
-  --muted-text: #9ca3af;
-  --input-bg: rgba(15, 23, 42, 0.54);
-  --panel-glow: color-mix(in srgb, var(--theme-primary) 18%, transparent);
+  --theme-bg: #121916;
+  --theme-text: #e9f1eb;
+  --theme-primary: #63c995;
+  --theme-secondary: #3da975;
+  --theme-accent: #e1a45b;
+  --theme-gradient: #3da975;
+  --theme-glass: #1b2520;
+  --theme-border: #2c3b32;
+  --app-bg: #111713;
+  --surface-1: #19221d;
+  --surface-2: #202c25;
+  --surface-3: #29382f;
+  --surface-border: #2c3b32;
+  --surface-border-strong: #3b4d41;
+  --surface-shadow: 0 18px 44px rgba(0, 0, 0, 0.24);
+  --surface-shadow-soft: 0 6px 18px rgba(0, 0, 0, 0.16);
+  --muted-text: #9aac9f;
+  --input-bg: #131b16;
+  --panel-glow: transparent;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body,
+#app {
+  min-height: 100%;
+}
+body {
+  margin: 0;
+  background: var(--app-bg);
+  color: var(--theme-text);
+  font-family:
+    Inter,
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  text-rendering: optimizeLegibility;
+}
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid color-mix(in srgb, var(--theme-primary) 28%, transparent);
+  outline-offset: 2px;
 }
 
 .app-root {
   background: var(--app-bg);
 }
 
-/* SaaS surface system */
+/* Shared surfaces: keep dense operational pages coherent while old views migrate. */
 .bg-white {
   background-color: var(--surface-1) !important;
 }
-
+.bg-gray-50 {
+  background-color: var(--surface-2) !important;
+}
 .dark .bg-gray-800,
 .dark .bg-gray-900 {
   background-color: var(--surface-1) !important;
 }
-
-.bg-gray-50 {
-  background-color: var(--surface-2) !important;
-}
-
 .dark .bg-gray-700 {
   background-color: var(--surface-3) !important;
 }
-
-.ui-card {
-  border: 1px solid var(--surface-border);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-1) 96%, #ffffff 4%), var(--surface-1));
-  box-shadow: var(--surface-shadow-soft);
+.ui-card,
+.ui-card-elevated,
+.glass-card,
+.glass-panel,
+.overview-card {
+  border: 1px solid var(--surface-border) !important;
+  background: var(--surface-1) !important;
+  box-shadow: var(--surface-shadow-soft) !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
-
-.ui-card-elevated {
-  border: 1px solid var(--surface-border);
-  background: linear-gradient(180deg, color-mix(in srgb, var(--surface-1) 92%, #ffffff 8%), var(--surface-1));
-  box-shadow: var(--surface-shadow);
-}
-
 .ui-subtle-panel {
-  border: 1px solid var(--surface-border);
-  background: color-mix(in srgb, var(--surface-2) 86%, transparent);
+  border: 1px solid var(--surface-border) !important;
+  background: var(--surface-2) !important;
 }
-
-.glass-panel {
-  border: 1px solid var(--surface-border);
-  background: color-mix(in srgb, var(--surface-1) 60%, transparent);
-  backdrop-filter: blur(20px);
-  box-shadow: var(--surface-shadow-soft);
-}
-
-.metric-card {
-  position: relative;
-  overflow: hidden;
-}
-
-.metric-card::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(135deg, var(--panel-glow), transparent 42%),
-    linear-gradient(180deg, rgba(255, 255, 255, 0.12), transparent 34%);
-}
-
-.metric-card > * {
-  position: relative;
-}
-
 .shadow,
 .shadow-sm,
 .shadow-md {
   box-shadow: var(--surface-shadow-soft) !important;
 }
-
-/* Use CSS variables for theme colors */
-.btn-primary {
-  background: var(--theme-gradient);
-  border-color: var(--theme-primary);
-}
-
-.btn-primary:hover {
-  background: var(--theme-secondary);
-}
-
 .text-primary {
-  color: var(--theme-primary);
+  color: var(--theme-primary) !important;
 }
-
 .bg-primary {
-  background-color: var(--theme-primary);
+  background-color: var(--theme-primary) !important;
 }
-
 .border-primary {
-  border-color: var(--theme-primary);
+  border-color: var(--theme-primary) !important;
 }
-
 .bg-gradient-primary {
-  background: var(--theme-gradient);
+  background: var(--theme-primary) !important;
 }
 
-/* Scrollbar styling */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
-
 ::-webkit-scrollbar-track {
   background: transparent;
 }
-
 ::-webkit-scrollbar-thumb {
-  background: color-mix(in srgb, var(--theme-primary) 50%, #94a3b8);
-  border-radius: 999px;
+  border-radius: 5px;
+  background: color-mix(in srgb, var(--muted-text) 35%, transparent);
 }
-
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--theme-secondary);
-  opacity: 0.8;
+  background: color-mix(in srgb, var(--theme-primary) 55%, transparent);
 }
 </style>

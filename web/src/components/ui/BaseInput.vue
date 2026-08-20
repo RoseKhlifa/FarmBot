@@ -65,13 +65,14 @@ const inputType = computed(() => {
 
 .base-input {
   background: var(--input-bg);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.28);
+  min-height: 42px;
+  color: var(--theme-text);
+  border-color: var(--surface-border) !important;
+  box-shadow: none;
 }
 
 .base-input:focus {
   border-color: var(--theme-primary);
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--theme-primary) 18%, transparent),
-    inset 0 1px 0 rgba(255, 255, 255, 0.32);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-primary) 16%, transparent);
 }
 </style>

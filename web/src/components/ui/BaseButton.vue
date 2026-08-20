@@ -66,7 +66,7 @@ const widthClasses = computed(() => props.block ? 'w-full' : '')
 
 const buttonStyle = computed(() => {
   if (props.variant === 'primary' || (!props.variant && props.variant !== 'secondary' && props.variant !== 'danger' && props.variant !== 'success' && props.variant !== 'ghost' && props.variant !== 'outline' && props.variant !== 'text')) {
-    return { background: 'var(--theme-gradient)', boxShadow: '0 10px 24px color-mix(in srgb, var(--theme-primary) 22%, transparent)' }
+    return { background: 'var(--theme-primary)', boxShadow: '0 6px 16px color-mix(in srgb, var(--theme-primary) 20%, transparent)' }
   }
   if (props.variant === 'text') {
     return { color: 'var(--theme-primary)' }
