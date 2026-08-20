@@ -93,6 +93,8 @@ body {
   background: var(--app-bg);
   color: var(--theme-text);
   font-family:
+    'JetBrains Mono',
+    'JetBrains Mono NL',
     'HarmonyOS Sans SC',
     '鸿蒙黑体',
     'HarmonyOS Sans',

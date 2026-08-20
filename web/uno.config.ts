@@ -11,7 +11,7 @@ export default defineConfig({
   },
   theme: {
     fontFamily: {
-      sans: '"HarmonyOS Sans SC", "鸿蒙黑体", "HarmonyOS Sans", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif',
+      sans: '"JetBrains Mono", "JetBrains Mono NL", "HarmonyOS Sans SC", "鸿蒙黑体", "HarmonyOS Sans", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif',
       mono: '"JetBrains Mono", "JetBrains Mono NL", ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace',
     },
   },
