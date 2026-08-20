@@ -93,14 +93,18 @@ body {
   background: var(--app-bg);
   color: var(--theme-text);
   font-family:
-    'DM Sans',
+    'HarmonyOS Sans SC',
+    '鸿蒙黑体',
+    'HarmonyOS Sans',
+    'PingFang SC',
+    'Microsoft YaHei',
     ui-sans-serif,
     system-ui,
     -apple-system,
     BlinkMacSystemFont,
     'Segoe UI',
     sans-serif;
-  font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  font-feature-settings: 'kern', 'liga';
   text-rendering: optimizeLegibility;
 }
 button,

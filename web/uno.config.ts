@@ -1,4 +1,4 @@
-import { defineConfig, presetAttributify, presetIcons, presetUno, presetWebFonts } from 'unocss'
+import { defineConfig, presetAttributify, presetIcons, presetUno } from 'unocss'
 
 export default defineConfig({
   content: {
@@ -7,6 +7,12 @@ export default defineConfig({
         /\.(vue|svelte|[jt]sx|mdx?|astro|elm|php|phtml|html)($|\?)/,
         'src/**/*.{js,ts}',
       ],
+    },
+  },
+  theme: {
+    fontFamily: {
+      sans: '"HarmonyOS Sans SC", "鸿蒙黑体", "HarmonyOS Sans", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif',
+      mono: '"JetBrains Mono", "JetBrains Mono NL", ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace',
     },
   },
   shortcuts: {
@@ -34,16 +40,9 @@ export default defineConfig({
         'i-fas-circle-notch',
       ],
       collections: {
-        carbon: () => import('@iconify-json/carbon/icons.json').then(i => i.default),
-        fas: () => import('@iconify-json/fa-solid/icons.json').then(i => i.default),
+        'carbon': () => import('@iconify-json/carbon/icons.json').then(i => i.default),
+        'fas': () => import('@iconify-json/fa-solid/icons.json').then(i => i.default),
         'svg-spinners': () => import('@iconify-json/svg-spinners/icons.json').then(i => i.default),
-      },
-    }),
-    presetWebFonts({
-      fonts: {
-        sans: 'DM Sans',
-        serif: 'DM Serif Display',
-        mono: 'DM Mono',
       },
     }),
   ],
