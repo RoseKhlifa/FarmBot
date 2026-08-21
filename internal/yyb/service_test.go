@@ -29,6 +29,22 @@ type retryPool struct {
 	loginBuffer []string
 }
 
+type nestedCodePool struct{}
+
+func (nestedCodePool) GetCode(context.Context, string, string, int64, string) (map[string]any, error) {
+	return map[string]any{"data": map[string]any{
+		"result": map[string]any{"wx_code": "nested-code-1"},
+	}}, nil
+}
+
+func (nestedCodePool) GetPhoneNumber(context.Context, string, string, int64, string) (map[string]any, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (nestedCodePool) OperateWXData(context.Context, string, string, map[string]any, int64, string) (map[string]any, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (p *retryPool) GetCode(_ context.Context, loginBuffer, _ string, _ int64, _ string) (map[string]any, error) {
 	p.calls++
 	p.loginBuffer = append(p.loginBuffer, loginBuffer)
@@ -82,6 +98,22 @@ func TestServiceGetCodeUsesInjectableProtocolPool(t *testing.T) {
 	}
 	code, err := service.GetCode(ctx, "openid-code", "")
 	if err != nil || code != "code-1" {
+		t.Fatalf("GetCode() = %q, %v", code, err)
+	}
+}
+
+func TestServiceGetCodeAcceptsNestedResponse(t *testing.T) {
+	_, db := openSharedTestDB(t)
+	ctx := context.Background()
+	if _, err := db.UpsertAccount(ctx, "openid-nested", "buffer", nil, nil, nil, nil, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	service, err := NewService(db, ServiceConfig{Pool: nestedCodePool{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, err := service.GetCode(ctx, "openid-nested", "")
+	if err != nil || code != "nested-code-1" {
 		t.Fatalf("GetCode() = %q, %v", code, err)
 	}
 }

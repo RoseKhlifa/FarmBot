@@ -3,8 +3,10 @@ package yyb
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -139,11 +141,55 @@ func (s *service) GetCode(ctx context.Context, openID, appID string) (string, er
 	if err != nil {
 		return "", err
 	}
-	code, ok := result["code"].(string)
-	if !ok || strings.TrimSpace(code) == "" {
-		return "", fmt.Errorf("getCode response did not contain a code")
+	if code := codeFromResult(result, 0); code != "" {
+		return code, nil
 	}
-	return code, nil
+	if len(result) == 0 {
+		return "", fmt.Errorf("getCode response was empty")
+	}
+	return "", fmt.Errorf("getCode response did not contain a code (keys: %s)", mapKeys(result))
+}
+
+func codeFromResult(value any, depth int) string {
+	if depth > 8 {
+		return ""
+	}
+	switch v := value.(type) {
+	case string:
+		return strings.TrimSpace(v)
+	case []byte:
+		return strings.TrimSpace(string(v))
+	case json.Number:
+		text := strings.TrimSpace(v.String())
+		if len(text) >= 8 {
+			return text
+		}
+		return ""
+	case map[string]any:
+		for _, key := range []string{"code", "wx_code", "wxCode", "login_code", "loginCode"} {
+			if code := codeFromResult(v[key], depth+1); code != "" {
+				return code
+			}
+		}
+		for _, key := range []string{"data", "result", "response", "body"} {
+			switch nested := v[key].(type) {
+			case map[string]any, []any:
+				if code := codeFromResult(nested, depth+1); code != "" {
+					return code
+				}
+			}
+		}
+	}
+	return ""
+}
+
+func mapKeys(value map[string]any) string {
+	keys := make([]string, 0, len(value))
+	for key := range value {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return strings.Join(keys, ",")
 }
 
 // GetPhoneNumber forwards the yyb phone-number operation for an account.

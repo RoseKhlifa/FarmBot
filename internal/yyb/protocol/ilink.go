@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -469,14 +470,160 @@ func sessionDecrypt(body, recvKey []byte) ([]byte, error) {
 }
 
 func extractCode(resp []byte) []byte {
-	F := pbParse(resp)
-	if f2, ok := F[2].([]byte); ok {
-		inner := pbParse(f2)
-		if f3, ok := inner[3].([]byte); ok {
-			return f3
+	// Some js-login deployments return a JSON object inside the decrypted
+	// payload, while older deployments use a protobuf envelope. Try the
+	// explicit JSON keys first, then walk protobuf length-delimited fields.
+	if code := extractJSONCode(resp); len(code) > 0 {
+		return code
+	}
+	if code := extractProtoCode(resp, 0, nil); len(code) > 0 {
+		return code
+	}
+	// A few gateways strip the protobuf envelope and return the code as plain
+	// text. Keep this fallback deliberately strict so status/error strings are
+	// not mistaken for a login code.
+	return cleanCodeBytes(resp)
+}
+
+func extractJSONCode(raw []byte) []byte {
+	raw = bytes.TrimSpace(raw)
+	if len(raw) == 0 || (raw[0] != '{' && raw[0] != '[') {
+		return nil
+	}
+	var value any
+	if json.Unmarshal(raw, &value) != nil {
+		return nil
+	}
+	return codeFromJSONValue(value, 0)
+}
+
+func codeFromJSONValue(value any, depth int) []byte {
+	if depth > 8 {
+		return nil
+	}
+	switch v := value.(type) {
+	case map[string]any:
+		// Prefer named code fields before traversing wrapper objects such as
+		// {data:{...}} and {result:{...}}.
+		for _, key := range []string{"code", "wx_code", "wxCode", "login_code", "loginCode"} {
+			if code := cleanCodeValue(v[key]); len(code) > 0 {
+				return code
+			}
+		}
+		for _, key := range []string{"data", "result", "response", "body"} {
+			if code := codeFromJSONValue(v[key], depth+1); len(code) > 0 {
+				return code
+			}
+		}
+		return nil
+	case []any:
+		for _, item := range v {
+			if code := codeFromJSONValue(item, depth+1); len(code) > 0 {
+				return code
+			}
 		}
 	}
 	return nil
+}
+
+func cleanCodeValue(value any) []byte {
+	switch v := value.(type) {
+	case string:
+		return cleanCodeBytes([]byte(v))
+	case []byte:
+		return cleanCodeBytes(v)
+	default:
+		return nil
+	}
+}
+
+func cleanCodeBytes(raw []byte) []byte {
+	s := strings.TrimSpace(string(raw))
+	if len(s) < 8 || len(s) > 512 {
+		return nil
+	}
+	for _, r := range s {
+		if r < 33 || r > 126 {
+			return nil
+		}
+	}
+	return []byte(s)
+}
+
+type codeCandidate struct {
+	value []byte
+	score int
+}
+
+func extractProtoCode(data []byte, depth int, path []int) []byte {
+	if depth > 8 || len(data) == 0 {
+		return nil
+	}
+	fields := pbParse(data)
+	if len(fields) == 0 {
+		return nil
+	}
+	// Field 3 is the login code in the current js-login schema. Trying it
+	// first preserves that high-confidence path while still supporting extra
+	// envelopes introduced by newer servers.
+	order := []int{3, 2, 1, 4, 5, 6, 7, 8, 9, 10}
+	for field := range fields {
+		found := false
+		for _, preferred := range order {
+			if field == preferred {
+				found = true
+				break
+			}
+		}
+		if !found {
+			order = append(order, field)
+		}
+	}
+	var best codeCandidate
+	for _, field := range order {
+		value, ok := fields[field]
+		if !ok {
+			continue
+		}
+		raw, ok := value.([]byte)
+		if !ok {
+			continue
+		}
+		if code := extractJSONCode(raw); len(code) > 0 {
+			candidate := codeCandidate{value: code, score: 100}
+			if field == 3 {
+				candidate.score += 40
+			}
+			if candidate.score > best.score {
+				best = candidate
+			}
+		}
+		nestedPath := append(append([]int(nil), path...), field)
+		if code := extractProtoCode(raw, depth+1, nestedPath); len(code) > 0 {
+			candidate := codeCandidate{value: code, score: 20}
+			if field == 3 {
+				candidate.score += 40
+			}
+			if len(nestedPath) >= 2 && nestedPath[len(nestedPath)-2] == 2 && field == 3 {
+				candidate.score += 100
+			}
+			if candidate.score > best.score {
+				best = candidate
+			}
+		}
+		if field == 3 {
+			if code := cleanCodeBytes(raw); len(code) > 0 {
+				candidate := codeCandidate{value: code, score: 90}
+				if len(path) >= 1 && path[len(path)-1] == 2 {
+					candidate.score += 100
+				}
+				if candidate.score > best.score {
+					best = candidate
+				}
+			}
+		}
+	}
+	return best.value
 }
 
 func parseRawResponse(codeOrJSON, resp []byte) map[string]any {
