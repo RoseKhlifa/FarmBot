@@ -1,7 +1,7 @@
 <!-- eslint-disable ts/no-use-before-define, regexp/no-unused-capturing-group -->
 <script setup lang="ts">
 import { useIntervalFn } from '@vueuse/core'
-import { BarChart3, BookOpen, ClipboardList, LayoutDashboard, Package, PawPrint, Settings, Settings2, Sprout, Users } from 'lucide-vue-next'
+import { BarChart3, BookOpen, CircleCheck, CircleX, ClipboardList, FileText, LayoutDashboard, Package, PawPrint, Play, Settings, Settings2, Sprout, Users, X } from 'lucide-vue-next'
 import { storeToRefs } from 'pinia'
 import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import { accountApi } from '@/api'
@@ -955,30 +955,76 @@ useIntervalFn(updateCountdowns, 1000)
 
   <!-- 一键启动结果弹窗 -->
   <Teleport to="body">
-    <Transition name="fade">
-      <div v-if="showStartAllModal" class="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm" @click.self="showStartAllModal = false">
-        <div class="glass-card max-w-sm w-full rounded-2xl p-5">
-          <h3 class="mb-4 text-center text-base font-bold">
-            🚀 一键启动结果
-          </h3>
-          <div class="flex flex-col gap-2">
-            <div
-              v-for="(r, i) in startAllResults"
-              :key="i"
-              class="flex items-center gap-2.5 rounded-xl px-3.5 py-2.5 text-sm"
-              :class="r.ok ? 'bg-green-50 text-green-700 dark:bg-green-900/20 dark:text-green-300' : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300'"
-            >
-              <div class="h-5 w-5 flex items-center justify-center rounded-full text-xs text-white font-bold" :class="r.ok ? 'bg-green-500' : 'bg-red-500'">
-                {{ r.ok ? '✓' : '✕' }}
+    <Transition name="dashboard-result">
+      <div
+        v-if="showStartAllModal"
+        class="dashboard-result-backdrop"
+        role="presentation"
+        @click.self="showStartAllModal = false"
+      >
+        <section
+          class="dashboard-result-modal"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="dashboard-result-title"
+          @click.stop
+        >
+          <header class="dashboard-result-header">
+            <div class="dashboard-result-title-wrap">
+              <span class="dashboard-result-title-icon" aria-hidden="true">
+                <Play :size="16" :stroke-width="2" />
+              </span>
+              <div>
+                <p class="dashboard-result-kicker">
+                  BATCH ACTION
+                </p>
+                <h3 id="dashboard-result-title" class="dashboard-result-heading">
+                  一键启动结果
+                </h3>
               </div>
-              <span class="font-medium">{{ r.name }}</span>
-              <span class="ml-auto text-xs opacity-75">{{ r.msg }}</span>
+            </div>
+            <button
+              class="dashboard-result-close"
+              type="button"
+              aria-label="关闭结果弹窗"
+              title="关闭"
+              @click="showStartAllModal = false"
+            >
+              <X :size="17" :stroke-width="1.8" aria-hidden="true" />
+            </button>
+          </header>
+
+          <div v-if="startAllResults.length" class="dashboard-result-list">
+            <div v-for="(r, i) in startAllResults" :key="i" class="dashboard-result-row">
+              <component
+                :is="r.ok ? CircleCheck : CircleX"
+                class="dashboard-result-status-icon"
+                :class="r.ok ? 'dashboard-result-status-icon--ok' : 'dashboard-result-status-icon--error'"
+                :size="19"
+                :stroke-width="1.8"
+                aria-hidden="true"
+              />
+              <div class="dashboard-result-copy">
+                <strong>{{ r.name }}</strong>
+                <span>{{ r.msg || '未提供执行说明' }}</span>
+              </div>
+              <span class="dashboard-result-status" :class="r.ok ? 'dashboard-result-status--ok' : 'dashboard-result-status--error'">
+                {{ r.ok ? '完成' : '失败' }}
+              </span>
             </div>
           </div>
-          <button class="mt-4 w-full rounded-xl bg-blue-500 py-2.5 text-sm text-white font-semibold transition-colors hover:bg-blue-600" @click="showStartAllModal = false">
-            确定
-          </button>
-        </div>
+          <div v-else class="dashboard-result-empty">
+            <FileText :size="26" :stroke-width="1.5" aria-hidden="true" />
+            <strong>暂无执行明细</strong>
+            <span>本次操作没有返回可展示的账号状态。</span>
+          </div>
+
+          <footer class="dashboard-result-footer">
+            <button class="dashboard-result-confirm" type="button" @click="showStartAllModal = false">
+              关闭
+            </button>
+          </footer>
+        </section>
       </div>
     </Transition>
   </Teleport>
@@ -2281,6 +2327,32 @@ useIntervalFn(updateCountdowns, 1000)
     align-items: flex-start;
     flex-direction: column;
   }
+
+  .dashboard-result-backdrop {
+    padding: 16px;
+  }
+
+  .dashboard-result-header {
+    padding: 16px;
+  }
+
+  .dashboard-result-list {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
+
+  .dashboard-result-row {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .dashboard-result-status {
+    grid-column: 2;
+  }
+
+  .dashboard-result-footer {
+    padding-right: 16px;
+    padding-left: 16px;
+  }
 }
 
 .dashboard-insight-grid > :deep(.overview-card) {
@@ -2343,6 +2415,237 @@ useIntervalFn(updateCountdowns, 1000)
   height: 16px;
   flex: 0 0 auto;
   color: var(--theme-primary);
+}
+
+.dashboard-result-backdrop {
+  position: fixed;
+  z-index: 9999;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(5, 8, 10, 0.62);
+}
+
+.dashboard-result-modal {
+  width: min(520px, 100%);
+  overflow: hidden;
+  color: var(--theme-text, #e2e8f0);
+  border: 1px solid color-mix(in srgb, var(--theme-border, rgba(148, 163, 184, 0.24)) 86%, transparent);
+  border-radius: 10px;
+  background: var(--surface-1, #141719);
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.34);
+}
+
+.dashboard-result-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--dashboard-line);
+}
+
+.dashboard-result-title-wrap {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  gap: 12px;
+}
+
+.dashboard-result-title-icon {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--theme-primary, #34d399);
+  border: 1px solid color-mix(in srgb, var(--theme-primary, #34d399) 42%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--theme-primary, #34d399) 12%, transparent);
+}
+
+.dashboard-result-kicker {
+  margin: 0;
+  color: var(--dashboard-muted);
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  line-height: 1.3;
+}
+
+.dashboard-result-heading {
+  margin: 4px 0 0;
+  color: var(--theme-text, #f8fafc);
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.dashboard-result-close {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  place-items: center;
+  color: var(--dashboard-muted);
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease;
+}
+
+.dashboard-result-close:hover {
+  color: var(--theme-text, #f8fafc);
+  border-color: var(--dashboard-line);
+  background: color-mix(in srgb, var(--theme-text, #f8fafc) 7%, transparent);
+}
+
+.dashboard-result-list {
+  display: grid;
+  gap: 8px;
+  padding: 16px 20px 0;
+}
+
+.dashboard-result-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  min-width: 0;
+  gap: 10px;
+  padding: 11px 12px;
+  border: 1px solid var(--dashboard-line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--surface-1, #141719) 88%, var(--theme-primary, #34d399) 12%);
+}
+
+.dashboard-result-status-icon {
+  flex: 0 0 auto;
+}
+
+.dashboard-result-status-icon--ok {
+  color: #34d399;
+}
+
+.dashboard-result-status-icon--error {
+  color: #fb7185;
+}
+
+.dashboard-result-copy {
+  display: grid;
+  min-width: 0;
+  gap: 3px;
+}
+
+.dashboard-result-copy strong,
+.dashboard-result-copy span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dashboard-result-copy strong {
+  color: var(--theme-text, #f8fafc);
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.dashboard-result-copy span {
+  color: var(--dashboard-muted);
+  font-size: 11px;
+}
+
+.dashboard-result-status {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Consolas, monospace;
+  font-size: 10px;
+  letter-spacing: 0.04em;
+}
+
+.dashboard-result-status--ok {
+  color: #34d399;
+}
+
+.dashboard-result-status--error {
+  color: #fb7185;
+}
+
+.dashboard-result-empty {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  padding: 34px 24px 30px;
+  color: var(--dashboard-muted);
+  text-align: center;
+}
+
+.dashboard-result-empty > svg {
+  color: var(--theme-primary, #34d399);
+}
+
+.dashboard-result-empty strong {
+  color: var(--theme-text, #f8fafc);
+  font-size: 14px;
+}
+
+.dashboard-result-empty span {
+  font-size: 11px;
+}
+
+.dashboard-result-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 16px;
+  padding: 14px 20px 18px;
+  border-top: 1px solid var(--dashboard-line);
+}
+
+.dashboard-result-confirm {
+  min-width: 82px;
+  height: 34px;
+  padding: 0 16px;
+  color: #07130f;
+  border: 1px solid color-mix(in srgb, var(--theme-primary, #34d399) 70%, transparent);
+  border-radius: 6px;
+  background: var(--theme-primary, #34d399);
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  transition:
+    filter 160ms ease,
+    transform 160ms ease;
+}
+
+.dashboard-result-confirm:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.dashboard-result-enter-active,
+.dashboard-result-leave-active {
+  transition: opacity 160ms ease;
+}
+
+.dashboard-result-enter-active .dashboard-result-modal,
+.dashboard-result-leave-active .dashboard-result-modal {
+  transition:
+    opacity 160ms ease,
+    transform 160ms ease;
+}
+
+.dashboard-result-enter-from,
+.dashboard-result-leave-to {
+  opacity: 0;
+}
+
+.dashboard-result-enter-from .dashboard-result-modal,
+.dashboard-result-leave-to .dashboard-result-modal {
+  opacity: 0;
+  transform: translateY(8px) scale(0.985);
 }
 
 .dashboard-tabs-wrapper {
