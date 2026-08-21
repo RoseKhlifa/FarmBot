@@ -23,21 +23,18 @@ const expanded = defineModel<boolean>('expanded', { required: true })
 <template>
   <div v-if="!configured" class="space-y-3">
     <div class="text-sm opacity-70" :style="{ color: 'var(--theme-text)' }">
-      请先配置应用宝接口地址和 API Token
+      内置应用宝服务已启用，无需填写接口地址或 API Token。
     </div>
-    <BaseInput
-      v-model="apiBase"
-      label="接口地址"
-      placeholder="http://你的服务器地址:端口/wxapp/getCode"
-    />
-    <BaseInput
-      v-model="apiKey"
-      label="API Token（部署时已自动生成并预填）"
-      placeholder="请输入你的应用宝 API Token"
-    />
-    <BaseButton variant="primary" :loading="saving" @click="emit('save')">
-      保存并获取账号列表
+    <BaseButton variant="ghost" size="sm" @click="expanded = !expanded">
+      {{ expanded ? '收起独立 YYB 配置' : '配置独立 YYB 服务（可选）' }}
     </BaseButton>
+    <div v-if="expanded" class="space-y-3">
+      <BaseInput v-model="apiBase" label="接口地址" placeholder="http://127.0.0.1:8450" />
+      <BaseInput v-model="apiKey" label="API Token" placeholder="请输入独立 YYB 服务的 Token" />
+      <BaseButton variant="primary" :loading="saving" @click="emit('save')">
+        保存独立服务配置
+      </BaseButton>
+    </div>
   </div>
 
   <template v-else>

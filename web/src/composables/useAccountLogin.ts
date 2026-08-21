@@ -489,8 +489,10 @@ export function useAccountLogin(options: UseAccountLoginOptions) {
   }
 
   async function saveYybConfig() {
-    if (!yybApiBase.value.trim() || !yybApiKey.value.trim()) {
-      yybError.value = '请填写接口地址和 API Token'
+    const apiBase = yybApiBase.value.trim()
+    const apiKey = yybApiKey.value.trim()
+    if (!!apiBase !== !!apiKey) {
+      yybError.value = '独立 YYB 服务需要同时填写接口地址和 API Token'
       return
     }
     yybConfigSaving.value = true
@@ -500,10 +502,10 @@ export function useAccountLogin(options: UseAccountLoginOptions) {
       const existingConfig = response.data.data || {}
       await systemApi.saveWXConfig({
         ...existingConfig,
-        apiBase: yybApiBase.value.trim(),
-        apiKey: yybApiKey.value.trim(),
+        apiBase,
+        apiKey,
         ...(existingConfig.appId ? {} : { appId: '' }),
-        enabled: true,
+        enabled: !!apiBase && !!apiKey,
         autoReconnect: yybAutoReconnect.value,
         reconnectDelayMin: Number(yybReconnectDelayMin.value) || 5,
         reconnectMaxAttempts: Number(yybReconnectMaxAttempts.value) || 3,
@@ -533,8 +535,6 @@ export function useAccountLogin(options: UseAccountLoginOptions) {
   }
 
   async function fetchYybAccounts() {
-    if (!yybConfigured.value)
-      return
     yybAccountsLoading.value = true
     yybError.value = ''
     try {
@@ -703,10 +703,6 @@ export function useAccountLogin(options: UseAccountLoginOptions) {
   }
 
   async function startYybQrLogin() {
-    if (!yybConfigured.value) {
-      yybQrError.value = '请先配置应用宝接口'
-      return
-    }
     stopYybQrPoll()
     yybQrError.value = ''
     yybQrImage.value = ''

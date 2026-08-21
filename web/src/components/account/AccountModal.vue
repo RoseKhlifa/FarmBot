@@ -131,7 +131,6 @@ const tabs = computed<Array<{ id: AccountLoginTab, label: string }>>(() => [
 
         <LoginYybQrTab
           v-else-if="login.activeTab === 'yybqr'"
-          :configured="login.yybConfigured"
           :error="login.yybQrError"
           :image="login.yybQrImage"
           :loading="login.yybQrLoading"

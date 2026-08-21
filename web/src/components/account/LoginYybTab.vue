@@ -46,10 +46,10 @@ const selectedOpenid = defineModel<string>('selectedOpenid', { required: true })
       @save="emit('saveConfig')"
     />
 
-    <div v-if="configured" class="space-y-3">
+    <div class="space-y-3">
       <div class="flex items-center justify-between">
         <span class="text-sm opacity-70" :style="{ color: 'var(--theme-text)' }">
-          接口：{{ apiBase }}
+          {{ configured ? `接口：${apiBase}` : '内置应用宝服务' }}
         </span>
         <BaseButton variant="ghost" size="sm" :loading="accountsLoading" @click="emit('fetchAccounts')">
           刷新列表

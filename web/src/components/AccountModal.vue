@@ -545,8 +545,10 @@ async function loadYybConfig() {
 }
 
 async function saveYybConfig() {
-  if (!yybApiBase.value || !yybApiKey.value) {
-    yybError.value = '请填写接口地址和 API Token'
+  const apiBase = yybApiBase.value.trim()
+  const apiKey = yybApiKey.value.trim()
+  if (!!apiBase !== !!apiKey) {
+    yybError.value = '独立 YYB 服务需要同时填写接口地址和 API Token'
     return
   }
   yybConfigSaving.value = true
@@ -558,11 +560,11 @@ async function saveYybConfig() {
     const existingConfig = existing?.data || {}
     const merged = {
       ...(existingConfig || {}),
-      apiBase: yybApiBase.value.trim(),
-      apiKey: yybApiKey.value.trim(),
+      apiBase,
+      apiKey,
       // appId 不写死：优先沿用已存配置，未配置则不强制写入
       ...(existingConfig?.appId ? {} : { appId: '' }),
-      enabled: true,
+      enabled: !!apiBase && !!apiKey,
       autoReconnect: yybAutoReconnect.value,
       reconnectDelayMin: Number(yybReconnectDelayMin.value) || 5,
       reconnectMaxAttempts: Number(yybReconnectMaxAttempts.value) || 3,
@@ -582,8 +584,6 @@ async function saveYybConfig() {
 }
 
 async function fetchYybAccounts() {
-  if (!yybConfigured.value)
-    return
   yybAccountsLoading.value = true
   yybError.value = ''
   try {
@@ -654,10 +654,6 @@ const yybQrError = ref('')
 let yybQrPollTimer: ReturnType<typeof setTimeout> | null = null
 
 async function startYybQrLogin() {
-  if (!yybConfigured.value) {
-    yybQrError.value = '请先配置应用宝接口'
-    return
-  }
   yybQrError.value = ''
   yybQrImage.value = ''
   yybQrSessionId.value = ''
@@ -1072,31 +1068,25 @@ function resetYybQr() {
           <!-- 配置区：首次未配置时显示 -->
           <div v-if="!yybConfigured" class="space-y-3">
             <div class="text-sm opacity-70" :style="{ color: 'var(--theme-text)' }">
-              请先配置应用宝接口地址和 API Token
+              内置应用宝服务已启用，无需填写接口地址或 API Token。扫码授权后，点击下方刷新列表即可。
             </div>
-            <BaseInput
-              v-model="yybApiBase"
-              label="接口地址"
-              placeholder="http://你的服务器地址:端口/wxapp/getCode"
-            />
-            <BaseInput
-              v-model="yybApiKey"
-              label="API Token（部署时已自动生成并预填）"
-              placeholder="请输入你的应用宝 API Token"
-            />
-            <div v-if="yybError" class="text-sm text-red-500">
-              {{ yybError }}
-            </div>
-            <BaseButton variant="primary" :loading="yybConfigSaving" @click="saveYybConfig">
-              保存并获取账号列表
+            <BaseButton variant="ghost" size="sm" @click="yybShowConfigEditor = !yybShowConfigEditor">
+              {{ yybShowConfigEditor ? '收起独立 YYB 配置' : '配置独立 YYB 服务（可选）' }}
             </BaseButton>
+            <div v-if="yybShowConfigEditor" class="space-y-3">
+              <BaseInput v-model="yybApiBase" label="接口地址" placeholder="http://127.0.0.1:8450" />
+              <BaseInput v-model="yybApiKey" label="API Token" placeholder="请输入独立 YYB 服务的 Token" />
+              <BaseButton variant="primary" :loading="yybConfigSaving" @click="saveYybConfig">
+                保存独立服务配置
+              </BaseButton>
+            </div>
           </div>
 
           <!-- 账号选择区：配置好后显示 -->
-          <div v-else class="space-y-3">
+          <div class="space-y-3">
             <div class="flex items-center justify-between">
               <span class="text-sm opacity-70" :style="{ color: 'var(--theme-text)' }">
-                接口：{{ yybApiBase }}
+                {{ yybConfigured ? `接口：${yybApiBase}` : '内置应用宝服务' }}
               </span>
               <div class="flex gap-2">
                 <BaseButton variant="ghost" size="sm" :loading="yybAccountsLoading" @click="fetchYybAccounts">
@@ -1106,7 +1096,7 @@ function resetYybQr() {
             </div>
 
             <!-- 应用宝接口配置（部署时自动预填，可查看/复制/编辑） -->
-            <div class="border rounded-lg p-3 space-y-2" :style="{ borderColor: 'color-mix(in srgb, var(--theme-text) 15%, transparent)' }">
+            <div v-if="yybConfigured" class="border rounded-lg p-3 space-y-2" :style="{ borderColor: 'color-mix(in srgb, var(--theme-text) 15%, transparent)' }">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium" :style="{ color: 'var(--theme-text)' }">应用宝接口配置</span>
                 <BaseButton variant="ghost" size="sm" @click="yybShowConfigEditor = !yybShowConfigEditor">
@@ -1245,7 +1235,7 @@ function resetYybQr() {
               </label>
             </div>
 
-            <div v-else-if="!yybAccountsLoading && yybConfigured" class="py-4 text-center text-sm opacity-60" :style="{ color: 'var(--theme-text)' }">
+            <div v-else-if="!yybAccountsLoading" class="py-4 text-center text-sm opacity-60" :style="{ color: 'var(--theme-text)' }">
               暂无账号，点击"刷新列表"获取
             </div>
 
@@ -1271,57 +1261,52 @@ function resetYybQr() {
 
         <!-- 应用宝扫码（与"应用宝"tab 平级）：扫码添加新账号到应用宝 -->
         <div v-if="activeTab === 'yybqr'" class="space-y-4">
-          <div v-if="!yybConfigured" class="border rounded-lg p-4 text-sm" :style="{ borderColor: 'color-mix(in srgb, var(--theme-text) 15%, transparent)', color: 'var(--theme-text)' }">
-            请先在「应用宝」标签页配置接口地址与 API Token，再回到此处扫码登录。
+          <!-- 内置应用宝无需配置外部地址或 Token；填写旧版配置时仍兼容代理模式。 -->
+          <!-- 未开始扫码：显示触发按钮 -->
+          <div v-if="yybQrStatus === 'idle'" class="flex flex-col items-center gap-3 py-4">
+            <p class="text-center text-sm opacity-70" :style="{ color: 'var(--theme-text)' }">
+              内置应用宝无需配置接口或 Token，点击下方按钮生成二维码后扫码授权。
+            </p>
+            <BaseButton variant="primary" :loading="yybQrLoading" @click="startYybQrLogin">
+              开始扫码
+            </BaseButton>
           </div>
 
-          <template v-else>
-            <!-- 未开始扫码：显示触发按钮 -->
-            <div v-if="yybQrStatus === 'idle'" class="flex flex-col items-center gap-3 py-4">
-              <p class="text-center text-sm opacity-70" :style="{ color: 'var(--theme-text)' }">
-                点击下方按钮生成应用宝二维码，使用应用宝扫码授权即可添加新账号。
-              </p>
-              <BaseButton variant="primary" :loading="yybQrLoading" @click="startYybQrLogin">
-                开始扫码
+          <!-- 扫码进行中/结果 -->
+          <div v-else class="border rounded-lg p-4 space-y-3" :style="{ borderColor: 'color-mix(in srgb, var(--theme-text) 15%, transparent)' }">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium" :style="{ color: 'var(--theme-text)' }">
+                应用宝扫码登录
+              </span>
+              <BaseButton v-if="yybQrStatus === 'pending' || yybQrStatus === 'scanned' || yybQrStatus === 'authorizing'" variant="ghost" size="sm" @click="resetYybQr">
+                取消
               </BaseButton>
             </div>
 
-            <!-- 扫码进行中/结果 -->
-            <div v-else class="border rounded-lg p-4 space-y-3" :style="{ borderColor: 'color-mix(in srgb, var(--theme-text) 15%, transparent)' }">
-              <div class="flex items-center justify-between">
-                <span class="text-sm font-medium" :style="{ color: 'var(--theme-text)' }">
-                  应用宝扫码登录
-                </span>
-                <BaseButton v-if="yybQrStatus === 'pending' || yybQrStatus === 'scanned' || yybQrStatus === 'authorizing'" variant="ghost" size="sm" @click="resetYybQr">
-                  取消
-                </BaseButton>
-              </div>
-
-              <div v-if="yybQrImage && yybQrStatus !== 'success'" class="flex justify-center">
-                <img :src="yybQrImage" alt="应用宝二维码" class="max-w-[200px] w-full rounded">
-              </div>
-
-              <div class="text-center text-sm" :style="{ color: 'var(--theme-text)' }">
-                <span v-if="yybQrStatus === 'loading'">正在生成二维码...</span>
-                <span v-else-if="yybQrStatus === 'pending'" class="opacity-70">请使用应用宝扫描二维码</span>
-                <span v-else-if="yybQrStatus === 'scanned'" class="text-green-500">已扫描，请在手机上确认授权</span>
-                <span v-else-if="yybQrStatus === 'authorizing'" class="opacity-70">正在确认授权...</span>
-                <span v-else-if="yybQrStatus === 'success'" class="text-green-500">✓ 授权成功，账号已添加到应用宝</span>
-                <span v-else-if="yybQrStatus === 'expired'" class="text-red-500">{{ yybQrError || '二维码已过期' }}</span>
-                <span v-else-if="yybQrStatus === 'error'" class="text-red-500">{{ yybQrError }}</span>
-              </div>
-
-              <div v-if="yybQrStatus === 'success'" class="text-center">
-                <BaseButton variant="primary" size="sm" @click="resetYybQr">
-                  完成
-                </BaseButton>
-              </div>
+            <div v-if="yybQrImage && yybQrStatus !== 'success'" class="flex justify-center">
+              <img :src="yybQrImage" alt="应用宝二维码" class="max-w-[200px] w-full rounded">
             </div>
 
-            <div v-if="yybError" class="text-sm text-red-500">
-              {{ yybError }}
+            <div class="text-center text-sm" :style="{ color: 'var(--theme-text)' }">
+              <span v-if="yybQrStatus === 'loading'">正在生成二维码...</span>
+              <span v-else-if="yybQrStatus === 'pending'" class="opacity-70">请使用应用宝扫描二维码</span>
+              <span v-else-if="yybQrStatus === 'scanned'" class="text-green-500">已扫描，请在手机上确认授权</span>
+              <span v-else-if="yybQrStatus === 'authorizing'" class="opacity-70">正在确认授权...</span>
+              <span v-else-if="yybQrStatus === 'success'" class="text-green-500">✓ 授权成功，账号已添加到应用宝</span>
+              <span v-else-if="yybQrStatus === 'expired'" class="text-red-500">{{ yybQrError || '二维码已过期' }}</span>
+              <span v-else-if="yybQrStatus === 'error'" class="text-red-500">{{ yybQrError }}</span>
             </div>
-          </template>
+
+            <div v-if="yybQrStatus === 'success'" class="text-center">
+              <BaseButton variant="primary" size="sm" @click="resetYybQr">
+                完成
+              </BaseButton>
+            </div>
+          </div>
+
+          <div v-if="yybError" class="text-sm text-red-500">
+            {{ yybError }}
+          </div>
         </div>
 
         <!-- 第三方应用宝登录：填 接口地址 + APITOKEN + OPENID 直接拿 code 登录 -->
