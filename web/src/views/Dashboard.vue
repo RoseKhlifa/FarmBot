@@ -122,12 +122,14 @@ async function startAllAccounts() {
   }
   else {
     // 启动所有离线账号
+    const startErrors = new Map<string, string>()
     for (const acc of toStart) {
       try {
         await accountApi.startAccount(acc.id)
       }
-      catch {
-        startAllResults.value.push({ name: acc.name || acc.nick || acc.id, ok: false, msg: '启动失败，请重新扫码' })
+      catch (error: any) {
+        const message = error?.response?.data?.error || error?.message || '启动失败，请重新扫码'
+        startErrors.set(String(acc.id), String(message))
       }
     }
     // 等待 5 秒后检查实际运行状态
@@ -140,7 +142,7 @@ async function startAllAccounts() {
         startAllResults.value.push({ name: acc.name || acc.nick || acc.id, ok: true, msg: '启动成功' })
       }
       else {
-        startAllResults.value.push({ name: acc.name || acc.nick || acc.id, ok: false, msg: '启动失败，请重新扫码' })
+        startAllResults.value.push({ name: acc.name || acc.nick || acc.id, ok: false, msg: startErrors.get(String(acc.id)) || '启动失败，请重新扫码' })
       }
     }
   }
