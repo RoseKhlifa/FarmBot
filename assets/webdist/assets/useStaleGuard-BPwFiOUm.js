@@ -1,1 +1,0 @@
-import{a as o}from"./index-DqkLgB-9.js";function n(t){return t&&typeof t=="object"&&"value"in t?String(t.value??""):String(t??"")}function c(t){const r=o();return n(r.currentAccountId)===n(t)}function e(){return{isCurrentAccount:c}}export{c as i,e as u};

@@ -540,7 +540,17 @@ func (p yybProvider) Handle(ctx context.Context, route string, body map[string]a
 		return p.service.QRPoll(ctx, id)
 	case "/api/yyb/qr/confirm":
 		id, _ := body["sessionId"].(string)
-		return p.service.QRConfirm(ctx, id)
+		result, err := p.service.QRConfirm(ctx, id)
+		if err != nil {
+			return nil, err
+		}
+		if result.Account == nil {
+			return nil, errors.New("应用宝扫码未返回账号")
+		}
+		// Never expose login_buffer or protocol credentials to the browser. The
+		// frontend only needs the public identity to create the FarmBot account
+		// link after the YYB identity has been persisted.
+		return map[string]any{"account": result.Account.Public()}, nil
 	default:
 		return nil, fmt.Errorf("unsupported yyb route %q", route)
 	}

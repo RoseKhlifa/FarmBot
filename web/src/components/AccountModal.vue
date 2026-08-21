@@ -653,6 +653,10 @@ const yybQrLoading = computed(() => yybQrStatus.value === 'loading')
 const yybQrError = ref('')
 let yybQrPollTimer: ReturnType<typeof setTimeout> | null = null
 
+interface YybQrConfirmResult {
+  account?: YybAccount
+}
+
 async function startYybQrLogin() {
   yybQrError.value = ''
   yybQrImage.value = ''
@@ -734,20 +738,38 @@ async function pollYybQrStatus() {
 
 async function confirmYybQr() {
   try {
-    const { data } = await yybApi.confirmQR({
+    const { data } = await yybApi.confirmQR<YybQrConfirmResult>({
       apiBase: yybApiBase.value.trim(),
       apiKey: yybApiKey.value.trim(),
       sessionId: yybQrSessionId.value,
     })
-    if (data?.ok) {
-      yybQrStatus.value = 'success'
-      // 刷新账号列表
-      await fetchYybAccounts()
-    }
-    else {
+    if (!data?.ok) {
       yybQrError.value = data?.error || '确认授权失败'
       yybQrStatus.value = 'error'
+      return
     }
+    const account = data.data?.account
+    if (!account?.openid) {
+      yybQrError.value = '扫码成功但未返回账号身份'
+      yybQrStatus.value = 'error'
+      return
+    }
+    const codeResponse = await yybApi.getCode({ openid: account.openid })
+    const code = codeResponse.data.data?.code
+    if (!codeResponse.data.ok || !code) {
+      yybQrError.value = codeResponse.data.error || '扫码成功但获取登录 Code 失败'
+      yybQrStatus.value = 'error'
+      return
+    }
+    await addAccount({
+      name: account.nickname || account.alias || `应用宝账号${account.openid.slice(-4)}`,
+      code,
+      platform: 'wx',
+      loginType: 'yyb',
+      yybOpenid: account.openid,
+    })
+    yybQrStatus.value = 'success'
+    await fetchYybAccounts()
   }
   catch (e: any) {
     yybQrError.value = e?.response?.data?.error || e?.message || '确认授权失败'

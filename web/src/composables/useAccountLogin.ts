@@ -100,6 +100,10 @@ interface YybQrPollResult {
   status?: string
 }
 
+interface YybQrConfirmResult {
+  account?: YybAccount
+}
+
 export interface UseAccountLoginOptions {
   show: Ref<boolean>
   editData: Ref<AccountEditData | undefined>
@@ -622,21 +626,45 @@ export function useAccountLogin(options: UseAccountLoginOptions) {
       return
     yybQrRequestController = new AbortController()
     try {
-      const response = await yybApi.confirmQR({
+      const response = await yybApi.confirmQR<YybQrConfirmResult>({
         apiBase: yybApiBase.value.trim(),
         apiKey: yybApiKey.value.trim(),
         sessionId: yybQrSessionId.value,
       }, { signal: yybQrRequestController.signal })
       if (generation !== yybQrPollGeneration)
         return
-      if (response.data.ok) {
-        yybQrStatus.value = 'success'
-        await fetchYybAccounts()
-      }
-      else {
+      if (!response.data.ok) {
         yybQrError.value = response.data.error || '确认授权失败'
         yybQrStatus.value = 'error'
+        return
       }
+      const account = response.data.data?.account
+      if (!account?.openid) {
+        yybQrError.value = '扫码成功但未返回账号身份'
+        yybQrStatus.value = 'error'
+        return
+      }
+      const codeResponse = await yybApi.getCode<YybCodeResult>({ openid: account.openid })
+      const code = codeResponse.data.data?.code
+      if (!codeResponse.data.ok || !code) {
+        yybQrError.value = codeResponse.data.error || '扫码成功但获取登录 Code 失败'
+        yybQrStatus.value = 'error'
+        return
+      }
+      const created = await addAccount({
+        name: account.nickname || account.alias || `应用宝账号${account.openid.slice(-4)}`,
+        code,
+        platform: 'wx',
+        loginType: 'yyb',
+        yybOpenid: account.openid,
+      })
+      if (!created) {
+        yybQrError.value = error.value || '扫码成功但添加 FarmBot 账号失败'
+        yybQrStatus.value = 'error'
+        return
+      }
+      yybQrStatus.value = 'success'
+      await fetchYybAccounts()
     }
     catch (requestError) {
       if ((requestError as RequestError).code !== 'ERR_CANCELED') {

@@ -74,6 +74,11 @@ export const useAppStore = defineStore('app', () => {
   }
 
   async function fetchTheme() {
+    // /api/settings is account-scoped. During the first login there is no
+    // selected FarmBot account yet, so avoid sending a request that can only
+    // return "Missing x-account-id".
+    if (!String(localStorage.getItem('current_account_id') || '').trim())
+      return
     try {
       const res = await settingsApi.getSettings()
       const theme = res.data?.data?.ui?.theme as Theme | undefined

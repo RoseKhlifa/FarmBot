@@ -25,6 +25,36 @@ func (s *codeServiceStub) GetCode(context.Context, string, string) (string, erro
 	return "builtin-code", nil
 }
 
+type qrConfirmServiceStub struct{ yyb.Service }
+
+func (qrConfirmServiceStub) QRConfirm(context.Context, string) (yyb.QRConfirmResult, error) {
+	secret := "login-buffer-secret"
+	return yyb.QRConfirmResult{Account: &yyb.WechatAccount{
+		OpenID:      "openid-qr",
+		LoginBuffer: secret,
+		Credentials: map[string]any{"session": "secret"},
+	}}, nil
+}
+
+func TestYYBProviderQRConfirmReturnsOnlyPublicAccount(t *testing.T) {
+	provider := yybProvider{service: qrConfirmServiceStub{}}
+	result, err := provider.Handle(context.Background(), "/api/yyb/qr/confirm", map[string]any{"sessionId": "session-1"})
+	if err != nil {
+		t.Fatalf("QR confirm error = %v", err)
+	}
+	data, ok := result.(map[string]any)
+	if !ok {
+		t.Fatalf("QR confirm result = %#v", result)
+	}
+	account, ok := data["account"].(yyb.AccountPublic)
+	if !ok || account.OpenID != "openid-qr" {
+		t.Fatalf("public account = %#v", data["account"])
+	}
+	if _, leaked := data["login_buffer"]; leaked {
+		t.Fatal("QR confirm leaked login buffer")
+	}
+}
+
 func TestYYBProviderExternalAccounts(t *testing.T) {
 	var gotAuth string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

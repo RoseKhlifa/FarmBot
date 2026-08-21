@@ -4,9 +4,11 @@ import { RouterView } from 'vue-router'
 import ToastContainer from '@/components/ToastContainer.vue'
 import { useRealtime } from '@/composables/useRealtime'
 import { useAccountStore } from '@/stores/account'
+import { useAppStore } from '@/stores/app'
 import { useUserStore } from '@/stores/user'
 
 const accountStore = useAccountStore()
+const appStore = useAppStore()
 const userStore = useUserStore()
 const realtime = useRealtime({
   getToken: () => String(userStore.token || ''),
@@ -22,6 +24,11 @@ watch([
   else
     realtime.disconnect()
 }, { immediate: true })
+
+watch(() => String(accountStore.currentAccountId || ''), (accountId) => {
+  if (accountId)
+    void appStore.fetchTheme()
+})
 
 onUnmounted(() => realtime.disconnect())
 </script>
