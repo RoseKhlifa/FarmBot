@@ -208,7 +208,18 @@ func (r *Runtime) importFileStat(ctx context.Context, module api.Module, filePtr
 	if err != nil || r.module == nil {
 		return 0
 	}
+	// Node's fs.Stats.mode includes the POSIX file-type bits in addition to
+	// permissions. Preserve those bits so the WASM stat object has the same
+	// shape when it reads an existing TSDK state file.
 	mode := uint32(info.Mode().Perm())
+	switch {
+	case info.IsDir():
+		mode |= 0o040000
+	case info.Mode().IsRegular():
+		mode |= 0o100000
+	case info.Mode()&os.ModeSymlink != 0:
+		mode |= 0o120000
+	}
 	size := uint32(info.Size())
 	if info.Size() > 0x7fffffff {
 		size = 0x7fffffff
@@ -352,21 +363,61 @@ func decodeText(value, encodingName string) ([]byte, error) {
 func (r *Runtime) deviceString() string {
 	model := r.device.Model
 	if model == "" {
-		model = runtime.GOOS + " " + runtime.GOARCH
+		model = nodeOSName() + " " + nodeArchName()
 	}
 	platform := r.device.Platform
 	if platform == "" {
-		platform = runtime.GOOS
+		platform = nodePlatformName()
 	}
 	system := r.device.System
 	if system == "" {
-		system = runtime.Version()
+		system = nodeSystemName()
 	}
 	brand := r.device.Brand
 	if brand == "" {
-		brand = "Go"
+		// Keep the host identity compatible with the original Node wrapper. The
+		// SDK only consumes this as a semicolon-delimited device descriptor.
+		brand = "Node.js"
 	}
 	return model + ";" + platform + ";" + system + ";" + brand + ";"
+}
+
+func nodeOSName() string {
+	switch runtime.GOOS {
+	case "windows":
+		return "Windows_NT"
+	case "darwin":
+		return "Darwin"
+	case "linux":
+		return "Linux"
+	default:
+		return runtime.GOOS
+	}
+}
+
+func nodePlatformName() string {
+	if runtime.GOOS == "windows" {
+		return "win32"
+	}
+	return runtime.GOOS
+}
+
+func nodeArchName() string {
+	if runtime.GOARCH == "amd64" {
+		return "x64"
+	}
+	return runtime.GOARCH
+}
+
+func nodeSystemName() string {
+	if runtime.GOOS == "linux" {
+		if data, err := os.ReadFile("/proc/sys/kernel/osrelease"); err == nil {
+			if value := strings.TrimSpace(string(data)); value != "" {
+				return value
+			}
+		}
+	}
+	return runtime.Version()
 }
 
 func (r *Runtime) resolveDataPath(input string) (string, error) {

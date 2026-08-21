@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"os"
 	"path/filepath"
+	stdruntime "runtime"
+	"strings"
 	"testing"
 	"time"
 
@@ -170,6 +172,19 @@ func TestRuntimeCreatesAccountDirectory(t *testing.T) {
 	}
 }
 
+func TestRuntimeReinitializesWithPersistentAccountDirectory(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "persistent")
+	for i := 0; i < 3; i++ {
+		runtime := New(context.Background(), Options{AccountID: "persistent", DataDir: dir})
+		if err := runtime.Init(context.Background()); err != nil {
+			t.Fatalf("initialization %d failed: %v", i+1, err)
+		}
+		if err := runtime.Destroy(); err != nil {
+			t.Fatalf("destroy %d failed: %v", i+1, err)
+		}
+	}
+}
+
 func TestRuntimeCanBeDisabledExplicitly(t *testing.T) {
 	enabled := false
 	runtime := New(context.Background(), Options{Enabled: &enabled, DataDir: filepath.Join(t.TempDir(), "disabled")})
@@ -178,5 +193,16 @@ func TestRuntimeCanBeDisabledExplicitly(t *testing.T) {
 	}
 	if runtime.GetStatus().Enabled {
 		t.Fatal("disabled TSDK runtime reports enabled")
+	}
+}
+
+func TestDeviceStringMatchesNodeHostShape(t *testing.T) {
+	runtime := New(context.Background(), Options{})
+	got := runtime.deviceString()
+	if !strings.HasSuffix(got, ";Node.js;") {
+		t.Fatalf("device string = %q, want Node-compatible brand", got)
+	}
+	if stdruntime.GOOS == "windows" && !strings.HasPrefix(got, "Windows_NT x64;win32;") {
+		t.Fatalf("Windows device string = %q", got)
 	}
 }
