@@ -283,6 +283,13 @@ func (s *service) callWXApp(ctx context.Context, ref, appID string, payload map[
 	if err == nil {
 		return result, nil
 	}
+	// A failed protocol call may have already created and persisted an MMTLS
+	// session from an expired or OAuth-derived login buffer. Refreshing the
+	// buffer alone is not enough: Pool.state would otherwise reuse that stale
+	// session on the retry and repeat the same ShortLink decryption failure.
+	// Invalidate it before refreshing credentials so the retry performs a
+	// fresh manual-auth handshake with the new buffer.
+	_ = s.db.InvalidateSession(ctx, account.ID, s.tcpProxy)
 	if _, refreshErr := s.RefreshLoginBuffer(ctx, account.OpenID); refreshErr != nil {
 		return nil, fmt.Errorf("yyb operation failed: %w (refresh failed: %v)", err, refreshErr)
 	}
