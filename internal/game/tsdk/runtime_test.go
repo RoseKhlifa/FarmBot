@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/hex"
+	"fmt"
 	"os"
 	"path/filepath"
 	stdruntime "runtime"
@@ -204,5 +205,30 @@ func TestDeviceStringMatchesNodeHostShape(t *testing.T) {
 	}
 	if stdruntime.GOOS == "windows" && !strings.HasPrefix(got, "Windows_NT x64;win32;") {
 		t.Fatalf("Windows device string = %q", got)
+	}
+}
+
+func TestRuntimeInitializesWithNodeLinuxDeviceDescriptor(t *testing.T) {
+	cases := []DeviceInfo{
+		{Model: "Linux x64", Platform: "linux", System: "6.1.0-49-amd64", Brand: "Node.js"},
+		{Model: "Linux x64", Platform: "linux", System: "go1.25.5", Brand: "Node.js"},
+		{Model: "windows amd64", Platform: "windows", System: "6.1.0-49-amd64", Brand: "Go"},
+		{Model: "Linux x64", Platform: "win32", System: "6.1.0-49-amd64", Brand: "Node.js"},
+		{Model: "Linux x64", Platform: "linux", System: "6.1.0", Brand: "Node.js"},
+		{Model: "Windows_NT x64", Platform: "linux", System: "6.1.0-49-amd64", Brand: "Node.js"},
+		{Model: "Linux x64AAAAA", Platform: "linux", System: "6.1.0-49-amd64", Brand: "Node.js"},
+		{Model: "Linux", Platform: "linux", System: "6.1.0-49-amd64", Brand: "Node.js"},
+	}
+	for i, device := range cases {
+		runtime := New(context.Background(), Options{
+			AccountID: fmt.Sprintf("linux-device-%d", i),
+			DataDir:   filepath.Join(t.TempDir(), fmt.Sprintf("case-%d", i)),
+			Device:    device,
+		})
+		err := runtime.Init(context.Background())
+		_ = runtime.Destroy()
+		if err != nil {
+			t.Errorf("case %d (%q) failed: %v", i, runtime.deviceString(), err)
+		}
 	}
 }

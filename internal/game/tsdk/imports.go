@@ -99,11 +99,35 @@ func (r *Runtime) importWriteFile(_ context.Context, module api.Module, filePtr,
 }
 
 func (r *Runtime) importStack(_ context.Context, module api.Module, ptr, capacity uint32) uint32 {
-	stack := string(debug.Stack())
+	stack := nodeStackTrace()
 	if !r.writeCString(module, stack, ptr, capacity) {
 		return 0
 	}
 	return uint32(len([]byte(stack)) + 1)
+}
+
+func nodeStackTrace() string {
+	// The original Node host exposes Error().stack. Passing Go's raw
+	// "goroutine ..." format into the SDK makes its Linux device path parser
+	// walk the wrong frame layout and trap in WASM, so normalize it to the
+	// familiar V8 form before handing it over.
+	raw := strings.Split(strings.TrimSpace(string(debug.Stack())), "\n")
+	lines := []string{"Error: TSDK stack capture"}
+	for i := 1; i+1 < len(raw); i += 2 {
+		function := strings.TrimSpace(raw[i])
+		location := strings.TrimSpace(raw[i+1])
+		if function == "" || location == "" {
+			continue
+		}
+		lines = append(lines, "    at "+function+" ("+location+")")
+		if len(strings.Join(lines, "\n"))+1 >= 768 {
+			break
+		}
+	}
+	if len(lines) == 1 {
+		lines = append(lines, "    at TsdkRuntime.init (tsdk-runtime.js:1:1)")
+	}
+	return strings.Join(lines, "\n") + "\n"
 }
 
 func (r *Runtime) importVersion(_ context.Context, module api.Module, ptr, capacity uint32) uint32 {
