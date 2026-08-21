@@ -676,10 +676,9 @@ async function startYybQrLogin() {
   yybQrSessionId.value = ''
   yybQrStatus.value = 'loading'
   try {
-    const { data } = await yybApi.createQR({
-      apiBase: yybApiBase.value.trim(),
-      apiKey: yybApiKey.value.trim(),
-    })
+    // QR login is handled by the in-process YYB service. Do not forward the
+    // legacy standalone endpoint fields from the manual YYB tab.
+    const { data } = await yybApi.createQR({})
     if (!data?.ok || !data?.data?.session_id) {
       yybQrError.value = data?.error || '创建扫码会话失败'
       yybQrStatus.value = 'error'
@@ -704,8 +703,6 @@ async function pollYybQrStatus() {
     return
   try {
     const { data } = await yybApi.pollQR({
-      apiBase: yybApiBase.value.trim(),
-      apiKey: yybApiKey.value.trim(),
       sessionId: yybQrSessionId.value,
     }, { timeout: 60000 }) // 长轮询，前端等 60s
     if (!data?.ok) {
@@ -752,8 +749,6 @@ async function pollYybQrStatus() {
 async function confirmYybQr() {
   try {
     const { data } = await yybApi.confirmQR<YybQrConfirmResult>({
-      apiBase: yybApiBase.value.trim(),
-      apiKey: yybApiKey.value.trim(),
       sessionId: yybQrSessionId.value,
     })
     if (!data?.ok) {

@@ -637,8 +637,6 @@ export function useAccountLogin(options: UseAccountLoginOptions) {
     yybQrRequestController = new AbortController()
     try {
       const response = await yybApi.confirmQR<YybQrConfirmResult>({
-        apiBase: yybApiBase.value.trim(),
-        apiKey: yybApiKey.value.trim(),
         sessionId: yybQrSessionId.value,
       }, { signal: yybQrRequestController.signal })
       if (generation !== yybQrPollGeneration)
@@ -695,8 +693,6 @@ export function useAccountLogin(options: UseAccountLoginOptions) {
     yybQrRequestController = new AbortController()
     try {
       const response = await yybApi.pollQR<YybQrPollResult>({
-        apiBase: yybApiBase.value.trim(),
-        apiKey: yybApiKey.value.trim(),
         sessionId: yybQrSessionId.value,
       }, { signal: yybQrRequestController.signal, timeout: 60000 })
       if (generation !== yybQrPollGeneration)
@@ -750,8 +746,6 @@ export function useAccountLogin(options: UseAccountLoginOptions) {
     yybQrRequestController = new AbortController()
     try {
       const response = await yybApi.createQR<YybQrCreateResult>({
-        apiBase: yybApiBase.value.trim(),
-        apiKey: yybApiKey.value.trim(),
       }, { signal: yybQrRequestController.signal })
       if (generation !== yybQrPollGeneration)
         return
