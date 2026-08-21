@@ -22,6 +22,10 @@ var (
 	ErrAccountAlreadyStart = errors.New("account runtime is already managed")
 	ErrAccountStopping     = errors.New("account runtime is stopping")
 	ErrAccountNotFound     = errors.New("account was not found")
+	// ErrAccountOffline indicates that an account exists but has no active
+	// runtime. Read-only handlers can use it to return an empty snapshot while
+	// mutating operations should continue to surface the offline state.
+	ErrAccountOffline = errors.New("account is offline")
 )
 
 // ReconnectConfig controls the finite reconnect state machine. Delay is the

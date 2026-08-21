@@ -2,6 +2,7 @@ import type { Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watchEffect } from 'vue'
 import { analyticsApi, bagApi } from '@/api'
+import { useAccountStore } from '@/stores/account'
 import { useFarmStore } from '@/stores/farm'
 import { useSettingStore } from '@/stores/setting'
 
@@ -36,9 +37,11 @@ export function useStrategySettings({
   showAlert: (message: string, type?: AlertType) => void
 }) {
   const settingStore = useSettingStore()
+  const accountStore = useAccountStore()
   const farmStore = useFarmStore()
   const { settings, loading: settingsLoading } = storeToRefs(settingStore)
   const { seeds } = storeToRefs(farmStore)
+  const { currentAccount } = storeToRefs(accountStore)
 
   const strategySaving = ref(false)
 
@@ -104,7 +107,7 @@ export function useStrategySettings({
 
   async function fetchBagSeeds() {
     const accountId = currentAccountId.value
-    if (!accountId)
+    if (!accountId || currentAccount.value?.running !== true)
       return
     const requestedId = String(accountId)
     const requestId = ++bagSeedsRequestId
@@ -198,9 +201,17 @@ export function useStrategySettings({
   }
 
   watchEffect(() => {
-    if (localStrategySettings.value.plantingStrategy === 'bag_priority' && currentAccountId.value) {
+    if (localStrategySettings.value.plantingStrategy === 'bag_priority' && currentAccountId.value && currentAccount.value?.running === true) {
       fetchBagSeeds()
     }
+  })
+
+  // Account start/stop changes do not change the selected account id. Retry
+  // the read-only seed catalog when a selected account transitions online.
+  watchEffect(() => {
+    const accountId = String(currentAccountId.value || '')
+    if (accountId && currentAccount.value?.running === true)
+      void farmStore.fetchSeeds(accountId)
   })
 
   const preferredSeedOptions = computed(() => {
@@ -307,7 +318,6 @@ export function useStrategySettings({
       const accountId = String(currentAccountId.value)
       await settingStore.fetchSettings(accountId)
       syncLocalStrategySettings()
-      await farmStore.fetchSeeds(accountId)
     }
   }
 

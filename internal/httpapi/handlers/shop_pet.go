@@ -12,8 +12,11 @@ func (h *Handler) RegisterPetShop(r gin.IRouter) {
 func (h *Handler) petShop(c *gin.Context) { h.profileShop(c, "pet") }
 
 func (h *Handler) profileShop(c *gin.Context, kind string) {
-	service, ok := h.seedService(c)
+	service, ok, err := h.seedService(c)
 	if !ok {
+		if err != nil {
+			writeError(c, err)
+		}
 		return
 	}
 	profiles, err := service.API().GetShopProfiles(c.Request.Context())

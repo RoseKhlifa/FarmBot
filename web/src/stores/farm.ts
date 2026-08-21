@@ -51,11 +51,28 @@ export const useFarmStore = defineStore('farm', () => {
     if (!accountId)
       return
     const requestedId = String(accountId)
-    const { data } = await farmApi.getSeeds()
-    if (!isCurrentAccount(requestedId))
-      return
-    if (data && data.ok)
-      seeds.value = data.data || []
+    try {
+      const { data } = await farmApi.getSeeds()
+      if (!isCurrentAccount(requestedId))
+        return
+      if (data && data.ok)
+        seeds.value = Array.isArray(data.data) ? data.data : []
+    }
+    catch (error: any) {
+      // An account can be selected before its runtime has started. Treat that
+      // expected transition as an empty catalog and retry after startup.
+      const message = String(error?.response?.data?.error || error?.message || '')
+      const accountOffline = message.includes(' is offline')
+        || message.includes('账号离线')
+        || message.includes('账号未运行')
+        || message.includes('账号未启动')
+      if (accountOffline) {
+        if (isCurrentAccount(requestedId))
+          seeds.value = []
+        return
+      }
+      throw error
+    }
   }
 
   async function operate(accountId: string, opType: string) {

@@ -56,7 +56,14 @@ apiClient.interceptors.response.use(response => response, (error) => {
     }
     else if (error.response.status >= 500) {
       const backendError = String(error.response.data?.error || error.response.data?.message || '')
-      if (backendError === '账号未运行' || backendError === 'API Timeout' || backendError === 'Request Timeout')
+      // Stopped accounts do not have a game runtime yet. Read-only callers
+      // may still race account startup, so do not present that expected state
+      // as a global server fault.
+      const accountOffline = backendError === '账号未运行'
+        || backendError.includes(' is offline')
+        || backendError.includes('账号离线')
+        || backendError.includes('账号未启动')
+      if (accountOffline || backendError === 'API Timeout' || backendError === 'Request Timeout')
         return Promise.reject(error)
       toast.error(`服务器错误 ${error.response.status} ${error.response.statusText}`)
     }

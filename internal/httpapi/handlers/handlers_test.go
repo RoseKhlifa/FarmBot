@@ -2,10 +2,13 @@ package handlers
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/RoseKhlifa/FarmBot/internal/account"
+	"github.com/RoseKhlifa/FarmBot/internal/domain/farm"
 	"github.com/RoseKhlifa/FarmBot/internal/domain/friend"
 	"github.com/gin-gonic/gin"
 )
@@ -98,5 +101,31 @@ func TestDomainResolverIsApplicationBoundary(t *testing.T) {
 	}
 	if rec.Code != http.StatusInternalServerError {
 		t.Fatalf("status = %d, want 500", rec.Code)
+	}
+}
+
+func TestSeedListReturnsEmptySnapshotWhenAccountOffline(t *testing.T) {
+	app := &Application{Domains: DomainProviders{Farm: func(context.Context, string) (farm.Service, error) {
+		return nil, account.ErrAccountOffline
+	}}}
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	New(app).RegisterSeedShop(router)
+	req := httptest.NewRequest(http.MethodGet, "/api/seeds", nil)
+	req.Header.Set("x-account-id", "account-1")
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		OK   bool  `json:"ok"`
+		Data []any `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if !body.OK || len(body.Data) != 0 {
+		t.Fatalf("body = %s, want empty seed snapshot", rec.Body.String())
 	}
 }

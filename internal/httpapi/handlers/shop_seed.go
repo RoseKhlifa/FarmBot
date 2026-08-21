@@ -1,9 +1,11 @@
 package handlers
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 
+	"github.com/RoseKhlifa/FarmBot/internal/account"
 	"github.com/RoseKhlifa/FarmBot/internal/domain/farm"
 	"github.com/gin-gonic/gin"
 )
@@ -14,17 +16,34 @@ func (h *Handler) RegisterSeedShop(r gin.IRouter) {
 	r.POST("/api/shop/buy", h.seedBuy)
 }
 
-func (h *Handler) seedService(c *gin.Context) (farm.Service, bool) {
+func (h *Handler) seedService(c *gin.Context) (farm.Service, bool, error) {
 	id, ok := accountID(c, true)
 	if !ok {
-		return nil, false
+		return nil, false, nil
 	}
-	return resolve(c, h.app().Domains.Farm, id)
+	if h.app().Domains.Farm == nil {
+		writeNotConfigured(c)
+		return nil, false, nil
+	}
+	service, err := h.app().Domains.Farm(c.Request.Context(), id)
+	if err != nil {
+		return nil, false, err
+	}
+	return service, true, nil
 }
 
 func (h *Handler) seedList(c *gin.Context) {
-	service, ok := h.seedService(c)
+	service, ok, err := h.seedService(c)
 	if !ok {
+		// A stopped account has no game runtime to query yet. Keep the
+		// read-only strategy initialization usable and let the UI refresh once
+		// the account is started instead of returning a server error.
+		if errors.Is(err, account.ErrAccountOffline) {
+			writeOK(c, []any{})
+		}
+		if err != nil && !errors.Is(err, account.ErrAccountOffline) {
+			writeError(c, err)
+		}
 		return
 	}
 	shopID := farm.SeedShopID
@@ -42,8 +61,11 @@ func (h *Handler) seedList(c *gin.Context) {
 }
 
 func (h *Handler) seedBuy(c *gin.Context) {
-	service, ok := h.seedService(c)
+	service, ok, err := h.seedService(c)
 	if !ok {
+		if err != nil {
+			writeError(c, err)
+		}
 		return
 	}
 	var body struct {

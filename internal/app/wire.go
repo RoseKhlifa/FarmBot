@@ -1671,7 +1671,7 @@ func resolveRuntimeDomain[T any](manager *account.Manager, id, name string) (T, 
 	}
 	runtime := manager.Get(strings.TrimSpace(id))
 	if runtime == nil {
-		return zero, fmt.Errorf("account %q is offline", strings.TrimSpace(id))
+		return zero, fmt.Errorf("%w: account %q is offline", account.ErrAccountOffline, strings.TrimSpace(id))
 	}
 	service, ok := runtime.Domain(name).(T)
 	if !ok || (any(service) == nil) {
