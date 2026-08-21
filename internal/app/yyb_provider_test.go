@@ -55,6 +55,20 @@ func TestYYBProviderQRConfirmReturnsOnlyPublicAccount(t *testing.T) {
 	}
 }
 
+func TestYYBProviderBuiltinGetCodeReturnsObject(t *testing.T) {
+	provider := yybProvider{service: &codeServiceStub{}}
+	result, err := provider.Handle(context.Background(), "/api/yyb/getcode", map[string]any{
+		"openid": "openid-builtin",
+	})
+	if err != nil {
+		t.Fatalf("builtin getCode error = %v", err)
+	}
+	data, ok := result.(map[string]any)
+	if !ok || data["code"] != "builtin-code" || data["openid"] != "openid-builtin" {
+		t.Fatalf("builtin getCode result = %#v", result)
+	}
+}
+
 func TestYYBProviderExternalAccounts(t *testing.T) {
 	var gotAuth string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

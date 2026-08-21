@@ -532,7 +532,13 @@ func (p yybProvider) Handle(ctx context.Context, route string, body map[string]a
 	case "/api/yyb/getcode", "/api/yyb/thirdparty-code":
 		openid, _ := body["openid"].(string)
 		appID, _ := body["appId"].(string)
-		return p.service.GetCode(ctx, openid, appID)
+		code, err := p.service.GetCode(ctx, openid, appID)
+		if err != nil {
+			return nil, err
+		}
+		// Keep the in-process endpoint contract identical to the external YYB
+		// adapter: callers receive {data: {code: "..."}}, not a bare string.
+		return map[string]any{"code": code, "openid": openid}, nil
 	case "/api/yyb/qr/create":
 		return p.service.QRCreate(ctx)
 	case "/api/yyb/qr/poll":

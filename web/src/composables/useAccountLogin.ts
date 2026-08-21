@@ -91,6 +91,16 @@ interface YybCodeResult {
   code?: string
 }
 
+function extractYybCode(value: unknown): string {
+  if (typeof value === 'string')
+    return value.trim()
+  if (value && typeof value === 'object') {
+    const code = (value as { code?: unknown }).code
+    return typeof code === 'string' ? code.trim() : ''
+  }
+  return ''
+}
+
 interface YybQrCreateResult {
   session_id?: string
   image_base64?: string
@@ -577,7 +587,7 @@ export function useAccountLogin(options: UseAccountLoginOptions) {
         apiKey: yybApiKey.value.trim(),
         openid: yybSelectedOpenid.value,
       })
-      const code = response.data.data?.code
+      const code = extractYybCode(response.data.data)
       if (!response.data.ok || !code) {
         yybError.value = response.data.error || '获取登录 code 失败'
         return
@@ -645,7 +655,7 @@ export function useAccountLogin(options: UseAccountLoginOptions) {
         return
       }
       const codeResponse = await yybApi.getCode<YybCodeResult>({ openid: account.openid })
-      const code = codeResponse.data.data?.code
+      const code = extractYybCode(codeResponse.data.data)
       if (!codeResponse.data.ok || !code) {
         yybQrError.value = codeResponse.data.error || '扫码成功但获取登录 Code 失败'
         yybQrStatus.value = 'error'

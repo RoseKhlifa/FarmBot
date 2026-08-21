@@ -32,6 +32,18 @@ interface YybAccount {
   [key: string]: unknown
 }
 
+// Built-in YYB used to return the code as a bare string while the external
+// adapter returns { code }. Accept both shapes during rolling deployments.
+function extractYybCode(value: unknown): string {
+  if (typeof value === 'string')
+    return value.trim()
+  if (value && typeof value === 'object') {
+    const code = (value as { code?: unknown }).code
+    return typeof code === 'string' ? code.trim() : ''
+  }
+  return ''
+}
+
 const props = defineProps<{
   show: boolean
   editData?: AccountEditData
@@ -623,7 +635,8 @@ async function submitYybLogin() {
       apiKey: yybApiKey.value.trim(),
       openid: yybSelectedOpenid.value,
     })
-    if (!data?.ok || !data?.data?.code) {
+    const code = extractYybCode(data?.data)
+    if (!data?.ok || !code) {
       yybError.value = data?.error || '获取登录 code 失败'
       return
     }
@@ -631,7 +644,7 @@ async function submitYybLogin() {
     const name = yybAccountName.value.trim() || selected?.nickname || selected?.alias || `应用宝账号${Date.now()}`
     await addAccount({
       name,
-      code: data.data.code,
+      code,
       platform: 'wx',
       loginType: 'yyb',
       yybOpenid: yybSelectedOpenid.value,
@@ -755,7 +768,7 @@ async function confirmYybQr() {
       return
     }
     const codeResponse = await yybApi.getCode({ openid: account.openid })
-    const code = codeResponse.data.data?.code
+    const code = extractYybCode(codeResponse.data.data)
     if (!codeResponse.data.ok || !code) {
       yybQrError.value = codeResponse.data.error || '扫码成功但获取登录 Code 失败'
       yybQrStatus.value = 'error'
