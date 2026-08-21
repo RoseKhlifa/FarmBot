@@ -142,6 +142,10 @@ func (h *Handler) adminWXConfig(c *gin.Context) {
 		return
 	}
 	value, err := h.app().Config.GetWXConfig(c.Request.Context())
+	if errors.Is(err, sql.ErrNoRows) {
+		writeOK(c, map[string]any{})
+		return
+	}
 	if err != nil {
 		writeError(c, err)
 		return

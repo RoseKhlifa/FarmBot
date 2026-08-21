@@ -56,6 +56,30 @@ func TestNewApplicationRequiresMasterKey(t *testing.T) {
 	}
 }
 
+func TestApplicationReturnsEmptyWXConfigWhenUnset(t *testing.T) {
+	application, err := New(testApplicationConfig(t))
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer func() { _ = application.Shutdown(context.Background()) }()
+
+	admin, err := application.Users.Get(context.Background(), "admin")
+	if err != nil {
+		t.Fatalf("get admin: %v", err)
+	}
+	token, err := application.Sessions.Create(context.Background(), *admin)
+	if err != nil {
+		t.Fatalf("create session: %v", err)
+	}
+	request := httptest.NewRequest(http.MethodGet, "/api/admin/wx-config", nil)
+	request.Header.Set("x-admin-token", token)
+	response := httptest.NewRecorder()
+	application.Server.Handler().ServeHTTP(response, request)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"ok":true`) || !strings.Contains(response.Body.String(), `"data":{}`) {
+		t.Fatalf("empty wx config status=%d body=%s", response.Code, response.Body.String())
+	}
+}
+
 func TestApplicationLoginUsesConfiguredAdminPassword(t *testing.T) {
 	cfg := testApplicationConfig(t)
 	cfg.AdminPassword = "configured-admin-password"
