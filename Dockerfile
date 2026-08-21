@@ -5,6 +5,7 @@ WORKDIR /src
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY web/package.json web/package.json
 RUN corepack enable && pnpm install --frozen-lockfile
+COPY UPDATE_README.md ./UPDATE_README.md
 COPY web web
 RUN pnpm -C web build
 
