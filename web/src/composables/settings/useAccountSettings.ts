@@ -103,11 +103,17 @@ export function useAccountSettings(showAlert: (message: string, type?: AlertType
   }
 
   async function toggleAccount(account: any) {
-    if (account.running) {
-      await accountStore.stopAccount(account.id)
+    try {
+      if (account.running) {
+        await accountStore.stopAccount(account.id)
+      }
+      else {
+        await accountStore.startAccount(account.id)
+      }
     }
-    else {
-      await accountStore.startAccount(account.id)
+    catch (error: any) {
+      const message = error?.response?.data?.error || error?.message || '请求失败'
+      showAlert(`${account.running ? '停止' : '启动'}账号失败：${message}`, 'danger')
     }
   }
 

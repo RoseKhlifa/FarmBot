@@ -63,7 +63,9 @@ apiClient.interceptors.response.use(response => response, (error) => {
         || backendError.includes(' is offline')
         || backendError.includes('账号离线')
         || backendError.includes('账号未启动')
-      if (accountOffline || backendError === 'API Timeout' || backendError === 'Request Timeout')
+      const accountStartRequest = String(error.config?.url || '').includes('/api/accounts/')
+        && String(error.config?.url || '').endsWith('/start')
+      if (accountOffline || accountStartRequest || backendError === 'API Timeout' || backendError === 'Request Timeout')
         return Promise.reject(error)
       toast.error(`服务器错误 ${error.response.status} ${error.response.statusText}`)
     }

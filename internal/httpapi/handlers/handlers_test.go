@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -10,8 +11,15 @@ import (
 	"github.com/RoseKhlifa/FarmBot/internal/account"
 	"github.com/RoseKhlifa/FarmBot/internal/domain/farm"
 	"github.com/RoseKhlifa/FarmBot/internal/domain/friend"
+	"github.com/RoseKhlifa/FarmBot/internal/store"
 	"github.com/gin-gonic/gin"
 )
+
+type missingDeviceProtocolConfig struct{ store.ConfigRepo }
+
+func (missingDeviceProtocolConfig) GetGlobal(context.Context, string) (json.RawMessage, error) {
+	return nil, sql.ErrNoRows
+}
 
 func TestRegisterRoutesContractSnapshot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
@@ -127,5 +135,27 @@ func TestSeedListReturnsEmptySnapshotWhenAccountOffline(t *testing.T) {
 	}
 	if !body.OK || len(body.Data) != 0 {
 		t.Fatalf("body = %s, want empty seed snapshot", rec.Body.String())
+	}
+}
+
+func TestDeviceProtocolReturnsDefaultsWhenUnset(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	New(&Application{Config: missingDeviceProtocolConfig{}}).RegisterUser(router)
+	req := httptest.NewRequest(http.MethodGet, "/api/user/device-protocol", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		OK   bool           `json:"ok"`
+		Data map[string]any `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if !body.OK || body.Data == nil {
+		t.Fatalf("body = %s, want default config object", rec.Body.String())
 	}
 }

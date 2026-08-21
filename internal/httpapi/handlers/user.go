@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"strings"
 	"time"
 
@@ -52,6 +54,12 @@ func (h *Handler) deviceProtocol(c *gin.Context) {
 	}
 	value, err := h.app().Config.GetGlobal(c.Request.Context(), "deviceProtocol")
 	if err != nil {
+		// Device protocol settings are optional. A fresh installation has no
+		// row yet, so return an empty object and let the client apply defaults.
+		if errors.Is(err, sql.ErrNoRows) {
+			writeOK(c, map[string]any{})
+			return
+		}
 		writeError(c, err)
 		return
 	}

@@ -225,8 +225,10 @@ export function useUserSettings(showAlert: (message: string, type?: AlertType) =
     deviceProtocolLoading.value = true
     try {
       const { data } = await userApi.getDeviceProtocol()
-      if (data?.ok)
-        applyDeviceProtocolConfig(data.config)
+      if (data?.ok) {
+        const config = data.data?.config ?? data.data ?? data.config
+        applyDeviceProtocolConfig(config)
+      }
     }
     catch (e) {
       console.error('加载设备协议配置失败', e)
@@ -250,7 +252,8 @@ export function useUserSettings(showAlert: (message: string, type?: AlertType) =
       }
       const { data } = await userApi.saveDeviceProtocol(payload)
       if (data?.ok) {
-        applyDeviceProtocolConfig(data.config)
+        const config = data.data?.config ?? data.data ?? data.config
+        applyDeviceProtocolConfig(config)
         showAlert('设备协议配置已保存', 'primary')
       }
       else {
