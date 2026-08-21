@@ -225,7 +225,7 @@ func (db *DB) ListAccounts(ctx context.Context) ([]*WechatAccount, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []*WechatAccount
 	legacyAccounts := make([]*WechatAccount, 0)
 	for rows.Next() {
@@ -303,7 +303,7 @@ func (db *DB) DeleteAccount(ctx context.Context, id int64) error {
 	if err != nil {
 		return err
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if _, err := tx.ExecContext(ctx, "DELETE FROM sessions WHERE wechat_account_id=?", id); err != nil {
 		return err
 	}
@@ -380,7 +380,7 @@ func (db *DB) ListFeatures(ctx context.Context, onlyEnabled bool) ([]Feature, er
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	var out []Feature
 	for rows.Next() {
 		f, err := scanFeature(rows)
@@ -439,11 +439,6 @@ type featureScanner interface {
 
 func (db *DB) scanAccount(row accountScanner) (*WechatAccount, bool, error) {
 	return scanAccountRowsWithSecrets(row, db)
-}
-
-func scanAccountRows(row accountScanner) (*WechatAccount, error) {
-	account, _, err := scanAccountRowsWithSecrets(row, nil)
-	return account, err
 }
 
 func scanAccountRowsWithSecrets(row accountScanner, db *DB) (*WechatAccount, bool, error) {

@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import api from '@/api'
-import { useAccountStore } from '@/stores/account'
+import { settingsApi } from '@/api'
+import { useStaleGuard } from '@/composables/useStaleGuard'
 
 export interface AutomationConfig {
   farm?: boolean
@@ -131,15 +131,8 @@ function createDefaultAutoCodeRefresh(): AutoCodeRefreshConfig {
   }
 }
 
-function normalizeOfflineReminder(input: Partial<OfflineConfig> | null | undefined): OfflineConfig {
+function createDefaultSettings(): SettingsState {
   return {
-    ...createDefaultOfflineReminder(),
-    ...(input || {}),
-  }
-}
-
-export const useSettingStore = defineStore('setting', () => {
-  const settings = ref<SettingsState>({
     plantingStrategy: 'max_exp',
     preferredSeedId: 0,
     prioritize2x2Crops: false,
@@ -164,43 +157,24 @@ export const useSettingStore = defineStore('setting', () => {
     goldenBugKeepCount: 0,
     goldenBugRoundLimit: 24,
     mysteryAutoBuyCurrencies: [],
-  })
+  }
+}
+
+function normalizeOfflineReminder(input: Partial<OfflineConfig> | null | undefined): OfflineConfig {
+  return {
+    ...createDefaultOfflineReminder(),
+    ...(input || {}),
+  }
+}
+
+export const useSettingStore = defineStore('setting', () => {
+  const { isCurrentAccount } = useStaleGuard()
+  const settings = ref<SettingsState>(createDefaultSettings())
   const loading = ref(false)
   let fetchRequestId = 0
 
-  function isCurrentAccount(accountId: string) {
-    const accountStore = useAccountStore()
-    const currentId = String((accountStore.currentAccountId as { value?: string })?.value ?? accountStore.currentAccountId ?? '')
-    return currentId === String(accountId)
-  }
-
   function clearSettingsState() {
-    settings.value = {
-      plantingStrategy: 'max_exp',
-      preferredSeedId: 0,
-      prioritize2x2Crops: false,
-      bagSeedPriority: [],
-      bagSeedFallbackStrategy: 'level',
-      bagPriorityLandTypes: ['purple', 'gold', 'black', 'red', 'normal'],
-      autoAcceptFriendMinLevel: 0,
-      intervals: {},
-      friendQuietHours: { enabled: false, start: '23:00', end: '07:00' },
-      automation: {},
-      autoCodeRefresh: createDefaultAutoCodeRefresh(),
-      ui: {},
-      offlineReminder: createDefaultOfflineReminder(),
-      stealDelaySeconds: 0,
-      plantOrderRandom: false,
-      plantDelaySeconds: 0,
-      fertilizerBuyOrganicCount: 10,
-      fertilizerBuyOrganicThresholdHours: 10,
-      fertilizerBuyNormalCount: 10,
-      fertilizerBuyNormalThresholdHours: 10,
-      fertilizerBuyCheckIntervalMinutes: 30,
-      goldenBugKeepCount: 0,
-      goldenBugRoundLimit: 24,
-      mysteryAutoBuyCurrencies: [],
-    }
+    settings.value = createDefaultSettings()
     loading.value = false
   }
 
@@ -211,9 +185,7 @@ export const useSettingStore = defineStore('setting', () => {
     const requestId = ++fetchRequestId
     loading.value = true
     try {
-      const { data } = await api.get('/api/settings', {
-        headers: { 'x-account-id': accountId },
-      })
+      const { data } = await settingsApi.getSettings()
       if (requestId !== fetchRequestId || !isCurrentAccount(requestedId))
         return
       if (data && data.ok && data.data) {
@@ -288,14 +260,10 @@ export const useSettingStore = defineStore('setting', () => {
           : [],
       }
 
-      await api.post('/api/settings/save', settingsPayload, {
-        headers: { 'x-account-id': accountId },
-      })
+      await settingsApi.saveSettings(settingsPayload)
 
       if (newSettings.automation) {
-        await api.post('/api/automation', newSettings.automation, {
-          headers: { 'x-account-id': accountId },
-        })
+        await settingsApi.saveAutomation(newSettings.automation)
       }
 
       await fetchSettings(accountId)
@@ -309,7 +277,7 @@ export const useSettingStore = defineStore('setting', () => {
   async function saveOfflineConfig(config: OfflineConfigSavePayload) {
     loading.value = true
     try {
-      const { data } = await api.post('/api/settings/offline-reminder', config)
+      const { data } = await settingsApi.saveOfflineReminder(config)
       if (data && data.ok) {
         settings.value.offlineReminder = normalizeOfflineReminder(config)
         return { ok: true }
@@ -326,9 +294,7 @@ export const useSettingStore = defineStore('setting', () => {
       return { ok: false, error: '未选择账号' }
     loading.value = true
     try {
-      const { data } = await api.post('/api/settings/auto-code-refresh', config, {
-        headers: { 'x-account-id': accountId },
-      })
+      const { data } = await settingsApi.saveAutoCodeRefresh(config)
       if (data && data.ok) {
         settings.value.autoCodeRefresh = {
           ...createDefaultAutoCodeRefresh(),
@@ -350,9 +316,7 @@ export const useSettingStore = defineStore('setting', () => {
     if (!accountId)
       return { ok: false, error: '未选择账号' }
     try {
-      const { data } = await api.post('/api/settings/auto-code-refresh/run', {}, {
-        headers: { 'x-account-id': accountId },
-      })
+      const { data } = await settingsApi.runAutoCodeRefresh()
       if (data && data.ok)
         return { ok: true }
       return { ok: false, error: data?.error || '刷新失败' }

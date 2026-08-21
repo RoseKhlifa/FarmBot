@@ -10,9 +10,7 @@ func TestLoadDefaults(t *testing.T) {
 		"ADMIN_PORT", "ADMIN_PASSWORD", "FARM_DATA_DIR", "FARM_SERVER_URL", "FARM_CLIENT_VERSION",
 		"FARM_RESOURCE_DIR", "FARM_LOG_DIR", "LOG_LEVEL", "WX_PROXY_API_URL", "WX_PROXY_API_KEY", "WX_PROXY_APP_ID",
 		"FARM_PLATFORM", "FARM_OS", "FARM_LICENSE_ENABLED", "FARM_MASTER_KEY", "FARM_TSDK_GAME_ID",
-		"FARM_TSDK_APP_KEY", "FARM_TSDK_ACE_ENABLED", "YYB_ENABLED", "YYB_HOST", "YYB_PORT",
-		"YYB_RESOURCE_ROOT", "YYB_TOKEN_FILE", "YYB_API_URL", "YYB_API_KEY", "YYB_API_TOKEN",
-		"YYB_ADMIN_USER", "YYB_ADMIN_PASS",
+		"FARM_TSDK_APP_KEY", "FARM_TSDK_ACE_ENABLED", "FARM_YYB_ENABLED",
 	} {
 		t.Setenv(name, "")
 	}
@@ -27,7 +25,7 @@ func TestLoadDefaults(t *testing.T) {
 	if cfg.TSDK.GameID != DefaultTSDKGameID || cfg.TSDK.AppKey != DefaultTSDKAppKey || !cfg.TSDK.AceEnabled {
 		t.Fatalf("unexpected TSDK defaults: %#v", cfg.TSDK)
 	}
-	if !cfg.Yyb.Enabled || cfg.Yyb.Port != DefaultYYBPort {
+	if !cfg.Yyb.Enabled {
 		t.Fatalf("unexpected yyb defaults: %#v", cfg.Yyb)
 	}
 	if cfg.Intervals.Heartbeat != 25*time.Second || cfg.FarmCheckIntervalMin != 3*time.Second {
@@ -53,10 +51,7 @@ func TestLoadEnvironmentOverrides(t *testing.T) {
 	t.Setenv("FARM_TSDK_GAME_ID", "42")
 	t.Setenv("FARM_TSDK_APP_KEY", "key")
 	t.Setenv("FARM_TSDK_ACE_ENABLED", "false")
-	t.Setenv("YYB_ENABLED", "false")
-	t.Setenv("YYB_HOST", "0.0.0.0")
-	t.Setenv("YYB_PORT", "9000")
-	t.Setenv("YYB_API_KEY", "shared-token")
+	t.Setenv("FARM_YYB_ENABLED", "false")
 
 	cfg := Load()
 	if cfg.AdminPort != 9090 || cfg.AdminPassword != "secret" || !cfg.LicenseEnabled {
@@ -71,7 +66,7 @@ func TestLoadEnvironmentOverrides(t *testing.T) {
 	if cfg.TSDK.GameID != 42 || cfg.TSDK.AppKey != "key" || cfg.TSDK.AceEnabled {
 		t.Fatalf("TSDK overrides not applied: %#v", cfg.TSDK)
 	}
-	if cfg.Yyb.Enabled || cfg.Yyb.Host != "0.0.0.0" || cfg.Yyb.Port != 9000 || cfg.Yyb.APIToken != "shared-token" {
+	if cfg.Yyb.Enabled {
 		t.Fatalf("yyb overrides not applied: %#v", cfg.Yyb)
 	}
 	if len(cfg.Warnings) != 0 {
@@ -82,9 +77,8 @@ func TestLoadEnvironmentOverrides(t *testing.T) {
 func TestInvalidNumericEnvironmentUsesDefaults(t *testing.T) {
 	t.Setenv("ADMIN_PORT", "not-a-port")
 	t.Setenv("FARM_TSDK_GAME_ID", "-1")
-	t.Setenv("YYB_PORT", "70000")
 	cfg := Load()
-	if cfg.AdminPort != DefaultAdminPort || cfg.TSDK.GameID != DefaultTSDKGameID || cfg.Yyb.Port != DefaultYYBPort {
+	if cfg.AdminPort != DefaultAdminPort || cfg.TSDK.GameID != DefaultTSDKGameID {
 		t.Fatalf("invalid values should use defaults: %#v", cfg)
 	}
 }

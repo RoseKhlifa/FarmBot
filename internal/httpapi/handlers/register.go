@@ -32,6 +32,8 @@ func RegisterRoutes(router gin.IRouter, app *Application) {
 	h.RegisterPetShop(router)
 	h.RegisterDecorationShop(router)
 	h.RegisterMysteryShop(router)
+	h.RegisterAudit(router)
+	h.RegisterExport(router)
 }
 
 func (h *Handler) RegisterAll(router gin.IRouter) { RegisterRoutes(router, h.App) }

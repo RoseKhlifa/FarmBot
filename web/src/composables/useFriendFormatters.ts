@@ -1,6 +1,7 @@
+import type { Friend, InteractRecord } from '@/stores/friend'
 import { formatGoldAmount } from '@/utils/number-format'
 
-export function getFriendStatusText(friend: any): string {
+export function getFriendStatusText(friend: Friend): string {
   const plant = friend?.plant || {}
   const parts: string[] = []
   if (plant.stealNum)
@@ -14,7 +15,7 @@ export function getFriendStatusText(friend: any): string {
   return parts.length ? parts.join(' ') : '无操作'
 }
 
-export function getFriendStatusHint(friend: any): string {
+export function getFriendStatusHint(friend: Friend): string {
   const plant = friend?.plant || {}
   if (Number(plant.stealNum || 0) > 0)
     return `当前可偷 ${plant.stealNum} 块地，适合优先展开查看。`
@@ -23,12 +24,12 @@ export function getFriendStatusHint(friend: any): string {
   return '当前没有明显的手动互动提示，可先作为普通好友资料查看。'
 }
 
-export function getFriendLevel(friend: any): number {
+export function getFriendLevel(friend: Friend): number {
   const level = Number.parseInt(String(friend?.level ?? ''), 10)
   return Number.isFinite(level) && level > 0 ? level : 0
 }
 
-export function getFriendGold(friend: any): number {
+export function getFriendGold(friend: Friend): number {
   const gold = Number.parseInt(String(friend?.gold ?? ''), 10)
   return Number.isFinite(gold) && gold >= 0 ? gold : 0
 }
@@ -38,7 +39,7 @@ export function formatFriendGold(value: unknown): string {
   return Number.isFinite(gold) && gold >= 0 ? formatGoldAmount(gold) : '0'
 }
 
-export function getFriendAvatar(friend: any): string {
+export function getFriendAvatar(friend: Friend): string {
   const direct = String(friend?.avatarUrl || friend?.avatar_url || '').trim()
   if (direct)
     return direct
@@ -46,15 +47,15 @@ export function getFriendAvatar(friend: any): string {
   return uin ? `https://q1.qlogo.cn/g?b=qq&nk=${uin}&s=100` : ''
 }
 
-export function getFriendAvatarKey(friend: any): string {
+export function getFriendAvatarKey(friend: Friend): string {
   return String(friend?.gid || friend?.uin || friend?.name || '').trim()
 }
 
-export function getInteractAvatar(record: any): string {
+export function getInteractAvatar(record: InteractRecord): string {
   return String(record?.avatarUrl || '').trim()
 }
 
-export function getInteractAvatarKey(record: any): string {
+export function getInteractAvatarKey(record: InteractRecord): string {
   const key = String(record?.visitorGid || record?.key || record?.nick || '').trim()
   return key ? `interact:${key}` : ''
 }

@@ -37,6 +37,10 @@ type Application struct {
 	Realtime       *realtime.Hub
 	Metrics        *platformmetrics.Registry
 	Server         *httpapi.Server
+	// Capture owns the in-memory capture-flow janitor and remote-session
+	// cleanup. It is kept behind a narrow interface so shutdown can release
+	// those resources without coupling the application lifecycle to handlers.
+	Capture interface{ Close() error }
 
 	mu     sync.Mutex
 	closed bool
@@ -63,8 +67,8 @@ func (a *Application) Run(ctx context.Context) error {
 	return a.Server.Run(ctx)
 }
 
-// Shutdown stops account runtimes, realtime clients, sessions, HTTP, and the
-// SQLite connection. It is safe to call repeatedly.
+// Shutdown stops HTTP first, then account runtimes, realtime clients, sessions,
+// and finally the SQLite connection. It is safe to call repeatedly.
 func (a *Application) Shutdown(ctx context.Context) error {
 	if a == nil {
 		return nil
@@ -79,7 +83,20 @@ func (a *Application) Shutdown(ctx context.Context) error {
 
 	var firstErr error
 	if a.AccountManager != nil {
-		if err := a.AccountManager.Close(); err != nil {
+		a.AccountManager.BeginDrain()
+	}
+	if a.Server != nil {
+		if err := a.Server.Shutdown(ctx); err != nil {
+			firstErr = err
+		}
+	}
+	if a.Capture != nil {
+		if err := a.Capture.Close(); err != nil && firstErr == nil {
+			firstErr = err
+		}
+	}
+	if a.AccountManager != nil {
+		if err := a.AccountManager.Close(); err != nil && firstErr == nil {
 			firstErr = err
 		}
 	}
@@ -90,11 +107,6 @@ func (a *Application) Shutdown(ctx context.Context) error {
 	}
 	if a.Sessions != nil {
 		a.Sessions.Close()
-	}
-	if a.Server != nil {
-		if err := a.Server.Shutdown(ctx); err != nil && firstErr == nil {
-			firstErr = err
-		}
 	}
 	if a.DB != nil {
 		if err := a.DB.Close(); err != nil && firstErr == nil {

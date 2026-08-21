@@ -1,11 +1,12 @@
 <!-- eslint-disable style/max-statements-per-line -->
 <script setup lang="ts">
+import type { InteractRecord } from '@/stores/friend'
 import { formatInteractTime, getInteractAvatar, getInteractAvatarKey, getInteractBadgeClass } from '@/composables/useFriendFormatters'
 
 defineProps<{
-  records: any[]
-  filteredRecords: any[]
-  visibleRecords: any[]
+  records: InteractRecord[]
+  filteredRecords: InteractRecord[]
+  visibleRecords: InteractRecord[]
   filter: string
   filters: { key: string, label: string }[]
   loading: boolean
@@ -16,7 +17,7 @@ defineProps<{
 const emit = defineEmits<{
   'update:filter': [value: string]
   'refresh': []
-  'avatarError': [record: any]
+  'avatarError': [record: InteractRecord]
 }>()
 </script>
 
@@ -80,7 +81,7 @@ const emit = defineEmits<{
         </div>
         <div class="min-w-0 flex-1">
           <div class="mb-1 flex flex-wrap items-center gap-2">
-            <span class="max-w-full truncate text-base text-gray-800 font-medium dark:text-gray-100">{{ record.nick || `GID:${record.visitorGid}` }}</span><span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="getInteractBadgeClass(record.actionType)">{{ record.actionLabel }}</span><span v-if="record.level" class="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-300">Lv.{{ record.level }}</span><span v-if="record.visitorGid" class="text-xs text-gray-400">GID {{ record.visitorGid }}</span>
+            <span class="max-w-full truncate text-base text-gray-800 font-medium dark:text-gray-100">{{ record.nick || `GID:${record.visitorGid}` }}</span><span class="rounded-full px-2 py-0.5 text-xs font-medium" :class="getInteractBadgeClass(Number(record.actionType))">{{ record.actionLabel }}</span><span v-if="record.level" class="rounded bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-gray-700 dark:text-gray-300">Lv.{{ record.level }}</span><span v-if="record.visitorGid" class="text-xs text-gray-400">GID {{ record.visitorGid }}</span>
           </div><div class="text-sm text-gray-600 dark:text-gray-300">
             {{ record.actionDetail || record.actionLabel }}
           </div>

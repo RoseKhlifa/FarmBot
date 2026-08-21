@@ -2,8 +2,8 @@
 import type { ActivityLabels, ExchangeItem, ExchangeState } from './types'
 import { ref } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
-import ActivityItemImage from './ActivityItemImage.vue'
 import { formatCurrencyAmountByLabel } from '@/utils/number-format'
+import ActivityItemImage from './ActivityItemImage.vue'
 
 const props = defineProps<{
   items: ExchangeItem[]

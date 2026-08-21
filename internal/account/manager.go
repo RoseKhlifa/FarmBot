@@ -9,6 +9,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/RoseKhlifa/FarmBot/internal/game/session"
@@ -84,7 +85,11 @@ type ManagerConfig struct {
 	Config   store.ConfigRepo
 	Yyb      yyb.Service
 	AppID    string
-	Load     AccountLoader
+	// CodeProvider optionally resolves a fresh login code for a stored account.
+	// It is used for third-party YYB accounts while the built-in Yyb service
+	// remains the default for ordinary YYB accounts.
+	CodeProvider func(context.Context, store.Account, *store.AccountConfig, string) (string, error)
+	Load         AccountLoader
 
 	RuntimeDependencies Dependencies
 	Reconnect           ReconnectConfig
@@ -114,20 +119,22 @@ type startAttempt struct {
 type Manager struct {
 	mu sync.RWMutex
 
-	accounts store.AccountRepo
-	config   store.ConfigRepo
-	yyb      yyb.Service
-	appID    string
-	load     AccountLoader
+	accounts     store.AccountRepo
+	config       store.ConfigRepo
+	yyb          yyb.Service
+	appID        string
+	codeProvider func(context.Context, store.Account, *store.AccountConfig, string) (string, error)
+	load         AccountLoader
 
 	runtimeDeps    Dependencies
 	runtimeFactory func(RuntimeSpec) *Runtime
 	startRuntime   func(context.Context, *Runtime) error
 	stopRuntime    func(*Runtime) error
 
-	ctx    context.Context
-	cancel context.CancelFunc
-	closed bool
+	ctx      context.Context
+	cancel   context.CancelFunc
+	closed   bool
+	draining atomic.Bool
 
 	runtimes  map[string]*Runtime
 	starting  map[string]*startAttempt
@@ -161,6 +168,7 @@ func NewManager(cfg ManagerConfig) *Manager {
 		config:       cfg.Config,
 		yyb:          cfg.Yyb,
 		appID:        strings.TrimSpace(cfg.AppID),
+		codeProvider: cfg.CodeProvider,
 		load:         cfg.Load,
 		runtimeDeps:  deps,
 		startRuntime: cfg.StartRuntime,
@@ -196,8 +204,21 @@ func (m *Manager) Start(accountID string) error {
 
 // StartContext is Start with an optional caller context for login and setup.
 func (m *Manager) StartContext(parent context.Context, accountID string) error {
+	if m != nil && m.draining.Load() {
+		return ErrManagerClosed
+	}
 	return m.startContext(parent, accountID, false)
 }
+
+// BeginDrain prevents new account starts while graceful shutdown drains
+// existing runtimes.
+func (m *Manager) BeginDrain() {
+	if m != nil {
+		m.draining.Store(true)
+	}
+}
+
+func (m *Manager) IsDraining() bool { return m != nil && m.draining.Load() }
 
 func (m *Manager) startContext(parent context.Context, accountID string, reconnect bool) (err error) {
 	accountID = strings.TrimSpace(accountID)
@@ -212,7 +233,7 @@ func (m *Manager) startContext(parent context.Context, accountID string, reconne
 	}
 
 	m.mu.Lock()
-	if m.closed {
+	if m.closed || m.draining.Load() {
 		m.mu.Unlock()
 		return ErrManagerClosed
 	}
@@ -260,14 +281,14 @@ func (m *Manager) startContext(parent context.Context, accountID string, reconne
 		return fmt.Errorf("start account %q: %w", accountID, err)
 	}
 	if err := startCtx.Err(); err != nil {
-		m.stopOne(runtime)
+		_ = m.stopOne(runtime)
 		return err
 	}
 
 	m.mu.Lock()
 	if m.closed || startCtx.Err() != nil {
 		m.mu.Unlock()
-		m.stopOne(runtime)
+		_ = m.stopOne(runtime)
 		if err := startCtx.Err(); err != nil {
 			return err
 		}
@@ -496,7 +517,7 @@ func (m *Manager) loadSpec(ctx context.Context, accountID string) (RuntimeSpec, 
 	}
 
 	code := strings.TrimSpace(account.Code)
-	if m.yyb != nil && isYYBAccount(account) {
+	if isYYBAccount(account) && (m.yyb != nil || m.codeProvider != nil) {
 		ref := strings.TrimSpace(account.YYBOpenID)
 		if ref == "" {
 			ref = strings.TrimSpace(account.OpenID)
@@ -504,7 +525,11 @@ func (m *Manager) loadSpec(ctx context.Context, accountID string) (RuntimeSpec, 
 		if ref == "" {
 			return RuntimeSpec{}, fmt.Errorf("account %q has no yyb openid", accountID)
 		}
-		code, err = m.yyb.GetCode(ctx, ref, m.appID)
+		if m.codeProvider != nil {
+			code, err = m.codeProvider(ctx, account, config, m.appID)
+		} else {
+			code, err = m.yyb.GetCode(ctx, ref, m.appID)
+		}
 		if err != nil {
 			return RuntimeSpec{}, fmt.Errorf("refresh yyb code for account %q: %w", accountID, err)
 		}

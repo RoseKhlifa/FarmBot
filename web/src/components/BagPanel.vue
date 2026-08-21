@@ -398,7 +398,7 @@ useIntervalFn(loadBag, 60000)
         <button
           v-for="cat in CATEGORY_OPTIONS"
           :key="cat.value"
-          class="whitespace-nowrap rounded-[14px] border border-[var(--theme-border)] bg-[var(--theme-glass)] px-3.5 py-[7px] text-xs font-semibold text-[var(--theme-text)] backdrop-blur-[16px] transition-colors"
+          class="whitespace-nowrap border border-[var(--theme-border)] rounded-[14px] bg-[var(--theme-glass)] px-3.5 py-[7px] text-xs text-[var(--theme-text)] font-semibold backdrop-blur-[16px] transition-colors"
           :class="selectedCategory === cat.value
             ? '!border-[var(--theme-primary)] !bg-[var(--theme-primary)] text-white'
             : 'hover:bg-white/20 dark:hover:bg-white/10'"
@@ -412,7 +412,7 @@ useIntervalFn(loadBag, 60000)
 
         <template v-if="selectedCategory === 'fruit' || selectedCategory === 'all'">
           <button
-            class="whitespace-nowrap rounded-[14px] border border-[var(--theme-border)] bg-[var(--theme-glass)] px-3.5 py-[7px] text-xs font-semibold text-[var(--theme-text)] backdrop-blur-[16px] transition-colors"
+            class="whitespace-nowrap border border-[var(--theme-border)] rounded-[14px] bg-[var(--theme-glass)] px-3.5 py-[7px] text-xs text-[var(--theme-text)] font-semibold backdrop-blur-[16px] transition-colors"
             :class="batchMode
               ? 'bg-orange-500 text-white dark:bg-orange-600'
               : 'hover:bg-white/20 dark:hover:bg-white/10'"
@@ -423,13 +423,13 @@ useIntervalFn(loadBag, 60000)
           </button>
           <template v-if="batchMode">
             <button
-              class="whitespace-nowrap rounded-[14px] border border-blue-500 bg-blue-500 px-3.5 py-[7px] text-xs font-semibold text-white transition-colors dark:bg-blue-600"
+              class="whitespace-nowrap border border-blue-500 rounded-[14px] bg-blue-500 px-3.5 py-[7px] text-xs text-white font-semibold transition-colors dark:bg-blue-600"
               @click="selectAllSellable"
             >
               全选
             </button>
             <button
-              class="whitespace-nowrap rounded-[14px] border border-[var(--theme-border)] bg-[var(--theme-glass)] px-3.5 py-[7px] text-xs font-semibold text-[var(--theme-text)] backdrop-blur-[16px] transition-colors"
+              class="whitespace-nowrap border border-[var(--theme-border)] rounded-[14px] bg-[var(--theme-glass)] px-3.5 py-[7px] text-xs text-[var(--theme-text)] font-semibold backdrop-blur-[16px] transition-colors"
               :class="selectedSellableCount > 0
                 ? 'bg-red-500 text-white hover:bg-red-600 dark:bg-red-600 dark:hover:bg-red-700'
                 : 'opacity-60'"

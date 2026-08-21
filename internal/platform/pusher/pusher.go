@@ -139,7 +139,7 @@ func (c *Client) Send(ctx context.Context, payload Payload) (Result, error) {
 	if err != nil {
 		return Result{}, fmt.Errorf("send push request: %w", err)
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	responseBody, err := io.ReadAll(io.LimitReader(response.Body, 1<<20))
 	if err != nil {
 		return Result{}, fmt.Errorf("read push response: %w", err)

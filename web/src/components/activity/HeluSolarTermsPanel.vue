@@ -102,7 +102,8 @@ function previewRewards(items?: HeluDrawReward[]) {
           >
             {{ term.statusLabel }}
           </span>
-          <ActivityItemImage v-if="term.rewards?.[0]?.image"
+          <ActivityItemImage
+            v-if="term.rewards?.[0]?.image"
             :item="term.rewards[0]"
             img-class="max-h-16 max-w-16"
           />
@@ -125,7 +126,8 @@ function previewRewards(items?: HeluDrawReward[]) {
               :key="`${term.id}-${item.itemId}-${item.itemCount}`"
               class="grid h-6 w-6 place-items-center rounded-full bg-white ring-1 ring-gray-100 dark:bg-gray-800 dark:ring-gray-700"
             >
-              <ActivityItemImage :item="item"
+              <ActivityItemImage
+                :item="item"
                 img-class="h-4 w-4"
               />
             </span>

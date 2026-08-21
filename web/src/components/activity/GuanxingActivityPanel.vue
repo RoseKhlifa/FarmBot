@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
 import type { GuanxingActivity, GuanxingNode } from '@/stores/activity'
+import { computed } from 'vue'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import ActivityItemImage from './ActivityItemImage.vue'
 
@@ -12,7 +12,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  claim: []
+  'claim': []
   'update:autoClaim': [value: boolean]
 }>()
 
@@ -146,25 +146,33 @@ const canClaim = computed(() => claimableCount.value > 0)
     <!-- 进度统计 -->
     <div class="grid gap-3 p-4 md:grid-cols-4">
       <div class="rounded-lg bg-gray-50 px-3 py-2.5 dark:bg-gray-900/40">
-        <div class="text-xs text-gray-500 dark:text-gray-400">{{ T.currentDay }}</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400">
+          {{ T.currentDay }}
+        </div>
         <div class="mt-1 text-sm text-gray-900 font-semibold dark:text-gray-100">
           {{ activity?.currentDay || 0 }} / {{ activity?.totalDays || 28 }} {{ T.dayUnit }}
         </div>
       </div>
       <div class="rounded-lg bg-gray-50 px-3 py-2.5 dark:bg-gray-900/40">
-        <div class="text-xs text-gray-500 dark:text-gray-400">{{ T.unlocked }}</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400">
+          {{ T.unlocked }}
+        </div>
         <div class="mt-1 text-sm text-gray-900 font-semibold dark:text-gray-100">
           {{ activity?.summary?.unlockedCount || 0 }}
         </div>
       </div>
       <div class="rounded-lg bg-gray-50 px-3 py-2.5 dark:bg-gray-900/40">
-        <div class="text-xs text-gray-500 dark:text-gray-400">{{ T.claimed }}</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400">
+          {{ T.claimed }}
+        </div>
         <div class="mt-1 text-sm text-emerald-600 font-semibold dark:text-emerald-300">
           {{ activity?.summary?.claimedCount || 0 }}
         </div>
       </div>
       <div class="rounded-lg bg-gray-50 px-3 py-2.5 dark:bg-gray-900/40">
-        <div class="text-xs text-gray-500 dark:text-gray-400">{{ T.claimable }}</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400">
+          {{ T.claimable }}
+        </div>
         <div class="mt-1 text-sm text-amber-600 font-semibold dark:text-amber-300">
           {{ claimableCount }}
         </div>
@@ -176,7 +184,9 @@ const canClaim = computed(() => claimableCount.value > 0)
       v-if="activity?.summary?.pendingRewards?.length"
       class="border-t border-gray-100 px-4 py-3 dark:border-gray-700"
     >
-      <div class="mb-2 text-sm text-gray-900 font-semibold dark:text-gray-100">{{ T.pending }}</div>
+      <div class="mb-2 text-sm text-gray-900 font-semibold dark:text-gray-100">
+        {{ T.pending }}
+      </div>
       <div class="flex flex-wrap gap-2">
         <span
           v-for="item in activity.summary.pendingRewards"
@@ -192,7 +202,9 @@ const canClaim = computed(() => claimableCount.value > 0)
     <!-- 星宿星图 -->
     <div class="border-t border-gray-100 p-4 dark:border-gray-700">
       <div class="mb-3 flex items-center justify-between gap-3">
-        <h3 class="text-base text-gray-900 font-semibold dark:text-gray-100">{{ T.direction }}</h3>
+        <h3 class="text-base text-gray-900 font-semibold dark:text-gray-100">
+          {{ T.direction }}
+        </h3>
         <span class="text-xs text-gray-500 dark:text-gray-400">{{ activity?.nodes?.length || 0 }} / 28</span>
       </div>
 
@@ -217,7 +229,7 @@ const canClaim = computed(() => claimableCount.value > 0)
           class="rounded-lg bg-gray-50/60 p-3 dark:bg-gray-900/30"
         >
           <div class="mb-2 flex items-center gap-2">
-            <span class="rounded-md bg-indigo-100 px-2 py-0.5 text-xs font-medium text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+            <span class="rounded-md bg-indigo-100 px-2 py-0.5 text-xs text-indigo-700 font-medium dark:bg-indigo-900/40 dark:text-indigo-300">
               {{ group.category }}
             </span>
             <span class="text-[11px] text-gray-500 dark:text-gray-400">{{ group.nodes.length }} 宿</span>
@@ -226,7 +238,7 @@ const canClaim = computed(() => claimableCount.value > 0)
             <div
               v-for="node in group.nodes"
               :key="node.id"
-              class="relative min-w-0 cursor-default rounded-lg border p-2 transition-all"
+              class="relative min-w-0 cursor-default border rounded-lg p-2 transition-all"
               :class="nodeStatusClass(node)"
               :title="node.explain || `${node.name} 第${node.day}日`"
             >

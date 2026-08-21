@@ -20,7 +20,7 @@ const activeTab = defineModel<FriendTabKey>('activeTab', { required: true })
     <button
       v-for="tab in tabs"
       :key="tab.key"
-      class="flex items-center gap-1.5 whitespace-nowrap rounded-[14px] border border-[var(--theme-border)] bg-[var(--theme-glass)] px-3.5 py-[7px] text-xs font-semibold text-[var(--theme-text)] backdrop-blur-[16px] transition-colors"
+      class="flex items-center gap-1.5 whitespace-nowrap border border-[var(--theme-border)] rounded-[14px] bg-[var(--theme-glass)] px-3.5 py-[7px] text-xs text-[var(--theme-text)] font-semibold backdrop-blur-[16px] transition-colors"
       :class="activeTab === tab.key
         ? '!border-[var(--theme-primary)] !bg-[var(--theme-primary)] text-white shadow-sm'
         : 'hover:bg-white/20 dark:hover:bg-white/10'"

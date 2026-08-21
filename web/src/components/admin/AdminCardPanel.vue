@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { CardStatusFilter, CardTypeFilter, NewCardForm } from '@/composables/useAdminCards'
-import type { Card } from '@/stores/user'
+import type { Card } from '@/stores/admin'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
@@ -76,7 +76,7 @@ const statusFilterOptions = [
     </div>
 
     <div class="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <div class="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-glass)] px-4 py-3 text-sm text-gray-700 backdrop-blur-md dark:text-gray-200">
+      <div class="border border-[var(--theme-border)] rounded-2xl bg-[var(--theme-glass)] px-4 py-3 text-sm text-gray-700 backdrop-blur-md dark:text-gray-200">
         <div class="text-xs text-gray-500 dark:text-gray-400">
           卡密总数
         </div>
@@ -84,7 +84,7 @@ const statusFilterOptions = [
           {{ cards.length }} 个
         </div>
       </div>
-      <div class="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-glass)] px-4 py-3 text-sm text-gray-700 backdrop-blur-md dark:text-gray-200">
+      <div class="border border-[var(--theme-border)] rounded-2xl bg-[var(--theme-glass)] px-4 py-3 text-sm text-gray-700 backdrop-blur-md dark:text-gray-200">
         <div class="text-xs text-gray-500 dark:text-gray-400">
           已使用
         </div>
@@ -92,7 +92,7 @@ const statusFilterOptions = [
           {{ usedCardsCount }} 个
         </div>
       </div>
-      <div class="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-glass)] px-4 py-3 text-sm text-gray-700 backdrop-blur-md dark:text-gray-200">
+      <div class="border border-[var(--theme-border)] rounded-2xl bg-[var(--theme-glass)] px-4 py-3 text-sm text-gray-700 backdrop-blur-md dark:text-gray-200">
         <div class="text-xs text-gray-500 dark:text-gray-400">
           已启用
         </div>
@@ -100,7 +100,7 @@ const statusFilterOptions = [
           {{ enabledCardsCount }} 个
         </div>
       </div>
-      <div class="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-glass)] px-4 py-3 text-sm text-gray-700 backdrop-blur-md dark:text-gray-200">
+      <div class="border border-[var(--theme-border)] rounded-2xl bg-[var(--theme-glass)] px-4 py-3 text-sm text-gray-700 backdrop-blur-md dark:text-gray-200">
         <div class="text-xs text-gray-500 dark:text-gray-400">
           可领时间卡
         </div>
@@ -110,11 +110,11 @@ const statusFilterOptions = [
       </div>
     </div>
 
-    <div class="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-glass)] px-4 py-3 text-sm text-gray-600 backdrop-blur-md dark:text-gray-300">
+    <div class="border border-[var(--theme-border)] rounded-2xl bg-[var(--theme-glass)] px-4 py-3 text-sm text-gray-600 backdrop-blur-md dark:text-gray-300">
       可以按类型、状态和关键词筛选卡密；批量创建时会自动导出文件，便于直接发放。
     </div>
 
-    <div class="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-glass)] px-4 py-3 text-sm shadow-sm backdrop-blur-md">
+    <div class="border border-[var(--theme-border)] rounded-2xl bg-[var(--theme-glass)] px-4 py-3 text-sm shadow-sm backdrop-blur-md">
       <div class="text-xs text-gray-500 dark:text-gray-400">
         当前卡密结论
       </div>
@@ -123,7 +123,7 @@ const statusFilterOptions = [
       </div>
     </div>
 
-    <div class="flex items-center justify-between rounded-lg border border-[var(--theme-border)] bg-[var(--theme-glass)] p-4 backdrop-blur-md">
+    <div class="flex items-center justify-between border border-[var(--theme-border)] rounded-lg bg-[var(--theme-glass)] p-4 backdrop-blur-md">
       <div>
         <h4 class="text-sm text-gray-900 font-medium dark:text-white">
           卡密领取功能
@@ -145,7 +145,7 @@ const statusFilterOptions = [
     </div>
 
     <div class="grid gap-3 lg:grid-cols-2">
-      <div class="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-glass)] p-4 backdrop-blur-md">
+      <div class="border border-[var(--theme-border)] rounded-2xl bg-[var(--theme-glass)] p-4 backdrop-blur-md">
         <div class="mb-3 flex flex-wrap items-center justify-between gap-2">
           <div>
             <div class="text-sm text-gray-900 font-semibold dark:text-gray-100">
@@ -193,7 +193,7 @@ const statusFilterOptions = [
         </div>
       </div>
 
-      <div class="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-glass)] p-4 backdrop-blur-md">
+      <div class="border border-[var(--theme-border)] rounded-2xl bg-[var(--theme-glass)] p-4 backdrop-blur-md">
         <div class="mb-3 text-sm text-gray-900 font-semibold dark:text-gray-100">
           关键词与状态
         </div>
@@ -241,8 +241,8 @@ const statusFilterOptions = [
       <div>加载中...</div>
     </div>
 
-    <div v-else class="overflow-hidden rounded-lg border border-[var(--theme-border)] bg-[var(--theme-glass)] shadow backdrop-blur-md">
-      <div class="overflow-x-auto resp-table">
+    <div v-else class="overflow-hidden border border-[var(--theme-border)] rounded-lg bg-[var(--theme-glass)] shadow backdrop-blur-md">
+      <div class="resp-table overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead class="bg-gray-50 dark:bg-gray-700">
             <tr>
@@ -354,13 +354,13 @@ const statusFilterOptions = [
       class="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black bg-opacity-50 p-3 sm:items-center sm:p-4"
       @click.self="showCreateModal = false"
     >
-      <div class="my-auto max-h-[calc(100dvh-1.5rem)] max-w-lg w-full overflow-y-auto rounded-2xl bg-white p-4 shadow-xl dark:bg-gray-800 sm:max-h-[calc(100dvh-2rem)] sm:p-5" @click.stop>
+      <div class="my-auto max-h-[calc(100dvh-1.5rem)] max-w-lg w-full overflow-y-auto rounded-2xl bg-white p-4 shadow-xl sm:max-h-[calc(100dvh-2rem)] dark:bg-gray-800 sm:p-5" @click.stop>
         <h2 class="mb-4 text-lg text-gray-900 font-bold dark:text-white">
           创建卡密
         </h2>
         <div class="space-y-4">
           <div class="grid gap-3 md:grid-cols-3">
-            <div class="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-glass)] px-4 py-3 text-sm text-gray-700 backdrop-blur-md dark:text-gray-200">
+            <div class="border border-[var(--theme-border)] rounded-2xl bg-[var(--theme-glass)] px-4 py-3 text-sm text-gray-700 backdrop-blur-md dark:text-gray-200">
               <div class="text-xs text-gray-500 dark:text-gray-400">
                 卡密类型
               </div>
@@ -368,7 +368,7 @@ const statusFilterOptions = [
                 {{ newCard.type === 'quota' ? '额度卡' : '时间卡' }}
               </div>
             </div>
-            <div class="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-glass)] px-4 py-3 text-sm text-gray-700 backdrop-blur-md dark:text-gray-200">
+            <div class="border border-[var(--theme-border)] rounded-2xl bg-[var(--theme-glass)] px-4 py-3 text-sm text-gray-700 backdrop-blur-md dark:text-gray-200">
               <div class="text-xs text-gray-500 dark:text-gray-400">
                 生效数值
               </div>
@@ -376,7 +376,7 @@ const statusFilterOptions = [
                 {{ newCard.type === 'quota' ? `+${newCard.days || 0} 额度` : (newCard.days === -1 ? '永久' : `${newCard.days || 0} ${newCard.durationUnit === 'hour' ? '小时' : '天'}`) }}
               </div>
             </div>
-            <div class="rounded-2xl border border-[var(--theme-border)] bg-[var(--theme-glass)] px-4 py-3 text-sm text-gray-700 backdrop-blur-md dark:text-gray-200">
+            <div class="border border-[var(--theme-border)] rounded-2xl bg-[var(--theme-glass)] px-4 py-3 text-sm text-gray-700 backdrop-blur-md dark:text-gray-200">
               <div class="text-xs text-gray-500 dark:text-gray-400">
                 生成数量
               </div>
@@ -473,6 +473,7 @@ const statusFilterOptions = [
     </div>
   </div>
 </template>
+
 <style scoped>
 @media (max-width: 640px) {
   .resp-table table,
@@ -483,7 +484,9 @@ const statusFilterOptions = [
     display: block;
     width: 100%;
   }
-  .resp-table thead { display: none; }
+  .resp-table thead {
+    display: none;
+  }
   .resp-table tr {
     margin-bottom: 12px;
     border: 1px solid var(--theme-border);
@@ -505,7 +508,9 @@ const statusFilterOptions = [
   .resp-table td:not(:last-child) {
     border-bottom: 1px solid var(--theme-border);
   }
-  .resp-table td[colspan]::before { content: none !important; }
+  .resp-table td[colspan]::before {
+    content: none !important;
+  }
   .resp-table td::before {
     content: '';
     font-weight: 600;
@@ -514,16 +519,35 @@ const statusFilterOptions = [
     text-align: left;
     flex: 0 0 auto;
   }
-  .resp-table tbody tr td:nth-of-type(1)::before { content: "选择"; }
-  .resp-table tbody tr td:nth-of-type(2)::before { content: "卡密"; }
-  .resp-table tbody tr td:nth-of-type(3)::before { content: "描述"; }
-  .resp-table tbody tr td:nth-of-type(4)::before { content: "类型"; }
-  .resp-table tbody tr td:nth-of-type(5)::before { content: "数值"; }
-  .resp-table tbody tr td:nth-of-type(6)::before { content: "状态"; }
-  .resp-table tbody tr td:nth-of-type(7)::before { content: "使用者"; }
-  .resp-table tbody tr td:nth-of-type(8)::before { content: "生成时间"; }
-  .resp-table tbody tr td:nth-of-type(9)::before { content: "使用时间"; }
-  .resp-table tbody tr td:nth-of-type(10)::before { content: "操作"; }
+  .resp-table tbody tr td:nth-of-type(1)::before {
+    content: '选择';
+  }
+  .resp-table tbody tr td:nth-of-type(2)::before {
+    content: '卡密';
+  }
+  .resp-table tbody tr td:nth-of-type(3)::before {
+    content: '描述';
+  }
+  .resp-table tbody tr td:nth-of-type(4)::before {
+    content: '类型';
+  }
+  .resp-table tbody tr td:nth-of-type(5)::before {
+    content: '数值';
+  }
+  .resp-table tbody tr td:nth-of-type(6)::before {
+    content: '状态';
+  }
+  .resp-table tbody tr td:nth-of-type(7)::before {
+    content: '使用者';
+  }
+  .resp-table tbody tr td:nth-of-type(8)::before {
+    content: '生成时间';
+  }
+  .resp-table tbody tr td:nth-of-type(9)::before {
+    content: '使用时间';
+  }
+  .resp-table tbody tr td:nth-of-type(10)::before {
+    content: '操作';
+  }
 }
 </style>
-

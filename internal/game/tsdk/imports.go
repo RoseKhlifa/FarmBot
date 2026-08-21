@@ -263,7 +263,7 @@ func (r *Runtime) importAppendFile(_ context.Context, module api.Module, filePtr
 	if err != nil {
 		return 0
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	if _, err := file.Write(decoded); err != nil {
 		return 0
 	}
@@ -309,7 +309,7 @@ func (r *Runtime) calibrateServerTime(generation uint64, module api.Module, outP
 	if err != nil {
 		return
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	dateHeader := response.Header.Get("Date")
 	parsed, err := http.ParseTime(dateHeader)
 	if err != nil || generation != r.serverTimeGeneration.Load() || r.destroyed.Load() {
@@ -333,7 +333,7 @@ func (r *Runtime) postTQOS(body []byte, headers map[string]string) {
 		r.warnOnce("tqos", "TSDK TQOS report failed: "+err.Error())
 		return
 	}
-	response.Body.Close()
+	_ = response.Body.Close()
 }
 
 func decodeText(value, encodingName string) ([]byte, error) {

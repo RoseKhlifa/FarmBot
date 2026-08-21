@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import api from '@/api'
-import { useAccountStore } from '@/stores/account'
+import { illustratedApi } from '@/api'
+import { isCurrentAccount } from '@/composables/useStaleGuard'
 
 export interface IllustratedItem {
   seedId: number
@@ -52,12 +52,6 @@ export const useIllustratedStore = defineStore('illustrated', () => {
     error.value = ''
   }
 
-  function isCurrentAccount(accountId: string) {
-    const accountStore = useAccountStore()
-    const currentId = String((accountStore.currentAccountId as { value?: string })?.value ?? accountStore.currentAccountId ?? '')
-    return currentId === String(accountId)
-  }
-
   async function fetchList(accountId: string, refresh = false, illustratedType = 1) {
     if (!accountId)
       return
@@ -66,10 +60,7 @@ export const useIllustratedStore = defineStore('illustrated', () => {
     loading.value = true
     error.value = ''
     try {
-      const { data } = await api.get('/api/illustrated', {
-        params: { refresh, illustrated_type: illustratedType },
-        headers: { 'x-account-id': accountId },
-      })
+      const { data } = await illustratedApi.getIllustrated(refresh, illustratedType)
       if (requestId !== fetchRequestId || !isCurrentAccount(requestedId))
         return
       if (data.ok) {
@@ -91,15 +82,10 @@ export const useIllustratedStore = defineStore('illustrated', () => {
     }
   }
 
-  async function buySeed(accountId: string, goodsId: number, price: number) {
+  async function buySeed(_accountId: string, goodsId: number, price: number) {
     buying.value = true
     try {
-      const { data } = await api.post('/api/illustrated/buy', {
-        goodsId,
-        price,
-      }, {
-        headers: { 'x-account-id': accountId },
-      })
+      const { data } = await illustratedApi.buyIllustrated({ goodsId, price })
       return data
     }
     finally {
@@ -107,14 +93,10 @@ export const useIllustratedStore = defineStore('illustrated', () => {
     }
   }
 
-  async function buyAllSeeds(accountId: string, illustratedType = 1) {
+  async function buyAllSeeds(_accountId: string, illustratedType = 1) {
     buying.value = true
     try {
-      const { data } = await api.post('/api/illustrated/buy-all', {
-        illustrated_type: illustratedType,
-      }, {
-        headers: { 'x-account-id': accountId },
-      })
+      const { data } = await illustratedApi.buyAllIllustrated(illustratedType)
       return data
     }
     finally {

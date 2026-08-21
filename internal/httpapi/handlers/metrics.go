@@ -81,8 +81,8 @@ func InstrumentAuth(next AuthProvider, registry *platformmetrics.Registry) AuthP
 	return metricsAuthProvider{next: next, registry: registry}
 }
 
-func (p metricsAuthProvider) Login(ctx context.Context, username, password string) (store.User, error) {
-	user, err := p.next.Login(ctx, username, password)
+func (p metricsAuthProvider) Login(ctx context.Context, username, password, ip string) (store.User, error) {
+	user, err := p.next.Login(ctx, username, password, ip)
 	if err != nil {
 		p.registry.RecordLoginFailure()
 		return user, err

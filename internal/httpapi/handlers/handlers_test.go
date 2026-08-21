@@ -28,7 +28,7 @@ func TestRegisterRoutesContractSnapshot(t *testing.T) {
 		"/api/bag": "GET", "/api/bag/use": "POST", "/api/bag/sell": "POST", "/api/shop/mall": "GET", "/api/shop/mall/buy": "POST",
 		"/api/tasks": "GET", "/api/tasks/claim": "POST", "/api/activity/list": "GET", "/api/activity/group/:id": "GET",
 		"/api/illustrated": "GET", "/api/career": "GET", "/api/analytics": "GET", "/api/settings": "GET",
-		"/api/login": "POST", "/api/user/me": "GET", "/api/admin/cards": "GET", "/api/admin/login-logs": "GET",
+		"/api/login": "POST", "/api/logout": "POST", "/api/user/me": "GET", "/api/admin/cards": "GET", "/api/admin/login-logs": "GET",
 		"/api/yyb/getcode": "POST", "/api/capture/sessions": "POST", "/api/qr/create": "POST", "/api/proxy": "POST",
 		"/api/ping": "GET", "/api/game-version": "GET", "/api/shop/seed": "GET", "/api/shop/pet": "GET",
 		"/api/shop/decoration": "GET", "/api/shop/mystery": "GET",

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import api from '@/api'
+import { settingsApi, systemApi } from '@/api'
 
 const THEME_KEY = 'ui_theme'
 
@@ -75,7 +75,7 @@ export const useAppStore = defineStore('app', () => {
 
   async function fetchTheme() {
     try {
-      const res = await api.get('/api/settings')
+      const res = await settingsApi.getSettings()
       const theme = res.data?.data?.ui?.theme as Theme | undefined
       if (res.data.ok && theme && themes[theme])
         applyTheme(theme)
@@ -89,7 +89,7 @@ export const useAppStore = defineStore('app', () => {
     if (loginPageConfigPromise)
       return loginPageConfigPromise
 
-    loginPageConfigPromise = api.get('/api/public/login-links').then((res) => {
+    loginPageConfigPromise = systemApi.getPublicLoginLinks().then((res) => {
       if (res.data?.ok && res.data.data) {
         loginPageConfig.value = { ...defaultLoginPageConfig, ...res.data.data }
         document.title = loginPageConfig.value.title || defaultLoginPageConfig.title

@@ -60,6 +60,12 @@ type LoopScheduler interface {
 	Every(name string, interval, jitter time.Duration, fn any) error
 }
 
+// DomainScheduler is the named-task surface exposed to account domains.
+type DomainScheduler interface {
+	LoopScheduler
+	Stop(string) bool
+}
+
 // LoopHooks are account-local domain seams. The loop layer only invokes these
 // callbacks; farm, friend, warehouse and task algorithms remain elsewhere.
 // Action fields accept func(context.Context), func(context.Context) error,
@@ -188,18 +194,10 @@ func (c *LoopController) Start(parent context.Context) error {
 
 	if starter, ok := scheduler.(interface{ Start(context.Context) error }); ok {
 		if err := starter.Start(ctx); err != nil {
-			c.Stop()
+			_ = c.Stop()
 			return fmt.Errorf("start account scheduler: %w", err)
 		}
 	}
-	if events == nil {
-		c.runtime.mu.Lock()
-		if c.runtime.session != nil {
-			events = c.runtime.session.Events()
-		}
-		c.runtime.mu.Unlock()
-	}
-
 	registrations := []struct {
 		name     string
 		interval time.Duration
@@ -224,7 +222,7 @@ func (c *LoopController) Start(parent context.Context) error {
 		}
 		if err := scheduler.Every(name, registration.interval, registration.jitter, callback); err != nil {
 			stopNamedTask(scheduler, name)
-			c.Stop()
+			_ = c.Stop()
 			return fmt.Errorf("register account loop %q: %w", name, err)
 		}
 		c.mu.Lock()

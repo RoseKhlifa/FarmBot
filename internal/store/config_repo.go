@@ -95,7 +95,7 @@ func (r *SQLiteConfigRepo) List(ctx context.Context) ([]ConfigEntry, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list global config: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	entries := make([]ConfigEntry, 0)
 	for rows.Next() {
 		var entry ConfigEntry

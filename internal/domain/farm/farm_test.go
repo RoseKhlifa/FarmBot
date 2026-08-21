@@ -125,7 +125,6 @@ type routeAPI struct {
 	mu    sync.Mutex
 	calls []string
 	lands []*pb.LandInfo
-	block chan struct{}
 }
 
 func (f *routeAPI) record(name string) {

@@ -2,8 +2,10 @@ package handlers
 
 import (
 	"encoding/json"
+	"strings"
 
 	"github.com/RoseKhlifa/FarmBot/internal/domain/farm"
+	"github.com/RoseKhlifa/FarmBot/internal/domain/mall"
 	"github.com/gin-gonic/gin"
 )
 
@@ -147,8 +149,12 @@ func (h *Handler) landRemoveAll(c *gin.Context) {
 	writeOK(c, reply)
 }
 func (h *Handler) buyFertilizer(c *gin.Context) {
-	_, service, ok := h.farmService(c)
+	id, _, ok := h.farmService(c)
 	if !ok {
+		return
+	}
+	domains, ok := resolve(c, h.app().Domains.Mall, id)
+	if !ok || domains == nil || domains.Mall == nil {
 		return
 	}
 	var body struct {
@@ -159,16 +165,51 @@ func (h *Handler) buyFertilizer(c *gin.Context) {
 	if !bindJSON(c, &body) {
 		return
 	}
-	err := service.Fertilizer().CheckAndBuy(c.Request.Context())
+	fertilizer := mall.FertilizerOrganic
+	if strings.EqualFold(strings.TrimSpace(body.Type), "normal") || strings.EqualFold(strings.TrimSpace(body.Type), "inorganic") {
+		fertilizer = mall.FertilizerNormal
+	}
+	if body.Count <= 0 {
+		body.Count = 1
+	}
+	bought, err := domains.Mall.BuyFertilizer(c.Request.Context(), fertilizer, body.Count, body.Force)
 	if err != nil {
 		writeError(c, err)
 		return
 	}
-	_ = body.Count
-	_ = body.Force
-	writeOK(c, gin.H{"ok": true})
+	writeOK(c, gin.H{"type": fertilizer, "bought": bought})
 }
-func (h *Handler) checkBuyFertilizer(c *gin.Context) { h.buyFertilizer(c) }
+func (h *Handler) checkBuyFertilizer(c *gin.Context) {
+	id, _, ok := h.farmService(c)
+	if !ok {
+		return
+	}
+	domains, ok := resolve(c, h.app().Domains.Mall, id)
+	if !ok || domains == nil || domains.Mall == nil {
+		return
+	}
+	var body struct {
+		BuyOrganic          bool  `json:"buyOrganic"`
+		OrganicCount        int64 `json:"organicCount"`
+		OrganicThresholdHrs int64 `json:"organicThresholdHours"`
+		BuyNormal           bool  `json:"buyNormal"`
+		NormalCount         int64 `json:"normalCount"`
+		NormalThresholdHrs  int64 `json:"normalThresholdHours"`
+		Force               bool  `json:"force"`
+	}
+	if !bindJSON(c, &body) {
+		return
+	}
+	result, err := domains.Mall.CheckAndBuyFertilizerBoth(c.Request.Context(), mall.FertilizerCheckOptions{
+		BuyOrganic: body.BuyOrganic, OrganicCount: body.OrganicCount, OrganicThresholdHrs: float64(body.OrganicThresholdHrs),
+		BuyNormal: body.BuyNormal, NormalCount: body.NormalCount, NormalThresholdHrs: float64(body.NormalThresholdHrs), Force: body.Force,
+	})
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	writeOK(c, result)
+}
 
 type jsonMap map[string]any
 

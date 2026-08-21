@@ -36,6 +36,8 @@ func MiddlewareChain(cfg ChainConfig) []gin.HandlerFunc {
 
 var publicAPIPaths = map[string]struct{}{
 	"/login":                           {},
+	"/register":                        {},
+	"/card/info/:code":                 {},
 	"/qr/create":                       {},
 	"/qr/check":                        {},
 	"/proxy":                           {},
@@ -51,6 +53,7 @@ var publicAPIPaths = map[string]struct{}{
 	"/public/reset-password/verify":    {},
 	"/public/reset-password/confirm":   {},
 	"/health":                          {},
+	"/ready":                           {},
 }
 
 // PublicAPIPaths returns the fixed legacy allowlist. The returned slice is a
@@ -80,6 +83,9 @@ func IsPublicAPIPath(path string) bool {
 		}
 	}
 	if _, exists := publicAPIPaths[relative]; exists {
+		return true
+	}
+	if strings.HasPrefix(relative, "/card/info/") {
 		return true
 	}
 	return strings.HasPrefix(relative, "/public/capture-certificate/")

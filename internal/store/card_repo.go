@@ -54,49 +54,49 @@ type CardRepository = SQLiteCardRepo
 // Card is the normalized representation of a row in cards. Zero values for
 // nullable numeric fields mean that the source column was NULL.
 type Card struct {
-	Code          string
-	Description   string
-	Type          string
-	Status        string
-	Enabled       bool
-	Days          float64
-	Value         int64
-	DurationValue float64
-	DurationUnit  string
-	DurationMS    int64
-	IsPermanent   bool
-	BoundUser     string
-	UsedBy        string
-	UsedAt        int64
-	ClaimedAt     int64
-	CreatedAt     int64
-	UpdatedAt     int64
-	MetadataJSON  string
+	Code          string  `json:"code"`
+	Description   string  `json:"description"`
+	Type          string  `json:"type"`
+	Status        string  `json:"status"`
+	Enabled       bool    `json:"enabled"`
+	Days          float64 `json:"days"`
+	Value         int64   `json:"value"`
+	DurationValue float64 `json:"durationValue"`
+	DurationUnit  string  `json:"durationUnit"`
+	DurationMS    int64   `json:"durationMs"`
+	IsPermanent   bool    `json:"isPermanent"`
+	BoundUser     string  `json:"boundUser,omitempty"`
+	UsedBy        string  `json:"usedBy,omitempty"`
+	UsedAt        int64   `json:"usedAt,omitempty"`
+	ClaimedAt     int64   `json:"claimedAt,omitempty"`
+	CreatedAt     int64   `json:"createdAt"`
+	UpdatedAt     int64   `json:"updatedAt"`
+	MetadataJSON  string  `json:"metadata,omitempty"`
 }
 
 // CardSpec describes a new card. For time cards, days or
 // durationValue/durationUnit may be used; durationMs takes precedence when
 // supplied. A duration of -1 or IsPermanent creates a permanent card.
 type CardSpec struct {
-	Code          string
-	Description   string
-	Type          string
-	Days          float64
-	Value         int64
-	DurationValue float64
-	DurationUnit  string
-	DurationMS    int64
-	IsPermanent   bool
-	Enabled       bool
-	MetadataJSON  string
+	Code          string  `json:"code"`
+	Description   string  `json:"description"`
+	Type          string  `json:"type"`
+	Days          float64 `json:"days"`
+	Value         int64   `json:"value"`
+	DurationValue float64 `json:"durationValue"`
+	DurationUnit  string  `json:"durationUnit"`
+	DurationMS    int64   `json:"durationMs"`
+	IsPermanent   bool    `json:"isPermanent"`
+	Enabled       bool    `json:"enabled"`
+	MetadataJSON  string  `json:"metadata"`
 }
 
 // CardUpdate contains mutable card fields. Empty fields are left unchanged.
 type CardUpdate struct {
-	Description  *string
-	Enabled      *bool
-	Status       *string
-	MetadataJSON *string
+	Description  *string `json:"description"`
+	Enabled      *bool   `json:"enabled"`
+	Status       *string `json:"status"`
+	MetadataJSON *string `json:"metadata"`
 }
 
 // CardOptions is accepted by the compatibility CreateCard helper.
@@ -193,7 +193,7 @@ func (r *SQLiteCardRepo) CreateCardsBatch(ctx context.Context, spec CardSpec, co
 	if err != nil {
 		return nil, fmt.Errorf("begin card batch: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	created := make([]Card, 0, count)
 	for i := 0; i < count; i++ {
 		code, codeErr := generateCardCode()
@@ -259,7 +259,7 @@ func (r *SQLiteCardRepo) List(ctx context.Context) ([]Card, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list cards: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	cards := make([]Card, 0)
 	for rows.Next() {
 		card, scanErr := scanCard(rows)
@@ -359,7 +359,7 @@ func (r *SQLiteCardRepo) Claim(ctx context.Context, code, username string) (*Car
 	if err != nil {
 		return nil, fmt.Errorf("begin card claim: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	card, err := scanCard(tx.QueryRowContext(ctx, cardSelectSQL+" WHERE code = ?", strings.TrimSpace(code)))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrCardNotFound
@@ -422,7 +422,7 @@ func (r *SQLiteCardRepo) RegisterWithCard(ctx context.Context, username, passwor
 	if err != nil {
 		return nil, fmt.Errorf("begin user registration: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var exists int
 	if err := tx.QueryRowContext(ctx, "SELECT 1 FROM users WHERE username = ?", username).Scan(&exists); err == nil {
 		return nil, ErrUserExists
@@ -499,7 +499,7 @@ func (r *SQLiteCardRepo) Renew(ctx context.Context, username, code string) (*Use
 	if err != nil {
 		return nil, fmt.Errorf("begin user renewal: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	user, err := scanUser(tx.QueryRowContext(ctx, userSelectSQL+" WHERE username = ?", username))
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, ErrUserNotFound
@@ -574,7 +574,7 @@ ORDER BY ts DESC LIMIT 1`, uaHash, now-int64(24*time.Hour/time.Millisecond)).Sca
 	if err != nil {
 		return nil, fmt.Errorf("begin UA card claim: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var claimedAt int64
 	err = tx.QueryRowContext(ctx, `SELECT ts FROM login_logs
 WHERE event = 'card_claim' AND error_type = ? AND ts > ?
@@ -906,6 +906,10 @@ func validateRegistrationPassword(password string) error {
 	}
 	return nil
 }
+
+// ValidatePassword applies the registration strength policy to password
+// changes and administrative resets as well.
+func ValidatePassword(password string) error { return validateRegistrationPassword(password) }
 
 func containsWeakPassword(password string) bool {
 	switch strings.ToLower(password) {

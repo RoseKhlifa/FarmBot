@@ -1,0 +1,1 @@
+import{u as o}from"./index-tqNlRxW1.js";function n(t){return t&&typeof t=="object"&&"value"in t?String(t.value??""):String(t??"")}function u(t){const r=o();return n(r.currentAccountId)===n(t)}function e(){return{isCurrentAccount:u}}export{u as i,e as u};

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import api from '@/api'
+import { friendApi } from '@/api'
+import { isCurrentAccount } from '@/composables/useStaleGuard'
 import { useAccountStore } from './account'
 
 export interface PlantBlacklistItem {
@@ -18,12 +19,6 @@ export const usePlantBlacklistStore = defineStore('plant-blacklist', () => {
     loading.value = false
   }
 
-  function isCurrentAccount(accountId: string) {
-    const accountStore = useAccountStore()
-    const currentId = String((accountStore.currentAccountId as { value?: string })?.value ?? accountStore.currentAccountId ?? '')
-    return currentId === String(accountId)
-  }
-
   async function fetchBlacklist() {
     const accountStore = useAccountStore()
     const accountId = accountStore.currentAccountId
@@ -33,9 +28,7 @@ export const usePlantBlacklistStore = defineStore('plant-blacklist', () => {
     const requestId = ++fetchRequestId
     loading.value = true
     try {
-      const res = await api.get('/api/plant-blacklist', {
-        headers: { 'x-account-id': accountId },
-      })
+      const res = await friendApi.getPlantBlacklist()
       if (requestId !== fetchRequestId || !isCurrentAccount(requestedId))
         return
       if (res.data.ok) {
@@ -55,9 +48,7 @@ export const usePlantBlacklistStore = defineStore('plant-blacklist', () => {
     if (!accountId)
       return
     const requestedId = String(accountId)
-    const res = await api.post('/api/plant-blacklist', { seedId }, {
-      headers: { 'x-account-id': accountId },
-    })
+    const res = await friendApi.savePlantBlacklist({ seedId })
     if (isCurrentAccount(requestedId) && res.data.ok) {
       blacklist.value = res.data.data || []
     }
@@ -69,9 +60,7 @@ export const usePlantBlacklistStore = defineStore('plant-blacklist', () => {
     if (!accountId)
       return
     const requestedId = String(accountId)
-    const res = await api.delete(`/api/plant-blacklist/${seedId}`, {
-      headers: { 'x-account-id': accountId },
-    })
+    const res = await friendApi.deletePlantBlacklist(seedId)
     if (isCurrentAccount(requestedId) && res.data.ok) {
       blacklist.value = res.data.data || []
     }
@@ -96,9 +85,7 @@ export const usePlantBlacklistStore = defineStore('plant-blacklist', () => {
     if (!accountId)
       return
     const requestedId = String(accountId)
-    const res = await api.post('/api/plant-blacklist/batch', { seedIds }, {
-      headers: { 'x-account-id': accountId },
-    })
+    const res = await friendApi.savePlantBlacklistBatch({ seedIds })
     if (isCurrentAccount(requestedId) && res.data.ok) {
       blacklist.value = res.data.data || []
     }
@@ -110,9 +97,7 @@ export const usePlantBlacklistStore = defineStore('plant-blacklist', () => {
     if (!accountId)
       return
     const requestedId = String(accountId)
-    const res = await api.delete('/api/plant-blacklist', {
-      headers: { 'x-account-id': accountId },
-    })
+    const res = await friendApi.clearPlantBlacklist()
     if (isCurrentAccount(requestedId) && res.data.ok) {
       blacklist.value = []
     }

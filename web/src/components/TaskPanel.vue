@@ -15,7 +15,8 @@ const growth = computed(() => dailyGifts.value?.growth || null)
 async function refresh() {
   if (currentAccountId.value) {
     const acc = currentAccount.value
-    if (!acc) return
+    if (!acc)
+      return
     if (!realtimeConnected.value) {
       await statusStore.fetchStatus(currentAccountId.value)
     }
@@ -31,16 +32,21 @@ watch(currentAccountId, (newId, oldId) => {
   refresh()
 }, { immediate: true })
 
-watch(() => currentAccount.value?.running, () => { refresh() })
+watch(() => currentAccount.value?.running, () => {
+  refresh()
+})
 
 function formatTaskProgress(task: any) {
-  if (!task) return '未开始'
+  if (!task)
+    return '未开始'
   const rawCurrent = task.progress ?? task.current
   const rawTarget = task.totalProgress ?? task.target
   const current = Number.isFinite(rawCurrent) ? rawCurrent : (rawCurrent ? Number(rawCurrent) || 0 : 0)
   const target = Number.isFinite(rawTarget) ? rawTarget : (rawTarget ? Number(rawTarget) || 0 : 0)
-  if (!current && !target) return '未开始'
-  if (target && current >= target) return '已完成'
+  if (!current && !target)
+    return '未开始'
+  if (target && current >= target)
+    return '已完成'
   return `进度：${current}/${target}`
 }
 </script>
@@ -116,7 +122,10 @@ function formatTaskProgress(task: any) {
   font-weight: 600;
 }
 
-.h-icon { font-size: 18px; line-height: 1; }
+.h-icon {
+  font-size: 18px;
+  line-height: 1;
+}
 
 .h-badge {
   margin-left: auto;
@@ -143,8 +152,14 @@ function formatTaskProgress(task: any) {
   color: var(--theme-text-secondary);
   font-size: 13px;
 }
-.empty-icon { font-size: 28px; opacity: 0.3; }
-.empty-sub { font-size: 11px; opacity: 0.6; }
+.empty-icon {
+  font-size: 28px;
+  opacity: 0.3;
+}
+.empty-sub {
+  font-size: 11px;
+  opacity: 0.6;
+}
 
 .task-list {
   display: flex;
@@ -164,6 +179,11 @@ function formatTaskProgress(task: any) {
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
-.task-label { color: var(--theme-text); }
-.task-progress { color: var(--theme-text-secondary); font-size: 12px; }
+.task-label {
+  color: var(--theme-text);
+}
+.task-progress {
+  color: var(--theme-text-secondary);
+  font-size: 12px;
+}
 </style>

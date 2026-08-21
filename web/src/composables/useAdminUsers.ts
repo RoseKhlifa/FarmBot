@@ -1,6 +1,6 @@
 import type { UserCard } from '@/stores/user'
 import { computed, ref } from 'vue'
-import api from '@/api'
+import { useAdminStore } from '@/stores/admin'
 import { useToastStore } from '@/stores/toast'
 import { useUserStore } from '@/stores/user'
 
@@ -37,6 +37,7 @@ function isExpired(card: UserCard | null) {
 
 export function useAdminUsers() {
   const userStore = useUserStore()
+  const adminStore = useAdminStore()
   const toast = useToastStore()
 
   const showDeleteUserConfirm = ref(false)
@@ -96,7 +97,7 @@ export function useAdminUsers() {
   async function fetchUsers() {
     usersLoading.value = true
     try {
-      const result = await userStore.getAllUsers()
+      const result = await adminStore.getAllUsers()
       if (result.ok) {
         users.value = result.data
       }
@@ -125,7 +126,7 @@ export function useAdminUsers() {
     try {
       const user = pendingToggleUser.value
       const updates: Partial<UserCard> = { enabled: !user.card?.enabled }
-      const result = await userStore.updateUser(user.username, updates, {
+      const result = await adminStore.updateUser(user.username, updates, {
         confirmed: true,
       })
       if (result.ok) {
@@ -157,7 +158,7 @@ export function useAdminUsers() {
 
     deleteUserLoading.value = true
     try {
-      const result = await userStore.deleteUser(pendingDeleteUser.value.username, {
+      const result = await adminStore.deleteUser(pendingDeleteUser.value.username, {
         confirmed: true,
       })
       if (result.ok) {
@@ -208,7 +209,7 @@ export function useAdminUsers() {
 
     renewUserLoading.value = true
     try {
-      const result = await userStore.renewUser(pendingRenewUser.value.username, cardCode, {
+      const result = await adminStore.renewUser(pendingRenewUser.value.username, cardCode, {
         confirmed: true,
       })
       if (result.ok) {
@@ -243,7 +244,7 @@ export function useAdminUsers() {
   async function confirmClearExpiredUsers() {
     clearExpiredUsersLoading.value = true
     try {
-      const result = await userStore.clearExpiredUsers({
+      const result = await adminStore.clearExpiredUsers({
         confirmed: true,
       })
       if (result.ok) {
@@ -293,7 +294,7 @@ export function useAdminUsers() {
         ? null
         : (editForm.value.expiresAt ? new Date(editForm.value.expiresAt).getTime() : null)
 
-      const updateData: Record<string, any> = {
+      const updateData: Record<string, unknown> = {
         accountLimit: editForm.value.accountLimit,
         expiresAt: expiresAtValue,
         isPermanent: editForm.value.isPermanent,
@@ -306,16 +307,16 @@ export function useAdminUsers() {
       if (editForm.value.password)
         updateData.password = editForm.value.password
 
-      const res = await api.post(`/api/admin/users/${selectedUser.value.username}/edit`, updateData)
+      const result = await adminStore.editUser(selectedUser.value.username, updateData)
 
-      if (res.data.ok) {
+      if (result.ok) {
         toast.success('用户信息已更新')
         showEditUserConfirm.value = false
         showEditModal.value = false
         await fetchUsers()
       }
       else {
-        toast.error(res.data.error || '更新失败')
+        toast.error(result.error || '更新失败')
       }
     }
     catch (e: any) {

@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"syscall"
 	"time"
 
@@ -64,6 +65,7 @@ type ServerOptions struct {
 	ShutdownTimeout   time.Duration
 	ReadHeaderTimeout time.Duration
 	IdleTimeout       time.Duration
+	Ready             func(context.Context) error
 
 	// RegisterRoutes is called after the infrastructure routes are installed
 	// and before serving starts. Domain handlers can register grouped routes
@@ -90,6 +92,8 @@ type Server struct {
 	cdnBase      *url.URL
 	httpClient   *http.Client
 	seedCDN      map[int]string
+	readyCheck   func(context.Context) error
+	draining     atomic.Bool
 
 	mu      sync.Mutex
 	running bool
@@ -159,6 +163,7 @@ func NewServer(cfg config.Config, options ...ServerOptions) (*Server, error) {
 		cdnBase:      parsedCDN,
 		httpClient:   client,
 		seedCDN:      loadSeedCDNMap(gameConfigFS),
+		readyCheck:   opts.Ready,
 	}
 	server.httpServer = &http.Server{
 		Addr:              server.addr,
@@ -227,6 +232,7 @@ func (s *Server) RegisterRoutes(register func(*gin.Engine)) {
 
 func (s *Server) registerInfrastructureRoutes() {
 	s.engine.GET("/api/health", s.handleHealth)
+	s.engine.GET("/api/ready", s.handleReady)
 	s.engine.GET("/api/game-asset", s.handleGameAsset)
 	s.engine.GET("/game-config", s.notFoundJSON)
 	s.engine.GET("/game-config/*path", s.handleGameConfig)
@@ -260,6 +266,28 @@ func (s *Server) handleHealth(c *gin.Context) {
 		"timestamp": time.Now().UnixMilli(),
 	})
 }
+
+func (s *Server) handleReady(c *gin.Context) {
+	if s.IsDraining() {
+		c.JSON(http.StatusServiceUnavailable, gin.H{"ok": false, "ready": false, "draining": true})
+		return
+	}
+	if s.readyCheck != nil {
+		if err := s.readyCheck(c.Request.Context()); err != nil {
+			c.JSON(http.StatusServiceUnavailable, gin.H{"ok": false, "ready": false, "error": err.Error()})
+			return
+		}
+	}
+	c.JSON(http.StatusOK, gin.H{"ok": true, "ready": true})
+}
+
+func (s *Server) BeginDrain() {
+	if s != nil {
+		s.draining.Store(true)
+	}
+}
+
+func (s *Server) IsDraining() bool { return s != nil && s.draining.Load() }
 
 func (s *Server) handleGameConfig(c *gin.Context) {
 	name, ok := cleanFSName(c.Param("path"))
@@ -302,7 +330,7 @@ func (s *Server) handleLoginAsset(c *gin.Context) {
 		c.Status(http.StatusNotFound)
 		return
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	info, err := file.Stat()
 	if err != nil || info.IsDir() {
 		c.Status(http.StatusNotFound)
@@ -340,7 +368,7 @@ func (s *Server) handleGameAsset(c *gin.Context) {
 		c.Status(http.StatusBadGateway)
 		return
 	}
-	defer response.Body.Close()
+	defer func() { _ = response.Body.Close() }()
 	if response.StatusCode < http.StatusOK || response.StatusCode >= http.StatusMultipleChoices {
 		c.Status(http.StatusNotFound)
 		return
@@ -383,7 +411,7 @@ func (s *Server) serveFSFile(c *gin.Context, root fs.FS, name string) bool {
 	if err != nil {
 		return false
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	info, err := file.Stat()
 	if err != nil || info.IsDir() {
 		return false
@@ -481,6 +509,7 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	if s == nil || s.httpServer == nil {
 		return nil
 	}
+	s.BeginDrain()
 	if ctx == nil {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(context.Background(), s.shutdownWait)

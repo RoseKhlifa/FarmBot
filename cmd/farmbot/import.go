@@ -16,7 +16,7 @@ import (
 // remain untouched while the Node data is moved into SQLite.
 func init() {
 	args := os.Args[1:]
-	if hasHelpFlag(args) {
+	if hasHelpFlag(args) && hasImportFlag(args) {
 		printImportHelp(os.Stdout)
 		os.Exit(0)
 	}
@@ -62,7 +62,7 @@ func runJSONImport(args []string) error {
 	if err != nil {
 		return err
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 
 	report, err := store.NewJSONImporter(db).Import(context.Background(), sourceDir, store.JSONImportOptions{Conflict: conflict})
 	printImportReport(report)
@@ -111,7 +111,7 @@ func parseImportArgs(args []string) (sourceDir string, conflict store.ImportConf
 
 func printImportHelp(output interface{ Write([]byte) (int, error) }) {
 	_, _ = output.Write([]byte("FarmBot JSON migration\n\n" +
-		"  --import-json <dir>       import legacy core/data JSON into SQLite\n" +
+		"  --import-json <dir>       import legacy JSON data into SQLite\n" +
 		"  --conflict skip|overwrite  keep existing rows or replace them (default: skip)\n" +
 		"  --data-dir <dir>          SQLite data directory override\n" +
 		"  --help                    show this help\n"))

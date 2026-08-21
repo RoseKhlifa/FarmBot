@@ -1,14 +1,40 @@
 <script setup lang="ts">
 import { useIntervalFn } from '@vueuse/core'
 import { computed, reactive, ref, watch } from 'vue'
-import api from '@/api'
+import { accountApi, captureApi, systemApi, yybApi } from '@/api'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 import BaseTextarea from '@/components/ui/BaseTextarea.vue'
 
+interface ThirdPartyAccountConfig {
+  apiBase?: string
+  apiToken?: string
+  openid?: string
+  autoReconnect?: boolean
+  reconnectDelayMin?: number
+  reconnectMaxAttempts?: number
+}
+
+interface AccountEditData {
+  id: string
+  name?: string
+  code?: string
+  platform?: 'qq' | 'wx'
+  provider?: string
+  thirdparty?: ThirdPartyAccountConfig
+}
+
+interface YybAccount {
+  openid: string
+  nickname?: string
+  alias?: string
+  status?: string
+  [key: string]: unknown
+}
+
 const props = defineProps<{
   show: boolean
-  editData?: any
+  editData?: AccountEditData
 }>()
 
 const emit = defineEmits(['close', 'saved'])
@@ -111,7 +137,7 @@ const { pause: stopCaptureCheck, resume: startCaptureCheck } = useIntervalFn(asy
     return
   captureChecking.value = true
   try {
-    const { data } = await api.get(`/api/capture/sessions/${captureFlow.value.id}`, { timeout: 20000 })
+    const { data } = await captureApi.getCaptureSession(captureFlow.value.id, { timeout: 20000 })
     if (!data?.ok || !data.data)
       return
     captureFlow.value = data.data
@@ -129,7 +155,7 @@ const { pause: stopCaptureCheck, resume: startCaptureCheck } = useIntervalFn(asy
 
 async function loadCaptureConfig() {
   try {
-    const { data } = await api.get('/api/capture/config')
+    const { data } = await captureApi.getCaptureConfig()
     captureEnabled.value = data?.ok && data.data?.enabled === true
   }
   catch {
@@ -143,7 +169,7 @@ async function cancelCaptureSession() {
   captureFlow.value = null
   if (flowId) {
     try {
-      await api.delete(`/api/capture/sessions/${flowId}`)
+      await captureApi.deleteCaptureSession(flowId)
     }
     catch {}
   }
@@ -154,7 +180,7 @@ async function startCaptureSession() {
   captureError.value = ''
   await cancelCaptureSession()
   try {
-    const { data } = await api.post('/api/capture/sessions', {
+    const { data } = await captureApi.createCaptureSession({
       platform: capturePlatform.value,
       accountId: props.editData?.id || '',
     }, { timeout: 35000 })
@@ -177,7 +203,7 @@ async function completeCaptureAccount() {
   captureCompleting.value = true
   captureError.value = ''
   try {
-    const { data } = await api.post(`/api/capture/sessions/${captureFlow.value.id}/complete`, {
+    const { data } = await captureApi.completeCaptureSession(captureFlow.value.id, {
       name: captureAccountName.value.trim(),
     }, { timeout: 35000 })
     if (!data?.ok)
@@ -243,11 +269,11 @@ async function copyCaptureValue(field: 'host' | 'port') {
   }
 }
 
-async function addAccount(data: any) {
+async function addAccount(data: Record<string, unknown>) {
   loading.value = true
   errorMessage.value = ''
   try {
-    const res = await api.post('/api/accounts', data)
+    const res = await accountApi.createAccount(data)
     if (res.data.ok) {
       emit('saved')
       close()
@@ -278,7 +304,7 @@ async function submitManual() {
     form.code = code
   }
 
-  let payload: any = {}
+  let payload: Record<string, unknown> = {}
   if (props.editData) {
     const onlyNameChanged = form.name !== props.editData.name
       && form.code === (props.editData.code || '')
@@ -317,6 +343,20 @@ function close() {
   emit('close')
 }
 
+// Application login state is declared before the modal watcher because the
+// watcher runs immediately when the component is mounted.
+const yybConfigLoaded = ref(false)
+const yyb3rdApiBase = ref('')
+const yyb3rdApiToken = ref('')
+const yyb3rdOpenid = ref('')
+const yyb3rdAccountName = ref('')
+const yyb3rdLoading = ref(false)
+const yyb3rdError = ref('')
+const yyb3rdTokenMasked = ref('')
+const yyb3rdAutoReconnect = ref(true)
+const yyb3rdReconnectDelayMin = ref(5)
+const yyb3rdReconnectMaxAttempts = ref(3)
+
 watch(() => props.show, (newVal) => {
   if (newVal) {
     errorMessage.value = ''
@@ -342,7 +382,8 @@ watch(() => props.show, (newVal) => {
         yyb3rdAutoReconnect.value = props.editData.thirdparty?.autoReconnect !== false
         yyb3rdReconnectDelayMin.value = props.editData.thirdparty?.reconnectDelayMin || 5
         yyb3rdReconnectMaxAttempts.value = props.editData.thirdparty?.reconnectMaxAttempts || 3
-      } else {
+      }
+      else {
         activeTab.value = 'manual'
         form.name = props.editData.name || ''
         form.code = props.editData.code || ''
@@ -379,19 +420,6 @@ watch(activeTab, (tab) => {
 
 // ==================== 第三方应用宝登录（tab） ====================
 // 直接填 接口地址 + APITOKEN + OPENID 拿 code 自动登录，与内置 YYB 重连互不冲突
-const yyb3rdApiBase = ref('')
-const yyb3rdApiToken = ref('')
-const yyb3rdOpenid = ref('')
-const yyb3rdAccountName = ref('')
-const yyb3rdLoading = ref(false)
-const yyb3rdError = ref('')
-// 编辑时展示已存 token 的脱敏提示（不回显明文）
-const yyb3rdTokenMasked = ref('')
-// 账号级离线重连配置
-const yyb3rdAutoReconnect = ref(true)
-const yyb3rdReconnectDelayMin = ref(5)
-const yyb3rdReconnectMaxAttempts = ref(3)
-
 async function submitYyb3rdLogin() {
   yyb3rdError.value = ''
   const isEdit = !!props.editData
@@ -411,7 +439,7 @@ async function submitYyb3rdLogin() {
     // 新建，或编辑且修改了 APITOKEN → 需重新向第三方换取 code；
     // 编辑且未改 APITOKEN → 直接沿用原 code
     if (!isEdit || tokenOk) {
-      const { data } = await api.post('/api/yyb/thirdparty-code', {
+      const { data } = await yybApi.getThirdPartyCode({
         apiBase: yyb3rdApiBase.value.trim(),
         apiToken: yyb3rdApiToken.value.trim(),
         openid: yyb3rdOpenid.value.trim(),
@@ -453,9 +481,11 @@ async function submitYyb3rdLogin() {
           thirdparty,
         }
     await addAccount(payload)
-  } catch (e: any) {
+  }
+  catch (e: any) {
     yyb3rdError.value = e?.response?.data?.error || e?.message || '第三方应用宝登录失败'
-  } finally {
+  }
+  finally {
     yyb3rdLoading.value = false
   }
 }
@@ -465,9 +495,8 @@ async function submitYyb3rdLogin() {
 const yybApiBase = ref('')
 // API Token 默认空，由用户自行输入
 const yybApiKey = ref('')
-const yybConfigLoaded = ref(false)
 const yybConfigSaving = ref(false)
-const yybAccounts = ref<any[]>([])
+const yybAccounts = ref<YybAccount[]>([])
 const yybAccountsLoading = ref(false)
 const yybSelectedOpenid = ref('')
 const yybAccountName = ref('')
@@ -484,7 +513,8 @@ const yybConfigured = computed(() => !!yybApiBase.value && !!yybApiKey.value)
 const yybShowConfigEditor = ref(false)
 async function copyYybToken() {
   const v = yybApiKey.value.trim()
-  if (!v) return
+  if (!v)
+    return
   try {
     await navigator.clipboard?.writeText(v)
   }
@@ -492,9 +522,10 @@ async function copyYybToken() {
 }
 
 async function loadYybConfig() {
-  if (yybConfigLoaded.value) return
+  if (yybConfigLoaded.value)
+    return
   try {
-    const { data } = await api.get('/api/admin/wx-config')
+    const { data } = await systemApi.getWXConfig()
     // 后端 GET /api/admin/wx-config 返回 { ok: true, data: {...} }
     const cfg = data?.data || (data?.ok ? data : null)
     if (cfg) {
@@ -504,9 +535,11 @@ async function loadYybConfig() {
       yybReconnectDelayMin.value = cfg.reconnectDelayMin || 5
       yybReconnectMaxAttempts.value = cfg.reconnectMaxAttempts || 3
     }
-  } catch (e: any) {
-    console.error('加载应用宝配置失败', e)
-  } finally {
+  }
+  catch (error) {
+    console.error('加载应用宝配置失败', error)
+  }
+  finally {
     yybConfigLoaded.value = true
   }
 }
@@ -520,7 +553,7 @@ async function saveYybConfig() {
   yybError.value = ''
   try {
     // 复用 globalWxConfig 保存（需先读取现有完整配置再合并，避免覆盖其他字段）
-    const { data: existing } = await api.get('/api/admin/wx-config')
+    const { data: existing } = await systemApi.getWXConfig()
     // 后端返回 { ok: true, data: {...} }
     const existingConfig = existing?.data || {}
     const merged = {
@@ -535,23 +568,26 @@ async function saveYybConfig() {
       reconnectMaxAttempts: Number(yybReconnectMaxAttempts.value) || 3,
       confirmed: true,
     }
-    await api.post('/api/admin/wx-config', merged)
+    await systemApi.saveWXConfig(merged)
     yybConfigLoaded.value = true
     // 配置保存后自动拉账号列表
     await fetchYybAccounts()
-  } catch (e: any) {
+  }
+  catch (e: any) {
     yybError.value = e?.response?.data?.error || e?.message || '保存配置失败'
-  } finally {
+  }
+  finally {
     yybConfigSaving.value = false
   }
 }
 
 async function fetchYybAccounts() {
-  if (!yybConfigured.value) return
+  if (!yybConfigured.value)
+    return
   yybAccountsLoading.value = true
   yybError.value = ''
   try {
-    const { data } = await api.post('/api/yyb/accounts', {
+    const { data } = await yybApi.getAccounts({
       apiBase: yybApiBase.value.trim(),
       apiKey: yybApiKey.value.trim(),
     })
@@ -560,13 +596,16 @@ async function fetchYybAccounts() {
       if (yybAccounts.value.length === 0) {
         yybError.value = '应用宝接口没有可用账号'
       }
-    } else {
+    }
+    else {
       yybError.value = data?.error || '获取账号列表失败'
     }
-  } catch (e: any) {
+  }
+  catch (e: any) {
     yybError.value = e?.response?.data?.error || e?.message || '获取账号列表失败'
     yybAccounts.value = []
-  } finally {
+  }
+  finally {
     yybAccountsLoading.value = false
   }
 }
@@ -579,7 +618,7 @@ async function submitYybLogin() {
   yybLoginLoading.value = true
   yybError.value = ''
   try {
-    const { data } = await api.post('/api/yyb/getcode', {
+    const { data } = await yybApi.getCode({
       apiBase: yybApiBase.value.trim(),
       apiKey: yybApiKey.value.trim(),
       openid: yybSelectedOpenid.value,
@@ -597,15 +636,17 @@ async function submitYybLogin() {
       loginType: 'yyb',
       yybOpenid: yybSelectedOpenid.value,
     })
-  } catch (e: any) {
+  }
+  catch (e: any) {
     yybError.value = e?.response?.data?.error || e?.message || '应用宝登录失败'
-  } finally {
+  }
+  finally {
     yybLoginLoading.value = false
   }
 }
 
 // ==================== 应用宝扫码登录（添加新账号到应用宝） ====================
-const yybQrImage = ref('')           // base64 data URI
+const yybQrImage = ref('') // base64 data URI
 const yybQrSessionId = ref('')
 const yybQrStatus = ref<'idle' | 'loading' | 'pending' | 'scanned' | 'authorizing' | 'success' | 'expired' | 'error'>('idle')
 const yybQrLoading = computed(() => yybQrStatus.value === 'loading')
@@ -622,7 +663,7 @@ async function startYybQrLogin() {
   yybQrSessionId.value = ''
   yybQrStatus.value = 'loading'
   try {
-    const { data } = await api.post('/api/yyb/qr/create', {
+    const { data } = await yybApi.createQR({
       apiBase: yybApiBase.value.trim(),
       apiKey: yybApiKey.value.trim(),
     })
@@ -636,21 +677,24 @@ async function startYybQrLogin() {
     yybQrStatus.value = 'pending'
     // 开始轮询
     pollYybQrStatus()
-  } catch (e: any) {
+  }
+  catch (e: any) {
     yybQrError.value = e?.response?.data?.error || e?.message || '创建扫码会话失败'
     yybQrStatus.value = 'error'
   }
 }
 
 async function pollYybQrStatus() {
-  if (!yybQrSessionId.value) return
-  if (yybQrStatus.value === 'success' || yybQrStatus.value === 'expired' || yybQrStatus.value === 'error') return
+  if (!yybQrSessionId.value)
+    return
+  if (yybQrStatus.value === 'success' || yybQrStatus.value === 'expired' || yybQrStatus.value === 'error')
+    return
   try {
-    const { data } = await api.post('/api/yyb/qr/poll', {
+    const { data } = await yybApi.pollQR({
       apiBase: yybApiBase.value.trim(),
       apiKey: yybApiKey.value.trim(),
       sessionId: yybQrSessionId.value,
-    }, { timeout: 60000 })  // 长轮询，前端等 60s
+    }, { timeout: 60000 }) // 长轮询，前端等 60s
     if (!data?.ok) {
       yybQrError.value = data?.error || '轮询失败'
       yybQrStatus.value = 'error'
@@ -660,25 +704,31 @@ async function pollYybQrStatus() {
     if (status === 'pending') {
       // 继续轮询
       yybQrPollTimer = setTimeout(pollYybQrStatus, 1000)
-    } else if (status === 'scanned') {
+    }
+    else if (status === 'scanned') {
       yybQrStatus.value = 'scanned'
       pollYybQrStatus()
-    } else if (status === 'authorized') {
+    }
+    else if (status === 'authorized') {
       // 已授权，调 confirm 确认并保存账号到应用宝
       yybQrStatus.value = 'authorizing'
       await confirmYybQr()
-    } else if (status === 'confirmed') {
+    }
+    else if (status === 'confirmed') {
       yybQrStatus.value = 'success'
       // 刷新账号列表
       await fetchYybAccounts()
-    } else if (status === 'expired' || status === 'cancelled') {
+    }
+    else if (status === 'expired' || status === 'cancelled') {
       yybQrStatus.value = 'expired'
       yybQrError.value = status === 'expired' ? '二维码已过期，请重新扫码' : '已取消'
-    } else {
+    }
+    else {
       // unknown 或其他，继续轮询
       yybQrPollTimer = setTimeout(pollYybQrStatus, 2000)
     }
-  } catch (e: any) {
+  }
+  catch {
     // 超时或网络错误，继续重试
     if (yybQrStatus.value !== 'success' && yybQrStatus.value !== 'expired') {
       yybQrPollTimer = setTimeout(pollYybQrStatus, 2000)
@@ -688,7 +738,7 @@ async function pollYybQrStatus() {
 
 async function confirmYybQr() {
   try {
-    const { data } = await api.post('/api/yyb/qr/confirm', {
+    const { data } = await yybApi.confirmQR({
       apiBase: yybApiBase.value.trim(),
       apiKey: yybApiKey.value.trim(),
       sessionId: yybQrSessionId.value,
@@ -697,11 +747,13 @@ async function confirmYybQr() {
       yybQrStatus.value = 'success'
       // 刷新账号列表
       await fetchYybAccounts()
-    } else {
+    }
+    else {
       yybQrError.value = data?.error || '确认授权失败'
       yybQrStatus.value = 'error'
     }
-  } catch (e: any) {
+  }
+  catch (e: any) {
     yybQrError.value = e?.response?.data?.error || e?.message || '确认授权失败'
     yybQrStatus.value = 'error'
   }
@@ -1054,7 +1106,7 @@ function resetYybQr() {
             </div>
 
             <!-- 应用宝接口配置（部署时自动预填，可查看/复制/编辑） -->
-            <div class="rounded-lg border p-3 space-y-2" :style="{ borderColor: 'color-mix(in srgb, var(--theme-text) 15%, transparent)' }">
+            <div class="border rounded-lg p-3 space-y-2" :style="{ borderColor: 'color-mix(in srgb, var(--theme-text) 15%, transparent)' }">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium" :style="{ color: 'var(--theme-text)' }">应用宝接口配置</span>
                 <BaseButton variant="ghost" size="sm" @click="yybShowConfigEditor = !yybShowConfigEditor">
@@ -1062,23 +1114,33 @@ function resetYybQr() {
                 </BaseButton>
               </div>
               <template v-if="!yybShowConfigEditor">
-                <div class="text-xs opacity-60" :style="{ color: 'var(--theme-text)' }">接口地址</div>
-                <div class="text-sm break-all" :style="{ color: 'var(--theme-text)' }">{{ yybApiBase }}</div>
-                <div class="text-xs opacity-60 mt-1" :style="{ color: 'var(--theme-text)' }">API Token（已自动生成）</div>
+                <div class="text-xs opacity-60" :style="{ color: 'var(--theme-text)' }">
+                  接口地址
+                </div>
+                <div class="break-all text-sm" :style="{ color: 'var(--theme-text)' }">
+                  {{ yybApiBase }}
+                </div>
+                <div class="mt-1 text-xs opacity-60" :style="{ color: 'var(--theme-text)' }">
+                  API Token（已自动生成）
+                </div>
                 <div class="flex items-center gap-2">
-                  <code class="flex-1 text-sm break-all rounded px-2 py-1" :style="{ background: 'color-mix(in srgb, var(--theme-text) 8%, transparent)', color: 'var(--theme-text)' }">{{ yybApiKey }}</code>
-                  <BaseButton variant="ghost" size="sm" @click="copyYybToken" title="复制 Token">复制</BaseButton>
+                  <code class="flex-1 break-all rounded px-2 py-1 text-sm" :style="{ background: 'color-mix(in srgb, var(--theme-text) 8%, transparent)', color: 'var(--theme-text)' }">{{ yybApiKey }}</code>
+                  <BaseButton variant="ghost" size="sm" title="复制 Token" @click="copyYybToken">
+                    复制
+                  </BaseButton>
                 </div>
               </template>
               <template v-else>
                 <BaseInput v-model="yybApiBase" label="接口地址" placeholder="http://127.0.0.1:8450" />
                 <BaseInput v-model="yybApiKey" label="API Token" placeholder="请输入你的应用宝 API Token" />
-                <BaseButton variant="primary" size="sm" :loading="yybConfigSaving" @click="saveYybConfig">保存</BaseButton>
+                <BaseButton variant="primary" size="sm" :loading="yybConfigSaving" @click="saveYybConfig">
+                  保存
+                </BaseButton>
               </template>
             </div>
 
             <!-- 离线重连配置 -->
-            <div class="rounded-lg border p-3 space-y-2" :style="{ borderColor: 'color-mix(in srgb, var(--theme-text) 15%, transparent)' }">
+            <div class="border rounded-lg p-3 space-y-2" :style="{ borderColor: 'color-mix(in srgb, var(--theme-text) 15%, transparent)' }">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium" :style="{ color: 'var(--theme-text)' }">
                   离线自动重连
@@ -1094,15 +1156,15 @@ function resetYybQr() {
                   <span class="text-xs" :style="{ color: 'var(--theme-text)' }">启用</span>
                 </label>
               </div>
-              <div v-if="yybAutoReconnect" class="flex gap-3 items-end">
+              <div v-if="yybAutoReconnect" class="flex items-end gap-3">
                 <div class="flex-1">
-                  <label class="text-xs opacity-70 mb-1 block" :style="{ color: 'var(--theme-text)' }">离线几分钟后重连</label>
+                  <label class="mb-1 block text-xs opacity-70" :style="{ color: 'var(--theme-text)' }">离线几分钟后重连</label>
                   <input
                     v-model.number="yybReconnectDelayMin"
                     type="number"
                     min="1"
                     max="60"
-                    class="w-full rounded-lg border px-2 py-1 text-sm"
+                    class="w-full border rounded-lg px-2 py-1 text-sm"
                     :style="{
                       borderColor: 'color-mix(in srgb, var(--theme-text) 15%, transparent)',
                       background: 'var(--surface-1, #fff)',
@@ -1112,13 +1174,13 @@ function resetYybQr() {
                   >
                 </div>
                 <div class="flex-1">
-                  <label class="text-xs opacity-70 mb-1 block" :style="{ color: 'var(--theme-text)' }">最大重试次数</label>
+                  <label class="mb-1 block text-xs opacity-70" :style="{ color: 'var(--theme-text)' }">最大重试次数</label>
                   <input
                     v-model.number="yybReconnectMaxAttempts"
                     type="number"
                     min="1"
                     max="10"
-                    class="w-full rounded-lg border px-2 py-1 text-sm"
+                    class="w-full border rounded-lg px-2 py-1 text-sm"
                     :style="{
                       borderColor: 'color-mix(in srgb, var(--theme-text) 15%, transparent)',
                       background: 'var(--surface-1, #fff)',
@@ -1134,7 +1196,7 @@ function resetYybQr() {
             </div>
 
             <!-- 引导到"应用宝扫码"tab 添加新账号 -->
-            <div class="rounded-lg border p-3 text-sm" :style="{ borderColor: 'color-mix(in srgb, var(--theme-primary) 25%, transparent)', background: 'color-mix(in srgb, var(--theme-primary) 6%, transparent)', color: 'var(--theme-text)' }">
+            <div class="border rounded-lg p-3 text-sm" :style="{ borderColor: 'color-mix(in srgb, var(--theme-primary) 25%, transparent)', background: 'color-mix(in srgb, var(--theme-primary) 6%, transparent)', color: 'var(--theme-text)' }">
               需要添加新账号？请切换到「应用宝扫码」标签页，使用应用宝扫码授权登录。
             </div>
 
@@ -1145,11 +1207,11 @@ function resetYybQr() {
             />
 
             <!-- 账号列表 -->
-            <div v-if="yybAccounts.length > 0" class="space-y-2 max-h-60 overflow-y-auto">
+            <div v-if="yybAccounts.length > 0" class="max-h-60 overflow-y-auto space-y-2">
               <label
                 v-for="acc in yybAccounts"
                 :key="acc.openid"
-                class="flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors"
+                class="flex cursor-pointer items-center gap-3 border rounded-lg p-3 transition-colors"
                 :style="{
                   borderColor: yybSelectedOpenid === acc.openid ? 'var(--theme-primary)' : 'color-mix(in srgb, var(--theme-text) 15%, transparent)',
                   background: yybSelectedOpenid === acc.openid ? 'color-mix(in srgb, var(--theme-primary) 8%, transparent)' : 'transparent',
@@ -1162,17 +1224,17 @@ function resetYybQr() {
                   class="h-4 w-4"
                   :style="{ accentColor: 'var(--theme-primary)' }"
                 >
-                <div class="flex-1 min-w-0">
-                  <div class="text-sm font-medium truncate" :style="{ color: 'var(--theme-text)' }">
+                <div class="min-w-0 flex-1">
+                  <div class="truncate text-sm font-medium" :style="{ color: 'var(--theme-text)' }">
                     {{ acc.nickname || acc.alias || acc.openid }}
                   </div>
-                  <div class="text-xs opacity-60 truncate" :style="{ color: 'var(--theme-text)' }">
+                  <div class="truncate text-xs opacity-60" :style="{ color: 'var(--theme-text)' }">
                     openid: {{ acc.openid }}
                   </div>
                 </div>
                 <span
                   v-if="acc.status"
-                  class="text-xs px-2 py-0.5 rounded"
+                  class="rounded px-2 py-0.5 text-xs"
                   :style="{
                     background: acc.status === 'alive' ? 'color-mix(in srgb, #22c55e 15%, transparent)' : 'color-mix(in srgb, #ef4444 15%, transparent)',
                     color: acc.status === 'alive' ? '#22c55e' : '#ef4444',
@@ -1183,7 +1245,7 @@ function resetYybQr() {
               </label>
             </div>
 
-            <div v-else-if="!yybAccountsLoading && yybConfigured" class="text-sm opacity-60 text-center py-4" :style="{ color: 'var(--theme-text)' }">
+            <div v-else-if="!yybAccountsLoading && yybConfigured" class="py-4 text-center text-sm opacity-60" :style="{ color: 'var(--theme-text)' }">
               暂无账号，点击"刷新列表"获取
             </div>
 
@@ -1209,14 +1271,14 @@ function resetYybQr() {
 
         <!-- 应用宝扫码（与"应用宝"tab 平级）：扫码添加新账号到应用宝 -->
         <div v-if="activeTab === 'yybqr'" class="space-y-4">
-          <div v-if="!yybConfigured" class="rounded-lg border p-4 text-sm" :style="{ borderColor: 'color-mix(in srgb, var(--theme-text) 15%, transparent)', color: 'var(--theme-text)' }">
+          <div v-if="!yybConfigured" class="border rounded-lg p-4 text-sm" :style="{ borderColor: 'color-mix(in srgb, var(--theme-text) 15%, transparent)', color: 'var(--theme-text)' }">
             请先在「应用宝」标签页配置接口地址与 API Token，再回到此处扫码登录。
           </div>
 
           <template v-else>
             <!-- 未开始扫码：显示触发按钮 -->
             <div v-if="yybQrStatus === 'idle'" class="flex flex-col items-center gap-3 py-4">
-              <p class="text-sm opacity-70 text-center" :style="{ color: 'var(--theme-text)' }">
+              <p class="text-center text-sm opacity-70" :style="{ color: 'var(--theme-text)' }">
                 点击下方按钮生成应用宝二维码，使用应用宝扫码授权即可添加新账号。
               </p>
               <BaseButton variant="primary" :loading="yybQrLoading" @click="startYybQrLogin">
@@ -1225,7 +1287,7 @@ function resetYybQr() {
             </div>
 
             <!-- 扫码进行中/结果 -->
-            <div v-else class="rounded-lg border p-4 space-y-3" :style="{ borderColor: 'color-mix(in srgb, var(--theme-text) 15%, transparent)' }">
+            <div v-else class="border rounded-lg p-4 space-y-3" :style="{ borderColor: 'color-mix(in srgb, var(--theme-text) 15%, transparent)' }">
               <div class="flex items-center justify-between">
                 <span class="text-sm font-medium" :style="{ color: 'var(--theme-text)' }">
                   应用宝扫码登录
@@ -1239,7 +1301,7 @@ function resetYybQr() {
                 <img :src="yybQrImage" alt="应用宝二维码" class="max-w-[200px] w-full rounded">
               </div>
 
-              <div class="text-sm text-center" :style="{ color: 'var(--theme-text)' }">
+              <div class="text-center text-sm" :style="{ color: 'var(--theme-text)' }">
                 <span v-if="yybQrStatus === 'loading'">正在生成二维码...</span>
                 <span v-else-if="yybQrStatus === 'pending'" class="opacity-70">请使用应用宝扫描二维码</span>
                 <span v-else-if="yybQrStatus === 'scanned'" class="text-green-500">已扫描，请在手机上确认授权</span>
@@ -1290,9 +1352,9 @@ function resetYybQr() {
           />
 
           <!-- 账号级离线重连配置（与内置 YYB 一致，独立设置） -->
-          <div class="rounded-lg border border-gray-200 p-3 dark:border-gray-700 space-y-3">
+          <div class="border border-gray-200 rounded-lg p-3 space-y-3 dark:border-gray-700">
             <label class="flex items-center gap-2 text-sm" :style="{ color: 'var(--theme-text)' }">
-              <input type="checkbox" v-model="yyb3rdAutoReconnect" />
+              <input v-model="yyb3rdAutoReconnect" type="checkbox">
               启用离线自动重连
             </label>
             <div class="grid grid-cols-2 gap-3">

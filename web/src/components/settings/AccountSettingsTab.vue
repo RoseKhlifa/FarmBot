@@ -56,7 +56,7 @@ function accountAvatar(acc: any) {
 <template>
   <div class="space-y-4">
     <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-      <h3 class="text-lg text-gray-900 font-bold dark:text-gray-100 max-sm:text-base">
+      <h3 class="text-lg text-gray-900 font-bold max-sm:text-base dark:text-gray-100">
         账号管理
       </h3>
       <div class="flex flex-wrap gap-2">
@@ -223,37 +223,37 @@ function accountAvatar(acc: any) {
       </div>
     </div>
 
-  <Teleport to="body">
-    <AccountModal
-      :show="showModal"
-      :edit-data="editingAccount"
-      @close="emit('closeModal')"
-      @saved="emit('saved')"
-    />
+    <Teleport to="body">
+      <AccountModal
+        :show="showModal"
+        :edit-data="editingAccount"
+        @close="emit('closeModal')"
+        @saved="emit('saved')"
+      />
 
-    <ConfirmModal
-      :show="showDeleteConfirm"
-      :loading="deleteLoading"
-      title="删除账号"
-      :message="accountToDelete ? `确定要删除账号 ${accountToDelete.name || accountToDelete.id} 吗?` : ''"
-      confirm-text="删除"
-      type="danger"
-      @close="!deleteLoading && emit('closeDeleteConfirm')"
-      @cancel="!deleteLoading && emit('closeDeleteConfirm')"
-      @confirm="emit('confirmDelete')"
-    />
+      <ConfirmModal
+        :show="showDeleteConfirm"
+        :loading="deleteLoading"
+        title="删除账号"
+        :message="accountToDelete ? `确定要删除账号 ${accountToDelete.name || accountToDelete.id} 吗?` : ''"
+        confirm-text="删除"
+        type="danger"
+        @close="!deleteLoading && emit('closeDeleteConfirm')"
+        @cancel="!deleteLoading && emit('closeDeleteConfirm')"
+        @confirm="emit('confirmDelete')"
+      />
 
-    <ConfirmModal
-      :show="showClearStoppedConfirm"
-      :loading="clearStoppedLoading"
-      title="一键清理已停止账号"
-      :message="`确定要清理 ${stoppedAccountsCount} 个已停止的账号吗？此操作不可恢复！`"
-      confirm-text="确认清理"
-      type="danger"
-      @close="!clearStoppedLoading && emit('closeClearStoppedConfirm')"
-      @cancel="!clearStoppedLoading && emit('closeClearStoppedConfirm')"
-      @confirm="emit('confirmClearStopped')"
-    />
-  </Teleport>
+      <ConfirmModal
+        :show="showClearStoppedConfirm"
+        :loading="clearStoppedLoading"
+        title="一键清理已停止账号"
+        :message="`确定要清理 ${stoppedAccountsCount} 个已停止的账号吗？此操作不可恢复！`"
+        confirm-text="确认清理"
+        type="danger"
+        @close="!clearStoppedLoading && emit('closeClearStoppedConfirm')"
+        @cancel="!clearStoppedLoading && emit('closeClearStoppedConfirm')"
+        @confirm="emit('confirmClearStopped')"
+      />
+    </Teleport>
   </div>
 </template>

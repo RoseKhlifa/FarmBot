@@ -1,6 +1,6 @@
 import { computed, ref } from 'vue'
+import { useAdminStore } from '@/stores/admin'
 import { useToastStore } from '@/stores/toast'
-import { useUserStore } from '@/stores/user'
 
 const EDGE_VERSION_RE = /Edg\/([\d.]+)/
 const CHROME_VERSION_RE = /Chrome\/([\d.]+)/
@@ -19,7 +19,7 @@ export interface LoginLog {
 }
 
 export function useAdminLoginLogs() {
-  const userStore = useUserStore()
+  const adminStore = useAdminStore()
   const toast = useToastStore()
 
   const loginLogs = ref<LoginLog[]>([])
@@ -44,7 +44,7 @@ export function useAdminLoginLogs() {
   async function fetchLoginLogs() {
     loginLogsLoading.value = true
     try {
-      const result = await userStore.getLoginLogs(LOGIN_LOG_LIMIT, 0)
+      const result = await adminStore.getLoginLogs(LOGIN_LOG_LIMIT, 0)
       if (result.ok) {
         loginLogs.value = result.data.logs
         loginLogsTotal.value = result.data.total
@@ -64,7 +64,7 @@ export function useAdminLoginLogs() {
   async function clearLoginLogs() {
     clearLogsLoading.value = true
     try {
-      const result = await userStore.clearLoginLogs({
+      const result = await adminStore.clearLoginLogs({
         confirmed: true,
       })
       if (result.ok) {

@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { formatCurrencyAmount, type ResourceCurrency } from '@/utils/number-format'
+import type { ResourceCurrency } from '@/utils/number-format'
+import { formatCurrencyAmount } from '@/utils/number-format'
 
 const props = defineProps<{
   accountName?: string

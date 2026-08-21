@@ -69,7 +69,7 @@ func dialViaProxy(ctx context.Context, proxy *tcpProxy, targetHost string, targe
 	}
 	if timeout > 0 {
 		_ = conn.SetDeadline(time.Now().Add(timeout))
-		defer conn.SetDeadline(time.Time{})
+		defer func() { _ = conn.SetDeadline(time.Time{}) }()
 	}
 	if proxy.Scheme == "socks5" {
 		err = socks5Connect(conn, targetHost, targetPort)

@@ -1,9 +1,10 @@
 <script setup lang="ts">
 import type { FriendTabKey } from '@/components/friends/FriendsTabs.vue'
+import type { Friend, FriendLand, InteractRecord } from '@/stores/friend'
 import { useIntervalFn } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import api from '@/api'
+import { friendApi } from '@/api'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import BatchAddGidModal from '@/components/friends/BatchAddGidModal.vue'
 import DeleteConfirmModal from '@/components/friends/DeleteConfirmModal.vue'
@@ -59,7 +60,7 @@ const activeTab = ref<FriendTabKey>('friends')
 const showConfirm = ref(false)
 const confirmMessage = ref('')
 const confirmLoading = ref(false)
-const pendingAction = ref<(() => Promise<any>) | null>(null)
+const pendingAction = ref<(() => Promise<unknown>) | null>(null)
 const avatarErrorKeys = ref<Set<string>>(new Set())
 const searchKeyword = ref('')
 const localKnownFriendGidSyncCooldownSec = ref(300)
@@ -89,19 +90,19 @@ const skipGuardDog = ref(true)
 const deletePassword = ref('')
 const deleteSubmitting = ref(false)
 
-function isGuardDog(friend: any) {
+function isGuardDog(friend: Friend) {
   return Number(friend?.dogId) === 90021
 }
 
 const guardDogCount = computed(() =>
-  friends.value.filter((friend: any) => Number(friend?.dogId) === 90021).length,
+  friends.value.filter((friend: Friend) => Number(friend?.dogId) === 90021).length,
 )
 
 const deleteTargetFriends = computed(() => {
   const threshold = Number(deleteLevelThreshold.value)
   if (!Number.isFinite(threshold) || threshold <= 0)
     return []
-  return friends.value.filter((friend: any) => {
+  return friends.value.filter((friend: Friend) => {
     const level = Number(friend?.level || 0)
     if (!level || level > threshold)
       return false
@@ -235,7 +236,7 @@ function openGidListModal() {
   showGidListModal.value = true
 }
 
-function confirmAction(msg: string, action: () => Promise<any>) {
+function confirmAction(msg: string, action: () => Promise<unknown>) {
   confirmMessage.value = msg
   pendingAction.value = action
   showConfirm.value = true
@@ -262,7 +263,7 @@ async function onConfirm() {
 }
 
 const sortedFriends = computed(() => {
-  return [...friends.value].sort((a: any, b: any) => {
+  return [...friends.value].sort((a: Friend, b: Friend) => {
     const levelA = Number(a?.level || 0)
     const levelB = Number(b?.level || 0)
     return levelB - levelA
@@ -273,9 +274,9 @@ const noGuardDogCount = computed(() => friends.value.length - guardDogCount.valu
 
 const dogFilteredFriends = computed(() => {
   if (dogFilter.value === 'guardDog')
-    return sortedFriends.value.filter((friend: any) => Number(friend?.dogId) === 90021)
+    return sortedFriends.value.filter((friend: Friend) => Number(friend?.dogId) === 90021)
   if (dogFilter.value === 'noGuardDog')
-    return sortedFriends.value.filter((friend: any) => Number(friend?.dogId) !== 90021)
+    return sortedFriends.value.filter((friend: Friend) => Number(friend?.dogId) !== 90021)
   return sortedFriends.value
 })
 
@@ -285,7 +286,7 @@ const filteredFriends = computed(() => {
   if (!keyword)
     return list
 
-  return list.filter((friend: any) => {
+  return list.filter((friend: Friend) => {
     const name = String(friend?.name || '').toLowerCase()
     const gid = String(friend?.gid || '')
     const uin = String(friend?.uin || '')
@@ -320,7 +321,7 @@ const filteredInteractRecords = computed(() => {
     bad: 3,
   }
   const targetActionType = actionTypeMap[interactFilter.value] || 0
-  return interactRecords.value.filter((record: any) => Number(record?.actionType) === targetActionType)
+  return interactRecords.value.filter((record: InteractRecord) => Number(record?.actionType) === targetActionType)
 })
 
 const visibleInteractRecords = computed(() => filteredInteractRecords.value.slice(0, 50))
@@ -352,8 +353,8 @@ async function loadData() {
 useIntervalFn(() => {
   for (const gid in friendLands.value) {
     if (friendLands.value[gid]) {
-      friendLands.value[gid] = friendLands.value[gid].map((l: any) =>
-        l.matureInSec > 0 ? { ...l, matureInSec: l.matureInSec - 1 } : l,
+      friendLands.value[gid] = friendLands.value[gid].map((l: FriendLand) =>
+        Number(l.matureInSec || 0) > 0 ? { ...l, matureInSec: Number(l.matureInSec || 0) - 1 } : l,
       )
     }
   }
@@ -383,9 +384,7 @@ async function handleRefreshFriends() {
   if (!currentAccountId.value)
     return
   try {
-    await api.post('/api/friends/clear-cache', {}, {
-      headers: { 'x-account-id': currentAccountId.value },
-    })
+    await friendApi.clearFriendCache()
   }
   catch {
     // ignore
@@ -460,14 +459,14 @@ async function handleOp(friendId: string, type: string, e: Event) {
   }
 }
 
-async function handleToggleBlacklist(friend: any, e: Event) {
+async function handleToggleBlacklist(friend: Friend, e: Event) {
   e.stopPropagation()
   if (!currentAccountId.value)
     return
   await friendStore.toggleBlacklist(currentAccountId.value, Number(friend.gid))
 }
 
-async function handleDeleteFriend(friend: any, e: Event) {
+async function handleDeleteFriend(friend: Friend, e: Event) {
   e.stopPropagation()
   if (!currentAccountId.value)
     return
@@ -491,26 +490,26 @@ async function handleDeleteFriend(friend: any, e: Event) {
   )
 }
 
-function canShowFriendAvatar(friend: any) {
+function canShowFriendAvatar(friend: Friend) {
   const key = getFriendAvatarKey(friend)
   if (!key)
     return false
   return !!getFriendAvatar(friend) && !avatarErrorKeys.value.has(key)
 }
 
-function handleFriendAvatarError(friend: any) {
+function handleFriendAvatarError(friend: Friend) {
   const key = getFriendAvatarKey(friend)
   if (!key)
     return
   avatarErrorKeys.value.add(key)
 }
 
-function canShowInteractAvatar(record: any) {
+function canShowInteractAvatar(record: InteractRecord) {
   const key = getInteractAvatarKey(record)
   return !!key && !!getInteractAvatar(record) && !avatarErrorKeys.value.has(key)
 }
 
-function handleInteractAvatarError(record: any) {
+function handleInteractAvatarError(record: InteractRecord) {
   const key = getInteractAvatarKey(record)
   if (key)
     avatarErrorKeys.value.add(key)
@@ -548,7 +547,7 @@ function normalizeFriendsListCacheTtlSec(value: number) {
   return Math.max(10, Math.min(86400, v))
 }
 
-async function handleRemoveKnownFriendGid(friend: any, e: Event) {
+async function handleRemoveKnownFriendGid(friend: Friend, e: Event) {
   e.stopPropagation()
   if (!currentAccountId.value)
     return
@@ -749,12 +748,12 @@ async function handleBatchAddKnownFriendGids() {
         </div>
 
         <FriendsFriendList
+          v-if="friends.length > 0"
           v-model:current-page="currentPage"
           :friends="paginatedFriends"
           :total-friends="filteredFriends.length"
           :total-pages="totalPages"
           :page-size="pageSize"
-          v-if="friends.length > 0"
           :blacklist-gid-set="blacklistGidSet"
           :known-friend-gid-set="knownFriendGidSet"
           :expanded-friends="expandedFriends"
@@ -901,7 +900,7 @@ async function handleBatchAddKnownFriendGids() {
         :avatar-error-keys="avatarErrorKeys"
         @update:filter="interactFilter = $event"
         @refresh="refreshInteractRecords"
-        @avatar-error="record => avatarErrorKeys.add(getFriendAvatarKey(record))"
+        @avatar-error="record => avatarErrorKeys.add(getInteractAvatarKey(record))"
       />
 
       <div v-else-if="String(activeTab) === '__legacy_visitors__'" class="space-y-4">
@@ -1002,7 +1001,7 @@ async function handleBatchAddKnownFriendGids() {
                 </span>
                 <span
                   class="rounded-full px-2 py-0.5 text-xs font-medium"
-                  :class="getInteractBadgeClass(record.actionType)"
+                  :class="getInteractBadgeClass(Number(record.actionType))"
                 >
                   {{ record.actionLabel }}
                 </span>

@@ -169,11 +169,11 @@ func VerifyOfficialModule(ctx context.Context) error {
 		return err
 	}
 	runtime := wazero.NewRuntime(ctx)
-	defer runtime.Close(ctx)
+	defer func() { _ = runtime.Close(ctx) }()
 	compiled, err := runtime.CompileModule(ctx, data)
 	if err != nil {
 		return fmt.Errorf("compile TSDK WASM: %w", err)
 	}
-	defer compiled.Close(ctx)
+	defer func() { _ = compiled.Close(ctx) }()
 	return VerifyCompiledModule(compiled)
 }

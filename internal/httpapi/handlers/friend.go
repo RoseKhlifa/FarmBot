@@ -135,7 +135,7 @@ func (h *Handler) friendLands(c *gin.Context) {
 		writeError(c, err)
 		return
 	}
-	defer service.API().LeaveFriendFarm(context.Background(), gid)
+	defer func() { _ = service.API().LeaveFriendFarm(context.Background(), gid) }()
 	writeOK(c, entered.GetLands())
 }
 func (h *Handler) friendOperation(c *gin.Context) {
@@ -444,41 +444,138 @@ func (h *Handler) claimDogGifts(c *gin.Context) {
 	writeOK(c, data)
 }
 func (h *Handler) plantBlacklist(c *gin.Context) {
-	if h.app().Config == nil {
-		writeNotConfigured(c)
+	id, ok := RequireAccountAccess(c)
+	if !ok {
 		return
 	}
-	value, err := h.app().Config.GetGlobal(c.Request.Context(), "plant_blacklist")
-	if err != nil {
-		writeError(c, err)
+	config, ok := h.loadAccountConfig(c, id)
+	if !ok {
 		return
 	}
-	writeOK(c, value)
+	writeOK(c, plantBlacklistIDs(config))
 }
 func (h *Handler) updatePlantBlacklist(c *gin.Context) {
-	if h.app().Config == nil {
-		writeNotConfigured(c)
+	id, ok := RequireAccountAccess(c)
+	if !ok {
 		return
 	}
-	var value json.RawMessage
-	if !bindJSON(c, &value) {
+	config, ok := h.loadAccountConfig(c, id)
+	if !ok {
 		return
 	}
-	if err := h.app().Config.SetGlobal(c.Request.Context(), "plant_blacklist", value); err != nil {
+	var body struct {
+		SeedID  int64   `json:"seedId"`
+		SeedIDs []int64 `json:"seedIds"`
+	}
+	if !bindJSON(c, &body) {
+		return
+	}
+	ids := plantBlacklistIDs(config)
+	if len(body.SeedIDs) > 0 {
+		ids = append(ids, body.SeedIDs...)
+	} else if body.SeedID > 0 {
+		ids = append(ids, body.SeedID)
+	} else {
+		c.JSON(400, gin.H{"ok": false, "error": "seedId is required"})
+		return
+	}
+	ids = normalizePlantBlacklistIDs(ids)
+	if err := h.savePlantBlacklist(c, config, ids); err != nil {
 		writeError(c, err)
 		return
 	}
-	writeOK(c, value)
+	writeOK(c, ids)
 }
-func (h *Handler) deletePlantBlacklist(c *gin.Context) { h.updatePlantBlacklist(c) }
-func (h *Handler) clearPlantBlacklist(c *gin.Context) {
-	if h.app().Config == nil {
-		writeNotConfigured(c)
+func (h *Handler) deletePlantBlacklist(c *gin.Context) {
+	id, ok := RequireAccountAccess(c)
+	if !ok {
 		return
 	}
-	if err := h.app().Config.DeleteGlobal(c.Request.Context(), "plant_blacklist"); err != nil {
+	config, ok := h.loadAccountConfig(c, id)
+	if !ok {
+		return
+	}
+	seedID, err := strconv.ParseInt(c.Param("seedId"), 10, 64)
+	if err != nil || seedID <= 0 {
+		c.JSON(400, gin.H{"ok": false, "error": "invalid seedId"})
+		return
+	}
+	ids := make([]int64, 0)
+	for _, value := range plantBlacklistIDs(config) {
+		if value != seedID {
+			ids = append(ids, value)
+		}
+	}
+	if err := h.savePlantBlacklist(c, config, ids); err != nil {
 		writeError(c, err)
 		return
 	}
-	writeOK(c, nil)
+	writeOK(c, ids)
+}
+func (h *Handler) clearPlantBlacklist(c *gin.Context) {
+	id, ok := RequireAccountAccess(c)
+	if !ok {
+		return
+	}
+	config, ok := h.loadAccountConfig(c, id)
+	if !ok {
+		return
+	}
+	if err := h.savePlantBlacklist(c, config, nil); err != nil {
+		writeError(c, err)
+		return
+	}
+	writeOK(c, []int64{})
+}
+
+func plantBlacklistIDs(config *store.AccountConfig) []int64 {
+	if config == nil || len(config.PlantBlacklistJSON) == 0 {
+		return []int64{}
+	}
+	var values []int64
+	if json.Unmarshal(config.PlantBlacklistJSON, &values) != nil {
+		return []int64{}
+	}
+	return normalizePlantBlacklistIDs(values)
+}
+
+func normalizePlantBlacklistIDs(values []int64) []int64 {
+	seen := make(map[int64]struct{}, len(values))
+	result := make([]int64, 0, len(values))
+	for _, value := range values {
+		if value <= 0 {
+			continue
+		}
+		if _, exists := seen[value]; exists {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
+}
+
+func (h *Handler) savePlantBlacklist(c *gin.Context, config *store.AccountConfig, values []int64) error {
+	raw, err := json.Marshal(normalizePlantBlacklistIDs(values))
+	if err != nil {
+		return err
+	}
+	config.PlantBlacklistJSON = raw
+	var current map[string]any
+	if len(config.ConfigJSON) > 0 {
+		_ = json.Unmarshal(config.ConfigJSON, &current)
+	}
+	if current == nil {
+		current = map[string]any{}
+	}
+	current["plantBlacklist"] = normalizePlantBlacklistIDs(values)
+	config.ConfigJSON, err = json.Marshal(current)
+	if err != nil {
+		return err
+	}
+	repo, ok := accountConfigRepository(h)
+	if !ok {
+		return ErrApplicationDependency
+	}
+	return repo.ApplyConfigSnapshot(c.Request.Context(), middleware.AccountID(c), *config)
 }

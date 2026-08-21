@@ -6,7 +6,7 @@ import urllib.request
 from PIL import Image
 
 MANIFEST = '/root/uploads/1785466427702561811-manifest.json'
-OUT = '/root/.codebuddy/artifact/qq-farm-bot/core/src/gameConfig/seed_images_named'
+OUT = 'assets/gameConfig/seed_images_named'
 CDN = 'https://cdn-resource.nqf.qq.com/'
 TMP = '/tmp/astc_atlases'
 
@@ -17,7 +17,7 @@ m = json.load(open(MANIFEST))
 imgs = m['images']
 
 # 1. 收集要切的 Crop_X_Seed 精灵（不在 Plant.json 且无本地 PNG）
-plants = json.load(open('/root/.codebuddy/artifact/qq-farm-bot/core/src/gameConfig/Plant.json'))
+plants = json.load(open('assets/gameConfig/Plant.json'))
 plant_ids = set(p.get('seed_id') for p in plants)
 have = set()
 for f in os.listdir(OUT):

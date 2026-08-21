@@ -4,8 +4,9 @@ import { computed, inject, onMounted, onScopeDispose, reactive, watch } from 'vu
 import { useRoute, useRouter } from 'vue-router'
 import { cardApi, systemApi, userApi } from '@/api'
 import { getPasswordStrength } from '@/composables/usePasswordStrength'
+import { formatTimeDuration } from '@/stores/admin'
 import { useAppStore } from '@/stores/app'
-import { formatTimeDuration, useUserStore } from '@/stores/user'
+import { useUserStore } from '@/stores/user'
 
 const USERNAME_RE = /^\w+$/
 

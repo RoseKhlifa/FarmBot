@@ -41,7 +41,7 @@ type JSONImportReport struct {
 	Files     map[string]int `json:"files"`
 }
 
-// JSONImporter migrates the legacy core/data JSON layout into the P1 SQLite
+// JSONImporter migrates the legacy JSON data layout into the P1 SQLite
 // schema. Repository dependencies are fields so tests can replace them with
 // fakes; the default constructor wires the production SQLite implementations.
 type JSONImporter struct {

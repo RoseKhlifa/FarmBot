@@ -113,7 +113,7 @@ func (r *SQLiteCacheRepo) RemoveFriendFromCache(ctx context.Context, accountID, 
 	if err != nil {
 		return fmt.Errorf("begin friend cache update: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if err := cacheEnsureAccount(ctx, tx, accountID); err != nil {
 		return err
 	}
@@ -200,7 +200,7 @@ func (r *SQLiteCacheRepo) DeleteAccountCaches(ctx context.Context, accountID str
 	if err != nil {
 		return fmt.Errorf("begin account cache delete: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	for _, table := range []string{"friend_gid_cache", "friend_dog_info", "friend_list_cache"} {
 		if _, err := tx.ExecContext(ctx, "DELETE FROM "+table+" WHERE account_id = ?", accountID); err != nil {
 			return fmt.Errorf("delete %s for account %q: %w", table, accountID, err)
@@ -226,7 +226,7 @@ FROM blacklist WHERE account_id = ? ORDER BY added_at, gid`, accountID)
 	if err != nil {
 		return nil, fmt.Errorf("list blacklist for account %q: %w", accountID, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	entries := make([]BlacklistEntry, 0)
 	for rows.Next() {
@@ -264,7 +264,7 @@ func (r *SQLiteCacheRepo) UpsertBlacklist(ctx context.Context, entry BlacklistEn
 	if err != nil {
 		return fmt.Errorf("begin blacklist write: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if err := cacheEnsureAccount(ctx, tx, accountID); err != nil {
 		return err
 	}
@@ -348,7 +348,7 @@ func (r *SQLiteCacheRepo) writeCache(
 	if err != nil {
 		return fmt.Errorf("begin %s write: %w", table, err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if err := cacheEnsureAccount(ctx, tx, accountID); err != nil {
 		return err
 	}

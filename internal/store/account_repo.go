@@ -12,26 +12,26 @@ import (
 
 // Account is the persistence representation of one FarmBot account.
 type Account struct {
-	ID             string
-	Name           string
-	Code           string
-	Platform       string
-	LoginType      string
-	Provider       string
-	WXID           string
-	UIN            string
-	QQ             string
-	GID            string
-	OpenID         string
-	Avatar         string
-	OwnerUser      string
-	YYBOpenID      string
-	TenantID       string
-	Remark         string
-	ThirdPartyJSON json.RawMessage
-	Running        bool
-	CreatedAt      int64
-	UpdatedAt      int64
+	ID             string          `json:"id"`
+	Name           string          `json:"name"`
+	Code           string          `json:"code,omitempty"`
+	Platform       string          `json:"platform"`
+	LoginType      string          `json:"loginType"`
+	Provider       string          `json:"provider,omitempty"`
+	WXID           string          `json:"wxid,omitempty"`
+	UIN            string          `json:"uin,omitempty"`
+	QQ             string          `json:"qq,omitempty"`
+	GID            string          `json:"gid,omitempty"`
+	OpenID         string          `json:"openId,omitempty"`
+	Avatar         string          `json:"avatar,omitempty"`
+	OwnerUser      string          `json:"ownerUser,omitempty"`
+	YYBOpenID      string          `json:"yybOpenId,omitempty"`
+	TenantID       string          `json:"tenantId,omitempty"`
+	Remark         string          `json:"remark,omitempty"`
+	ThirdPartyJSON json.RawMessage `json:"thirdParty,omitempty"`
+	Running        bool            `json:"running"`
+	CreatedAt      int64           `json:"createdAt"`
+	UpdatedAt      int64           `json:"updatedAt"`
 }
 
 // AccountConfig is a full per-account configuration snapshot. Evolving
@@ -107,7 +107,7 @@ func (r *SQLiteAccountRepo) List(ctx context.Context) ([]Account, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list accounts: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	accounts := make([]Account, 0)
 	for rows.Next() {
@@ -156,7 +156,7 @@ func (r *SQLiteAccountRepo) Upsert(ctx context.Context, account Account) error {
 	if err != nil {
 		return fmt.Errorf("begin account upsert: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	createdAt := account.CreatedAt
 	if createdAt == 0 {
@@ -242,7 +242,7 @@ func (r *SQLiteAccountRepo) Delete(ctx context.Context, accountID string) error 
 	if err != nil {
 		return fmt.Errorf("begin account delete: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 
 	// Delete dependants explicitly as well as relying on foreign keys. This
 	// keeps cleanup correct for databases opened by older clients without the
@@ -276,7 +276,7 @@ func (r *SQLiteAccountRepo) GetByUser(ctx context.Context, username string) ([]A
 	if err != nil {
 		return nil, fmt.Errorf("list accounts for user %q: %w", username, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	accounts := make([]Account, 0)
 	for rows.Next() {
@@ -357,7 +357,7 @@ func (r *SQLiteAccountRepo) ApplyConfigSnapshot(ctx context.Context, accountID s
 	if err != nil {
 		return fmt.Errorf("begin config write: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var exists int
 	if err := tx.QueryRowContext(ctx, "SELECT 1 FROM accounts WHERE id = ?", accountID).Scan(&exists); err != nil {
 		if err == sql.ErrNoRows {

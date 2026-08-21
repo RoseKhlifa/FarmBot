@@ -1,7 +1,9 @@
 <!-- eslint-disable style/max-statements-per-line -->
 <script setup lang="ts">
+import type { BlacklistItem } from '@/stores/friend'
+
 defineProps<{
-  blacklist: any[]
+  blacklist: BlacklistItem[]
   friendsCount: number
 }>()
 

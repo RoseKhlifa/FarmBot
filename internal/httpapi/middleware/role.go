@@ -31,6 +31,39 @@ func AdminRole() gin.HandlerFunc { return RequireAdminRole }
 
 func SuperAdminRole() gin.HandlerFunc { return RequireSuperAdminRole }
 
+// RequireAdminAPI protects every /api/admin endpoint when installed on the
+// application router. Keeping this gate at the prefix prevents a newly added
+// administrative route from accidentally becoming available to normal users.
+func RequireAdminAPI() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c == nil || c.Request == nil {
+			return
+		}
+		path := strings.TrimSuffix(c.Request.URL.Path, "/")
+		if path == "/api/admin" || strings.HasPrefix(path, "/api/admin/") {
+			RequireAdminRole(c)
+			return
+		}
+		c.Next()
+	}
+}
+
+// RequireSuperAdminAPI applies the equivalent prefix gate to platform-wide
+// operations under /api/super-admin.
+func RequireSuperAdminAPI() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c == nil || c.Request == nil {
+			return
+		}
+		path := strings.TrimSuffix(c.Request.URL.Path, "/")
+		if path == "/api/super-admin" || strings.HasPrefix(path, "/api/super-admin/") {
+			RequireSuperAdminRole(c)
+			return
+		}
+		c.Next()
+	}
+}
+
 func HasAdminRole(role string) bool { return isElevatedRole(role) }
 
 func HasSuperAdminRole(role string) bool { return isSuperAdminRole(role) }

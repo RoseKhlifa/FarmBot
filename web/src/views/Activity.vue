@@ -110,10 +110,11 @@ const subActivities = computed(() => heluActivity.value?.subActivities || [])
 const passport = computed(() => heluActivity.value?.passport || null)
 const solarTerms = computed(() => {
   const raw = heluActivity.value?.solarTerms
-  if (!raw) return null
+  if (!raw)
+    return null
   return {
     ...raw,
-    terms: (raw.terms || []).filter((t: any) => t.statusLabel !== '已结束')
+    terms: (raw.terms || []).filter((t: any) => t.statusLabel !== '已结束'),
   }
 })
 const qingmeiActivity = computed(() => heluActivity.value?.qingmei || null)
@@ -157,7 +158,6 @@ function segmentedButtonClasses(active: boolean) {
 function formatNumber(value?: number) {
   return Number(value || 0).toLocaleString()
 }
-
 
 async function refreshAll() {
   if (!currentAccountId.value)
@@ -293,7 +293,7 @@ onMounted(() => {
 
 <template>
   <section class="space-y-4">
-    <header class="rounded-lg glass-card p-4">
+    <header class="glass-card rounded-lg p-4">
       <div class="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
         <div class="min-w-0 flex flex-wrap items-center gap-3">
           <div class="flex items-center gap-2">
@@ -317,7 +317,7 @@ onMounted(() => {
 
         <div class="min-w-0 flex flex-wrap items-center gap-2">
           <div class="max-w-full min-w-0 overflow-x-auto pb-1">
-            <div class="h-9 min-w-max inline-flex overflow-hidden border rounded-lg glass-segmented p-0.5">
+            <div class="glass-segmented h-9 min-w-max inline-flex overflow-hidden border rounded-lg p-0.5">
               <button
                 v-for="section in sectionTabs"
                 :key="section.key"
@@ -345,7 +345,7 @@ onMounted(() => {
 
     <div
       v-if="!currentAccountId"
-      class="rounded-lg glass-subtle p-10 text-center text-sm"
+      class="glass-subtle rounded-lg p-10 text-center text-sm"
     >
       <div class="i-carbon-user-profile mx-auto mb-3 text-3xl opacity-30" />
       {{ L.needAccount }}
@@ -353,10 +353,14 @@ onMounted(() => {
 
     <template v-else>
       <!-- 荷风活动已过期 -->
-      <div v-if="HELU_EXPIRED" class="rounded-lg glass-subtle p-10 text-center text-sm">
+      <div v-if="HELU_EXPIRED" class="glass-subtle rounded-lg p-10 text-center text-sm">
         <div class="i-carbon-calendar-mischeck mx-auto mb-3 text-3xl opacity-30" />
-        <div class="text-base font-medium">荷风活动已结束</div>
-        <div class="mt-1 text-xs" style="opacity:0.6">新活动「千星游记」上线后敬请期待</div>
+        <div class="text-base font-medium">
+          荷风活动已结束
+        </div>
+        <div class="mt-1 text-xs" style="opacity:0.6">
+          新活动「千星游记」上线后敬请期待
+        </div>
       </div>
 
       <div v-else class="min-w-0 space-y-4">

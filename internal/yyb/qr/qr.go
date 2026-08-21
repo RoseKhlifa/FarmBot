@@ -105,7 +105,7 @@ func (c *Client) CreateSession(ctx context.Context) (*Session, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	m := uuidRE.FindStringSubmatch(string(body))
 	if len(m) < 2 {
@@ -136,7 +136,7 @@ func (c *Client) FetchQRCodeImage(ctx context.Context, sess *Session) ([]byte, e
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return nil, fmt.Errorf("QR image HTTP %d", resp.StatusCode)
 	}
@@ -168,7 +168,7 @@ func (c *Client) PollQRCode(ctx context.Context, sess *Session) (PollResult, err
 	if err != nil {
 		return PollResult{}, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 	body, _ := io.ReadAll(resp.Body)
 	text := string(body)
 	errcode, code := parsePoll(text)

@@ -53,6 +53,23 @@ type StatusSnapshot struct {
 type StatusState struct {
 	mu       sync.RWMutex
 	snapshot StatusSnapshot
+	onChange func(StatusSnapshot)
+}
+
+// SetOnChange installs the account-local status publisher. The callback runs
+// after the state lock is released, so realtime consumers cannot block status
+// readers or deadlock a Runtime transition.
+func (s *StatusState) SetOnChange(callback func(StatusSnapshot)) {
+	if s == nil {
+		return
+	}
+	s.mu.Lock()
+	s.onChange = callback
+	snapshot := cloneStatus(s.snapshot)
+	s.mu.Unlock()
+	if callback != nil {
+		callback(snapshot)
+	}
 }
 
 // NewStatusState creates an idle status container for accountID.
@@ -145,6 +162,11 @@ func (s *StatusState) UpdateUser(state transport.UserState) {
 	s.with(func(snapshot *StatusSnapshot) { applyUserState(snapshot, state) })
 }
 
+// SetGold updates the account balance after a domain operation.
+func (s *StatusState) SetGold(value int64) {
+	s.with(func(snapshot *StatusSnapshot) { snapshot.Gold = value })
+}
+
 // SetNextAction publishes the next scheduled action and its deadline.
 func (s *StatusState) SetNextAction(name string, at time.Time) {
 	s.with(func(snapshot *StatusSnapshot) {
@@ -183,7 +205,12 @@ func (s *StatusState) with(update func(*StatusSnapshot)) {
 	}
 	s.mu.Lock()
 	update(&s.snapshot)
+	snapshot := cloneStatus(s.snapshot)
+	callback := s.onChange
 	s.mu.Unlock()
+	if callback != nil {
+		callback(snapshot)
+	}
 }
 
 func cloneStatus(snapshot StatusSnapshot) StatusSnapshot {

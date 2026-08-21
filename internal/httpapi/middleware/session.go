@@ -500,11 +500,13 @@ func fromPersistedSession(saved persistedSession) Session {
 }
 
 func validateSessionUser(user store.User, now time.Time) error {
-	if isElevatedRole(user.Role) {
-		return nil
-	}
 	if strings.TrimSpace(user.Status) != "" && !strings.EqualFold(strings.TrimSpace(user.Status), "active") {
 		return ErrSessionBanned
+	}
+	// Administrative roles do not expire through card entitlement, but they
+	// must still honor an explicit disabled/banned status above.
+	if isElevatedRole(user.Role) {
+		return nil
 	}
 	nowMillis := now.UnixMilli()
 	if user.ExpireAt != nil && *user.ExpireAt > 0 && *user.ExpireAt <= nowMillis {

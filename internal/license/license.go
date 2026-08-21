@@ -10,7 +10,7 @@ import (
 	"context"
 	"crypto/aes"
 	"crypto/cipher"
-	"crypto/md5" //nolint:gosec -- MD5 is part of the existing license contract.
+	"crypto/md5" // MD5 is part of the existing license contract.
 	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
@@ -189,7 +189,7 @@ func Save(path string, machineID, licenseKey string) error {
 		return fmt.Errorf("create temporary license file: %w", err)
 	}
 	temporaryName := temporary.Name()
-	defer os.Remove(temporaryName)
+	defer func() { _ = os.Remove(temporaryName) }()
 	if err := temporary.Chmod(0o600); err != nil {
 		_ = temporary.Close()
 		return fmt.Errorf("protect temporary license file: %w", err)

@@ -1,9 +1,8 @@
-import { formatCardValue } from '@/stores/user'
-import type { Card } from '@/stores/user'
+import type { Card } from '@/stores/admin'
 import { computed, ref } from 'vue'
-import api from '@/api'
+import { useAdminStore } from '@/stores/admin'
 import { useToastStore } from '@/stores/toast'
-import { useUserStore } from '@/stores/user'
+import { formatCardValue } from '@/utils/card-format'
 
 export type CardStatusFilter = 'all' | 'used' | 'unused' | 'enabled' | 'disabled'
 export type CardTypeFilter = 'all' | 'time' | 'quota'
@@ -42,7 +41,7 @@ function formatDateForFile(timestamp: number) {
 }
 
 export function useAdminCards(options: UseAdminCardsOptions) {
-  const userStore = useUserStore()
+  const adminStore = useAdminStore()
   const toast = useToastStore()
 
   const cards = ref<Card[]>([])
@@ -153,7 +152,7 @@ export function useAdminCards(options: UseAdminCardsOptions) {
   async function fetchCards() {
     cardsLoading.value = true
     try {
-      const result = await userStore.getAllCards()
+      const result = await adminStore.getAllCards()
       if (result.ok) {
         cards.value = result.data
         availableTimeCards.value = result.data.filter((card: Card) => card.type === 'time' && !card.usedBy && card.enabled).length
@@ -173,10 +172,10 @@ export function useAdminCards(options: UseAdminCardsOptions) {
   async function fetchCardClaimStatus() {
     cardClaimLoading.value = true
     try {
-      const res = await api.get('/api/card-claim/status')
-      if (res.data.ok) {
-        cardClaimEnabled.value = res.data.enabled
-        availableTimeCards.value = Number(res.data.availableTimeCards || 0)
+      const result = await adminStore.getCardClaimStatus()
+      if (result.ok) {
+        cardClaimEnabled.value = result.enabled
+        availableTimeCards.value = Number(result.availableTimeCards || 0)
       }
     }
     catch (e: any) {
@@ -207,19 +206,19 @@ export function useAdminCards(options: UseAdminCardsOptions) {
     const enabled = pendingCardClaimEnabled.value
     cardClaimLoading.value = true
     try {
-      const res = await api.post('/api/admin/card-claim/status', {
+      const result = await adminStore.updateCardClaimStatus({
         enabled,
         confirmed: true,
       })
-      if (res.data.ok) {
-        cardClaimEnabled.value = res.data.enabled
-        availableTimeCards.value = Number(res.data.availableTimeCards || availableTimeCards.value || 0)
+      if (result.ok) {
+        cardClaimEnabled.value = result.enabled
+        availableTimeCards.value = Number(result.availableTimeCards || availableTimeCards.value || 0)
         showCardClaimConfirm.value = false
         pendingCardClaimEnabled.value = null
         toast.success(enabled ? '卡密领取功能已开启' : '卡密领取功能已关闭')
       }
       else {
-        toast.error(res.data.error || '操作失败')
+        toast.error(result.error || '操作失败')
       }
     }
     catch (e: any) {
@@ -269,7 +268,7 @@ export function useAdminCards(options: UseAdminCardsOptions) {
     const count = Math.min(Math.max(Number.parseInt(String(newCard.value.count), 10) || 1, 1), 100)
 
     try {
-      const result = await userStore.createCard(
+      const result = await adminStore.createCard(
         newCard.value.description,
         newCard.value.days,
         count > 1 ? count : undefined,
@@ -319,7 +318,7 @@ export function useAdminCards(options: UseAdminCardsOptions) {
     showToggleCardStatusConfirm.value = false
     try {
       const card = pendingToggleCard.value
-      const result = await userStore.updateCard(card.code, { enabled: !card.enabled }, {
+      const result = await adminStore.updateCard(card.code, { enabled: !card.enabled }, {
         confirmed: true,
       })
       if (result.ok) {
@@ -350,7 +349,7 @@ export function useAdminCards(options: UseAdminCardsOptions) {
 
     deleteCardLoading.value = true
     try {
-      const result = await userStore.deleteCard(pendingDeleteCard.value.code, {
+      const result = await adminStore.deleteCard(pendingDeleteCard.value.code, {
         confirmed: true,
       })
       if (result.ok) {
@@ -392,7 +391,7 @@ export function useAdminCards(options: UseAdminCardsOptions) {
 
     deleteSelectedCardsLoading.value = true
     try {
-      const result = await userStore.deleteCardsBatch(selectedCodes, {
+      const result = await adminStore.deleteCardsBatch(selectedCodes, {
         confirmed: true,
       })
       if (result.ok) {

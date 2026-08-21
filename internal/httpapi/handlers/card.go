@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"strings"
 
 	"github.com/RoseKhlifa/FarmBot/internal/store"
 	"github.com/gin-gonic/gin"
@@ -10,15 +11,15 @@ import (
 func (h *Handler) RegisterCard(r gin.IRouter) {
 	r.GET("/api/admin/cards", h.cards)
 	r.POST("/api/admin/cards", h.createCard)
-	r.POST("/api/admin/cards/batch-delete", func(c *gin.Context) { writeNotConfigured(c) })
-	r.POST("/api/admin/cards/batch-renew", func(c *gin.Context) { writeNotConfigured(c) })
+	r.POST("/api/admin/cards/batch-delete", h.batchDeleteCards)
+	r.POST("/api/admin/cards/batch-renew", h.batchRenewCards)
 	r.POST("/api/admin/cards/:code", h.updateCard)
 	r.DELETE("/api/admin/cards/:code", h.deleteCard)
 	r.GET("/api/card-claim/status", h.cardStatus)
 	r.POST("/api/card-claim/claim", h.claimCard)
 	r.POST("/api/admin/card-claim/status", h.updateClaimStatus)
 	r.GET("/api/admin/card-claim/status", h.cardStatus)
-	r.GET("/api/admin/card-claim/records", func(c *gin.Context) { writeNotConfigured(c) })
+	r.GET("/api/admin/card-claim/records", h.cardClaimRecords)
 }
 func (h *Handler) cards(c *gin.Context) {
 	if h.app().Cards == nil {
@@ -135,4 +136,75 @@ func (h *Handler) claimCard(c *gin.Context) {
 		"days":        card.Days,
 		"description": card.Description,
 	})
+}
+
+func (h *Handler) batchDeleteCards(c *gin.Context) {
+	if h.app().Cards == nil {
+		writeNotConfigured(c)
+		return
+	}
+	var body struct {
+		Codes []string `json:"codes"`
+	}
+	if !bindJSON(c, &body) {
+		return
+	}
+	deleted, failed := []string{}, []any{}
+	for _, code := range body.Codes {
+		code = strings.TrimSpace(code)
+		if code == "" {
+			continue
+		}
+		if err := h.app().Cards.Delete(c.Request.Context(), code); err != nil {
+			failed = append(failed, gin.H{"code": code, "error": err.Error()})
+		} else {
+			deleted = append(deleted, code)
+		}
+	}
+	writeOK(c, gin.H{"deleted": deleted, "failed": failed})
+}
+func (h *Handler) batchRenewCards(c *gin.Context) {
+	if h.app().Cards == nil {
+		writeNotConfigured(c)
+		return
+	}
+	var body struct {
+		Username  string   `json:"username"`
+		CardCodes []string `json:"cardCodes"`
+		Codes     []string `json:"codes"`
+	}
+	if !bindJSON(c, &body) {
+		return
+	}
+	if len(body.CardCodes) == 0 {
+		body.CardCodes = body.Codes
+	}
+	results, failed := []any{}, []any{}
+	for _, code := range body.CardCodes {
+		user, err := h.app().Cards.Renew(c.Request.Context(), body.Username, strings.TrimSpace(code))
+		if err != nil {
+			failed = append(failed, gin.H{"code": code, "error": err.Error()})
+		} else {
+			results = append(results, publicRenewal(user))
+		}
+	}
+	writeOK(c, gin.H{"renewed": results, "failed": failed})
+}
+func (h *Handler) cardClaimRecords(c *gin.Context) {
+	if h.app().Cards == nil {
+		writeNotConfigured(c)
+		return
+	}
+	cards, err := h.app().Cards.List(c.Request.Context())
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	records := make([]store.Card, 0)
+	for _, card := range cards {
+		if card.ClaimedAt != 0 || card.BoundUser != "" {
+			records = append(records, card)
+		}
+	}
+	writeOK(c, records)
 }

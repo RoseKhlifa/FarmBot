@@ -47,7 +47,7 @@ func TestSendMsgEncryptsCorrelatesAndDecodes(t *testing.T) {
 	var sequences []int64
 	var authTokens []string
 	serverURL := wsTestServer(t, func(connection *websocket.Conn) {
-		defer connection.Close()
+		defer func() { _ = connection.Close() }()
 		cipher := xorCipher{key: 0x5a}
 		for index := 0; index < 2; index++ {
 			_, frame, err := connection.ReadMessage()
@@ -108,7 +108,7 @@ func TestSendMsgEncryptsCorrelatesAndDecodes(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	for index := 0; index < 2; index++ {
 		response, err := client.SendMsg(context.Background(), Command{
@@ -139,7 +139,7 @@ func TestSendMsgEncryptsCorrelatesAndDecodes(t *testing.T) {
 
 func TestSendMsgTimeoutRemovesPending(t *testing.T) {
 	serverURL := wsTestServer(t, func(connection *websocket.Conn) {
-		defer connection.Close()
+		defer func() { _ = connection.Close() }()
 		_, _, _ = connection.ReadMessage()
 		time.Sleep(150 * time.Millisecond)
 	})
@@ -147,7 +147,7 @@ func TestSendMsgTimeoutRemovesPending(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 	_, err = client.SendMsg(context.Background(), Command{
 		ServiceName: "service",
 		MethodName:  "method",
@@ -166,7 +166,7 @@ func TestSendMsgTimeoutRemovesPending(t *testing.T) {
 
 func TestKickoutNotifyIsDispatched(t *testing.T) {
 	serverURL := wsTestServer(t, func(connection *websocket.Conn) {
-		defer connection.Close()
+		defer func() { _ = connection.Close() }()
 		_, frame, err := connection.ReadMessage()
 		if err != nil {
 			t.Errorf("read request: %v", err)
@@ -189,7 +189,7 @@ func TestKickoutNotifyIsDispatched(t *testing.T) {
 	if err != nil {
 		t.Fatalf("dial: %v", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 	_, err = client.SendMsg(context.Background(), Command{
 		ServiceName: "service",
 		MethodName:  "method",

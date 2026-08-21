@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import api from '@/api'
+import { cardApi, userApi } from '@/api'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
-import { formatTimeDuration, getCardQuotaValue, useUserStore } from '@/stores/user'
+import { formatTimeDuration, getCardQuotaValue } from '@/stores/admin'
+import { useUserStore } from '@/stores/user'
 
 interface CardInfo {
   type: 'time' | 'quota'
@@ -130,7 +131,7 @@ async function checkCardInfo(options?: { silent?: boolean }) {
     resetMessages()
 
   try {
-    const { data } = await api.get(`/api/card/info/${encodeURIComponent(normalizedCardCode.value)}`)
+    const { data } = await cardApi.getCardInfo(normalizedCardCode.value)
     if (!data.ok) {
       cardInfo.value = null
       checkedCardCode.value = ''
@@ -181,7 +182,7 @@ async function submitRenewal() {
   try {
     const data = isLoggedIn.value
       ? await userStore.renew(normalizedCardCode.value)
-      : (await api.post('/api/public/renew', {
+      : (await userApi.publicRenew({
           username: normalizedUsername.value,
           cardCode: normalizedCardCode.value,
         })).data
@@ -220,7 +221,7 @@ async function submitRenewal() {
 
 <template>
   <section class="mx-auto max-w-xl py-8 space-y-6">
-    <div class="rounded-3xl glass-card p-8">
+    <div class="glass-card rounded-3xl p-8">
       <div class="mb-6 flex items-center gap-3">
         <div class="i-carbon-renew text-2xl text-emerald-500" />
         <div>

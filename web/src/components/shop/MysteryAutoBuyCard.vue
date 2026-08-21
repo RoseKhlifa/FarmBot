@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import BaseSwitch from '@/components/ui/BaseSwitch.vue'
 import { useSettingStore } from '@/stores/setting'
 import { useToastStore } from '@/stores/toast'
@@ -109,14 +109,14 @@ function onCurrencyToggle(id: number, checked: boolean) {
           <label
             v-for="c in CURRENCIES"
             :key="c.id"
-            class="inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors"
+            class="inline-flex cursor-pointer items-center gap-2 border rounded-lg px-3 py-2 text-sm transition-colors"
             :class="isChecked(c.id)
               ? 'border-purple-400 bg-purple-50 text-purple-700 dark:border-purple-600 dark:bg-purple-900/30 dark:text-purple-200'
               : 'border-gray-200 bg-gray-50 text-gray-600 dark:border-gray-700 dark:bg-gray-700/40 dark:text-gray-300'"
           >
             <input
               type="checkbox"
-              class="h-4 w-4 rounded border-gray-300 text-purple-600 focus:ring-purple-500"
+              class="h-4 w-4 border-gray-300 rounded text-purple-600 focus:ring-purple-500"
               :checked="isChecked(c.id)"
               @change="onCurrencyToggle(c.id, ($event.target as HTMLInputElement).checked)"
             >

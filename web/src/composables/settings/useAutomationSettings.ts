@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { ref } from 'vue'
-import api from '@/api'
+import { farmApi } from '@/api'
 import { useSettingStore } from '@/stores/setting'
 
 type AlertType = 'primary' | 'danger'
@@ -163,18 +163,17 @@ export function useAutomationSettings({
         // 如果启用了自动购买化肥，立即检测并购买
         if (localAutomationSettings.value.automation.fertilizer_buy_organic || localAutomationSettings.value.automation.fertilizer_buy_normal) {
           try {
-            const buyRes = await api.post('/api/fertilizer/check-and-buy', {
+            const buyRes = await farmApi.checkAndBuyFertilizer({
               buyOrganic: localAutomationSettings.value.automation.fertilizer_buy_organic,
               buyNormal: localAutomationSettings.value.automation.fertilizer_buy_normal,
               organicCount: localAutomationSettings.value.fertilizerBuyOrganicCount,
               organicThresholdHours: localAutomationSettings.value.fertilizerBuyOrganicThresholdHours,
               normalCount: localAutomationSettings.value.fertilizerBuyNormalCount,
               normalThresholdHours: localAutomationSettings.value.fertilizerBuyNormalThresholdHours,
-            }, {
-              headers: { 'x-account-id': accountId },
             })
             if (buyRes.data?.ok) {
-              const totalBought = (buyRes.data.organicBought || 0) + (buyRes.data.normalBought || 0)
+              const result = buyRes.data.data || buyRes.data
+              const totalBought = Number(result.organicBought || 0) + Number(result.normalBought || 0)
               if (totalBought > 0) {
                 showAlert(`已自动购买 ${totalBought} 个化肥`, 'primary')
               }

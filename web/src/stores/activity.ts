@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import api from '@/api'
-import { useAccountStore } from '@/stores/account'
+import { activityApi } from '@/api'
+import { isCurrentAccount } from '@/composables/useStaleGuard'
 
 export interface ActivityExchangeShopItem {
   id: number
@@ -277,12 +277,6 @@ export const useActivityStore = defineStore('activity', () => {
     guanxingError.value = ''
   }
 
-  function isCurrentAccount(accountId: string) {
-    const accountStore = useAccountStore()
-    const currentId = String((accountStore.currentAccountId as { value?: string })?.value ?? accountStore.currentAccountId ?? '')
-    return currentId === String(accountId)
-  }
-
   async function fetchHeluActivity(accountId: string) {
     if (!accountId)
       return
@@ -291,13 +285,11 @@ export const useActivityStore = defineStore('activity', () => {
     heluLoading.value = true
     heluError.value = ''
     try {
-      const { data } = await api.get('/api/activity/helu', {
-        headers: { 'x-account-id': accountId },
-      })
+      const { data } = await activityApi.getHelu()
       if (requestId !== heluRequestId || !isCurrentAccount(requestedId))
         return
       if (data.ok)
-        heluActivity.value = data.activity || null
+        heluActivity.value = data.data || (data.activity as any) || null
       else
         heluError.value = data.error || '\u83B7\u53D6\u8377\u9732\u6D3B\u52A8\u5931\u8D25'
     }
@@ -315,11 +307,9 @@ export const useActivityStore = defineStore('activity', () => {
     const requestedId = String(accountId)
     drawLoading.value = true
     try {
-      const { data } = await api.post('/api/activity/helu/draw', payload, {
-        headers: { 'x-account-id': accountId },
-      })
-      if (isCurrentAccount(requestedId) && data.ok && data.activity)
-        heluActivity.value = data.activity
+      const { data } = await activityApi.drawHelu(payload)
+      if (isCurrentAccount(requestedId) && data.ok && (data.data || data.activity))
+        heluActivity.value = data.data || (data.activity as any)
       return data
     }
     finally {
@@ -331,14 +321,12 @@ export const useActivityStore = defineStore('activity', () => {
     const requestedId = String(accountId)
     exchangeLoading.value = true
     try {
-      const { data } = await api.post('/api/activity/helu/exchange', {
-        slotId,
+      const { data } = await activityApi.exchangeHelu({
+        goodsId: slotId,
         count,
-      }, {
-        headers: { 'x-account-id': accountId },
       })
-      if (isCurrentAccount(requestedId) && data.ok && data.activity)
-        heluActivity.value = data.activity
+      if (isCurrentAccount(requestedId) && data.ok && (data.data || data.activity))
+        heluActivity.value = data.data || (data.activity as any)
       return data
     }
     finally {
@@ -350,11 +338,9 @@ export const useActivityStore = defineStore('activity', () => {
     const requestedId = String(accountId)
     passportClaimLoading.value = true
     try {
-      const { data } = await api.post('/api/activity/helu/passport/claim', {}, {
-        headers: { 'x-account-id': accountId },
-      })
-      if (isCurrentAccount(requestedId) && data.ok && data.activity)
-        heluActivity.value = data.activity
+      const { data } = await activityApi.claimHeluPassport()
+      if (isCurrentAccount(requestedId) && data.ok && (data.data || data.activity))
+        heluActivity.value = data.data || (data.activity as any)
       return data
     }
     finally {
@@ -366,13 +352,9 @@ export const useActivityStore = defineStore('activity', () => {
     const requestedId = String(accountId)
     solarClaimLoading.value = true
     try {
-      const { data } = await api.post('/api/activity/helu/solar/claim', {
-        termId,
-      }, {
-        headers: { 'x-account-id': accountId },
-      })
-      if (isCurrentAccount(requestedId) && data.ok && data.activity)
-        heluActivity.value = data.activity
+      const { data } = await activityApi.claimHeluSolar({ id: Number(termId || 0) })
+      if (isCurrentAccount(requestedId) && data.ok && (data.data || data.activity))
+        heluActivity.value = data.data || (data.activity as any)
       return data
     }
     finally {
@@ -384,22 +366,17 @@ export const useActivityStore = defineStore('activity', () => {
     const requestedId = String(accountId)
     qingmeiClaimLoading.value = true
     try {
-      const { data } = await api.post('/api/activity/qingmei/claim', {}, {
-        headers: { 'x-account-id': accountId },
-      })
-      if (isCurrentAccount(requestedId) && data.ok && data.activity) {
-        heluActivity.value = data.activity
+      const { data } = await activityApi.claimQingmei()
+      const activity = data.data || (data.activity as any)
+      if (isCurrentAccount(requestedId) && data.ok && activity) {
+        heluActivity.value = activity
         if (heluActivity.value?.qingmei) {
           heluActivity.value.qingmei.claimed = true
           heluActivity.value.qingmei.claimable = false
         }
       }
       else if (isCurrentAccount(requestedId) && data.ok && data.qingmei && heluActivity.value) {
-        heluActivity.value.qingmei = {
-          ...data.qingmei,
-          claimed: true,
-          claimable: false,
-        }
+        heluActivity.value.qingmei = { ...heluActivity.value.qingmei, ...data.qingmei, claimed: true, claimable: false } as QingmeiActivity
       }
       return data
     }
@@ -412,13 +389,9 @@ export const useActivityStore = defineStore('activity', () => {
     const requestedId = String(accountId)
     qingmeiSellLoading.value = true
     try {
-      const { data } = await api.post('/api/activity/qingmei/wine/sell', {
-        share: true,
-      }, {
-        headers: { 'x-account-id': accountId },
-      })
-      if (isCurrentAccount(requestedId) && data.ok && data.activity)
-        heluActivity.value = data.activity
+      const { data } = await activityApi.sellQingmeiWine({ share: true })
+      if (isCurrentAccount(requestedId) && data.ok && (data.data || data.activity))
+        heluActivity.value = data.data || (data.activity as any)
       return data
     }
     finally {
@@ -433,13 +406,11 @@ export const useActivityStore = defineStore('activity', () => {
     guanxingLoading.value = true
     guanxingError.value = ''
     try {
-      const { data } = await api.get('/api/activity/guanxing', {
-        headers: { 'x-account-id': accountId },
-      })
+      const { data } = await activityApi.getGuanxing()
       if (!isCurrentAccount(requestedId))
         return
       if (data.ok)
-        guanxingActivity.value = data.activity || null
+        guanxingActivity.value = data.data || (data.activity as any) || null
       else
         guanxingError.value = data.error || '获取观星礼录失败'
       return data
@@ -460,11 +431,9 @@ export const useActivityStore = defineStore('activity', () => {
     const requestedId = String(accountId)
     guanxingClaimLoading.value = true
     try {
-      const { data } = await api.post('/api/activity/guanxing/claim', {}, {
-        headers: { 'x-account-id': accountId },
-      })
-      if (isCurrentAccount(requestedId) && data.ok && data.activity)
-        guanxingActivity.value = data.activity
+      const { data } = await activityApi.claimGuanxing()
+      if (isCurrentAccount(requestedId) && data.ok && (data.data || data.activity))
+        guanxingActivity.value = data.data || (data.activity as any)
       return data
     }
     finally {

@@ -1,7 +1,7 @@
 import { useStorage } from '@vueuse/core'
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import api from '@/api'
+import { accountApi } from '@/api'
 
 export interface Account {
   id: string
@@ -84,9 +84,9 @@ export const useAccountStore = defineStore('account', () => {
     loading.value = true
     try {
       // api interceptor adds x-admin-token
-      const res = await api.get('/api/accounts')
-      if (res.data.ok && res.data.data && res.data.data.accounts) {
-        applyAccounts(Array.isArray(res.data.data.accounts) ? res.data.data.accounts : [])
+      const res = await accountApi.getAccounts()
+      if (res.data.ok && Array.isArray(res.data.data)) {
+        applyAccounts(res.data.data as Account[])
       }
       else {
         console.warn('[account] fetchAccounts returned unexpected payload, keeping previous account state')
@@ -110,23 +110,23 @@ export const useAccountStore = defineStore('account', () => {
   }
 
   async function startAccount(id: string) {
-    await api.post(`/api/accounts/${id}/start`)
+    await accountApi.startAccount(id)
     await fetchAccounts()
   }
 
   async function stopAccount(id: string) {
-    await api.post(`/api/accounts/${id}/stop`)
+    await accountApi.stopAccount(id)
     await fetchAccounts()
   }
 
   async function refreshWxCodes() {
-    const res = await api.post('/api/accounts/refresh-wx-codes', {}, { timeout: 120000 })
+    const res = await accountApi.refreshWXCodes({ timeout: 120000 })
     await fetchAccounts()
     return res.data as { ok: boolean, error?: string, data?: RefreshWxCodesResult }
   }
 
   async function deleteAccount(id: string) {
-    await api.delete(`/api/accounts/${id}`)
+    await accountApi.deleteAccount(id)
     if (currentAccountId.value === id) {
       currentAccountId.value = ''
     }
@@ -135,9 +135,9 @@ export const useAccountStore = defineStore('account', () => {
 
   async function fetchLogs() {
     try {
-      const res = await api.get('/api/account-logs?limit=100')
-      if (Array.isArray(res.data)) {
-        logs.value = res.data
+      const res = await accountApi.getAccountLogs(100)
+      if (res.data.ok && Array.isArray(res.data.data)) {
+        logs.value = res.data.data
       }
     }
     catch (e) {
@@ -147,7 +147,7 @@ export const useAccountStore = defineStore('account', () => {
 
   async function addAccount(payload: any) {
     try {
-      await api.post('/api/accounts', payload)
+      await accountApi.createAccount(payload)
       await fetchAccounts()
     }
     catch (e) {
@@ -158,8 +158,8 @@ export const useAccountStore = defineStore('account', () => {
 
   async function updateAccount(id: string, payload: any) {
     try {
-      // core uses POST /api/accounts for both add and update (if id is present)
-      await api.post('/api/accounts', { ...payload, id })
+      // The Go API uses POST /api/accounts for both add and update (if id is present).
+      await accountApi.createAccount({ ...payload, id })
       await fetchAccounts()
     }
     catch (e) {

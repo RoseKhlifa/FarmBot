@@ -48,7 +48,7 @@ func pbLen(field int, data []byte) []byte {
 }
 
 func pbVar(field int, n uint64) []byte {
-	out := []byte{byte((field << 3) | 0)}
+	out := []byte{byte(field << 3)}
 	out = append(out, varint(n)...)
 	return out
 }

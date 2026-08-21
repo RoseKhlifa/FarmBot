@@ -38,7 +38,7 @@ func TestNativeWebSocketSubscribesSnapshotsAndBroadcasts(t *testing.T) {
 			AccountLogs: func(context.Context, int) (any, error) { return []string{"account"}, nil },
 		},
 	})
-	defer hub.Close()
+	defer func() { _ = hub.Close() }()
 	server := httptest.NewServer(http.HandlerFunc(hub.HandleWebSocket))
 	defer server.Close()
 	wsURL := "ws" + server.URL[len("http"):]
@@ -47,7 +47,7 @@ func TestNativeWebSocketSubscribesSnapshotsAndBroadcasts(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	assertEvent := func(want string) realtimeFrame {
 		t.Helper()
@@ -101,7 +101,7 @@ func TestNonElevatedCannotSubscribeUnauthorizedAccount(t *testing.T) {
 			return user.Username == "user" && accountID == "a-1", nil
 		},
 	})
-	defer hub.Close()
+	defer func() { _ = hub.Close() }()
 	server := httptest.NewServer(http.HandlerFunc(hub.HandleWebSocket))
 	defer server.Close()
 	wsURL := "ws" + server.URL[len("http"):]
@@ -148,7 +148,7 @@ func TestClientCanChangeAccountSubscription(t *testing.T) {
 		t.Fatal(err)
 	}
 	hub := NewHub(Config{Sessions: sessions})
-	defer hub.Close()
+	defer func() { _ = hub.Close() }()
 	server := httptest.NewServer(http.HandlerFunc(hub.HandleWS))
 	defer server.Close()
 	wsURL := "ws" + server.URL[len("http"):]
@@ -157,7 +157,7 @@ func TestClientCanChangeAccountSubscription(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	readEvent := func() string {
 		t.Helper()
 		_ = conn.SetReadDeadline(time.Now().Add(time.Second))

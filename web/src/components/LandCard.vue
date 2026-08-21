@@ -168,7 +168,7 @@ function getPlantSizeText(targetLand: any) {
 
     <div
       v-if="land.plantSize > 1"
-      class="absolute right-1 top-1 z-10 rounded bg-pink-100 px-1.5 py-0.5 text-[10px] font-semibold text-pink-700 dark:bg-pink-900/30 dark:text-pink-300"
+      class="absolute right-1 top-1 z-10 rounded bg-pink-100 px-1.5 py-0.5 text-[10px] text-pink-700 font-semibold dark:bg-pink-900/30 dark:text-pink-300"
     >
       合种 {{ getPlantSizeText(land) }}
     </div>
@@ -176,7 +176,7 @@ function getPlantSizeText(targetLand: any) {
     <!-- 合种（2x2 合并）土地：跨 2 行 2 列占位，直观区别于普通土地 -->
     <div
       v-if="Number(land.plantSize) > 1"
-      class="pointer-events-none absolute inset-x-0 top-0 h-[3px] rounded-t-lg bg-gradient-to-r from-pink-400 via-fuchsia-400 to-pink-400 opacity-80"
+      class="pointer-events-none absolute inset-x-0 top-0 h-[3px] rounded-t-lg from-pink-400 via-fuchsia-400 to-pink-400 bg-gradient-to-r opacity-80"
     />
 
     <div
@@ -428,5 +428,4 @@ function getPlantSizeText(targetLand: any) {
 .land-card--merged .land-card-id {
   font-size: 11px;
 }
-
 </style>

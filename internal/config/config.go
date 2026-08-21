@@ -14,7 +14,6 @@ const (
 	DefaultClientVersion = "1.13.0.4_20260723"
 	DefaultTSDKGameID    = 3167
 	DefaultTSDKAppKey    = "0"
-	DefaultYYBPort       = 8450
 )
 
 // TSDKConfig contains the values used to initialize the game security SDK.
@@ -24,21 +23,10 @@ type TSDKConfig struct {
 	AceEnabled bool
 }
 
-// YYBConfig contains the legacy yyb-go settings that remain useful while the
-// service is being folded into the main process. APIURL, APIKey and Port are
-// deprecated after the in-process integration, but are still read for a
-// backwards-compatible configuration transition.
+// YYBConfig contains the in-process application宝 feature toggle. The service
+// is owned by the Go application and has no external listen port or API token.
 type YYBConfig struct {
-	Enabled      bool
-	Host         string
-	Port         int
-	ResourceRoot string
-	TokenFile    string
-	APIURL       string
-	APIKey       string
-	APIToken     string
-	AdminUser    string
-	AdminPass    string
+	Enabled bool
 }
 
 // WXProxyConfig contains the optional upstream proxy credentials used by the
@@ -49,7 +37,7 @@ type WXProxyConfig struct {
 	AppID  string
 }
 
-// IntervalConfig keeps the scheduler defaults from the Node runtime in one
+// IntervalConfig keeps the scheduler defaults in one
 // typed value. Durations are represented in Go's native time.Duration unit.
 type IntervalConfig struct {
 	Heartbeat      time.Duration
@@ -106,16 +94,11 @@ type Config struct {
 }
 
 // DeprecatedEnvVars documents variables from the old process-per-account
-// runtime. Go uses goroutines per account, so these variables are intentionally
-// not consumed by Load. YYB_API_URL/KEY/PORT are likewise retained only as
-// compatibility inputs during the yyb in-process migration.
+// runtime. Go uses goroutines per account, so these variables are not consumed.
 var DeprecatedEnvVars = []string{
 	"FARM_WORKER",
 	"FARM_RUNTIME_MODE",
 	"FARM_ACCOUNT_ID",
-	"YYB_API_URL",
-	"YYB_API_KEY",
-	"YYB_PORT",
 }
 
 // Load reads the process environment and returns a complete configuration.
@@ -142,16 +125,7 @@ func Load() Config {
 			AceEnabled: envNotFalse("FARM_TSDK_ACE_ENABLED"),
 		},
 		Yyb: YYBConfig{
-			Enabled:      envBool("YYB_ENABLED", true),
-			Host:         envString("YYB_HOST", "127.0.0.1"),
-			Port:         envInt("YYB_PORT", DefaultYYBPort, 1, 65535),
-			ResourceRoot: os.Getenv("YYB_RESOURCE_ROOT"),
-			TokenFile:    os.Getenv("YYB_TOKEN_FILE"),
-			APIURL:       os.Getenv("YYB_API_URL"),
-			APIKey:       os.Getenv("YYB_API_KEY"),
-			APIToken:     os.Getenv("YYB_API_TOKEN"),
-			AdminUser:    os.Getenv("YYB_ADMIN_USER"),
-			AdminPass:    os.Getenv("YYB_ADMIN_PASS"),
+			Enabled: envBool("FARM_YYB_ENABLED", true),
 		},
 		WxProxy: WXProxyConfig{
 			APIURL: os.Getenv("WX_PROXY_API_URL"),
@@ -161,12 +135,8 @@ func Load() Config {
 		Intervals: defaultIntervals(),
 		Paths:     paths,
 	}
-	if cfg.Yyb.APIToken == "" {
-		// The old deployment convention used the same value for both names.
-		cfg.Yyb.APIToken = cfg.Yyb.APIKey
-	}
 	if cfg.MasterKey == "" {
-		const warning = "FARM_MASTER_KEY is not set; credential encryption is not protected by a master key"
+		const warning = "FARM_MASTER_KEY is not set; application startup will be refused until credential encryption is configured"
 		cfg.Warnings = append(cfg.Warnings, warning)
 		slog.Warn(warning)
 	}
@@ -191,7 +161,7 @@ func Default() Config {
 		Platform:      "qq",
 		OS:            "iOS",
 		TSDK:          TSDKConfig{GameID: DefaultTSDKGameID, AppKey: DefaultTSDKAppKey, AceEnabled: true},
-		Yyb:           YYBConfig{Enabled: true, Host: "127.0.0.1", Port: DefaultYYBPort},
+		Yyb:           YYBConfig{Enabled: true},
 		Intervals:     defaultIntervals(),
 		Paths:         paths,
 	}

@@ -14,7 +14,7 @@ import { computed, ref } from 'vue'
 // 这里为名称包含「月光营地」的物品叠加冷色调滤镜，让两套视觉上区分开。
 
 const props = defineProps<{
-  item: { image?: string; itemName?: string; name?: string; itemId?: number }
+  item: { image?: string, itemName?: string, name?: string, itemId?: number }
   imgClass?: string
 }>()
 

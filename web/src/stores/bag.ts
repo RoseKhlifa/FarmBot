@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import api from '@/api'
+import { bagApi } from '@/api'
 import { useAccountStore } from '@/stores/account'
 
 export const useBagStore = defineStore('bag', () => {
@@ -29,9 +29,7 @@ export const useBagStore = defineStore('bag', () => {
     const requestedId = accountId
     loading.value = true
     try {
-      const res = await api.get('/api/bag', {
-        headers: { 'x-account-id': accountId },
-      })
+      const res = await bagApi.getBag()
       const acc = useAccountStore()
       const curId = String((acc.currentAccountId as { value?: string })?.value ?? acc.currentAccountId ?? '')
       if (curId !== requestedId)
@@ -59,17 +57,13 @@ export const useBagStore = defineStore('bag', () => {
     }
   }
 
-  async function useItem(accountId: string, itemId: number, count = 1) {
-    const res = await api.post('/api/bag/use', { itemId, count }, {
-      headers: { 'x-account-id': accountId },
-    })
+  async function useItem(_accountId: string, itemId: number, count = 1) {
+    const res = await bagApi.useItem({ itemId, count })
     return res.data
   }
 
-  async function sellItems(accountId: string, items: Array<{ id: number, count: number, uid?: number }>) {
-    const res = await api.post('/api/bag/sell', { items }, {
-      headers: { 'x-account-id': accountId },
-    })
+  async function sellItems(_accountId: string, items: Array<{ id: number, count: number, uid?: number }>) {
+    const res = await bagApi.sellItems({ items })
     return res.data
   }
 

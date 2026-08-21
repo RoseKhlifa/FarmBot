@@ -48,7 +48,8 @@ function formatTime(value?: number) {
       <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
         <div class="flex items-center gap-4">
           <div class="grid h-24 w-24 shrink-0 place-items-center rounded-xl bg-emerald-50 dark:bg-emerald-900/20">
-            <ActivityItemImage v-if="activity?.reward?.image"
+            <ActivityItemImage
+              v-if="activity?.reward?.image"
               :item="activity.reward"
               img-class="h-20 w-20"
             />
@@ -82,7 +83,8 @@ function formatTime(value?: number) {
         <div class="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div class="flex items-center gap-4">
             <div class="grid h-18 w-18 shrink-0 place-items-center rounded-lg bg-lime-50 dark:bg-lime-900/20">
-              <ActivityItemImage v-if="activity?.material?.image"
+              <ActivityItemImage
+                v-if="activity?.material?.image"
                 :item="activity.material"
                 img-class="h-14 w-14"
               />

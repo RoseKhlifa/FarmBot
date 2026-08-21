@@ -676,10 +676,3 @@ func intToString(value int64) string {
 	}
 	return string(digits[index:])
 }
-
-func maxInt(value int) int {
-	if value < 0 {
-		return 0
-	}
-	return value
-}

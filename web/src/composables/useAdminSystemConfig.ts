@@ -1,5 +1,5 @@
 import { ref } from 'vue'
-import api from '@/api'
+import { captureApi, systemApi } from '@/api'
 
 export interface SystemConfig {
   serverUrl: string
@@ -96,7 +96,7 @@ export function useAdminSystemConfig(options: UseAdminSystemConfigOptions) {
 
   async function loadLoginLinks() {
     try {
-      const { data } = await api.get('/api/admin/login-links')
+      const { data } = await systemApi.getLoginLinks()
       if (data?.ok && data.data)
         localLoginLinks.value = { ...data.data }
     }
@@ -108,7 +108,7 @@ export function useAdminSystemConfig(options: UseAdminSystemConfigOptions) {
   async function handleSaveLoginLinks() {
     loginLinksSaving.value = true
     try {
-      const { data } = await api.post('/api/admin/login-links', {
+      const { data } = await systemApi.saveLoginLinks({
         ...localLoginLinks.value,
         confirmed: true,
       })
@@ -132,9 +132,7 @@ export function useAdminSystemConfig(options: UseAdminSystemConfigOptions) {
     showResetLoginLinksConfirm.value = false
     loginLinksSaving.value = true
     try {
-      const { data } = await api.post('/api/admin/login-links/reset', {
-        confirmed: true,
-      })
+      const { data } = await systemApi.resetLoginLinks()
       if (data?.ok && data.data) {
         localLoginLinks.value = { ...data.data }
         options.showAlert('登录页设置已恢复默认', 'primary')
@@ -170,7 +168,7 @@ export function useAdminSystemConfig(options: UseAdminSystemConfigOptions) {
     try {
       const formData = new FormData()
       formData.append('file', file)
-      const { data } = await api.post('/api/admin/login-logo', formData)
+      const { data } = await systemApi.saveLoginLogo(formData)
       if (data?.ok && data.data) {
         localLoginLinks.value = { ...data.data }
         options.showAlert('登录图标已上传并保存', 'primary')
@@ -199,7 +197,7 @@ export function useAdminSystemConfig(options: UseAdminSystemConfigOptions) {
 
   async function loadWxConfig() {
     try {
-      const { data } = await api.get('/api/admin/wx-config')
+      const { data } = await systemApi.getWXConfig()
       if (data?.ok && data.data)
         localWxConfig.value = { ...data.data }
     }
@@ -210,7 +208,7 @@ export function useAdminSystemConfig(options: UseAdminSystemConfigOptions) {
 
   async function loadCaptureConfig() {
     try {
-      const { data } = await api.get('/api/admin/capture-config')
+      const { data } = await captureApi.getAdminCaptureConfig()
       if (data?.ok && data.data)
         localCaptureConfig.value = { ...defaultCaptureConfig, ...data.data, apiToken: '' }
     }
@@ -222,7 +220,7 @@ export function useAdminSystemConfig(options: UseAdminSystemConfigOptions) {
   async function handleTestCaptureConfig() {
     captureConfigTesting.value = true
     try {
-      const { data } = await api.post('/api/admin/capture-config/test', localCaptureConfig.value, { timeout: 20000 })
+      const { data } = await captureApi.testAdminCaptureConfig(localCaptureConfig.value, { timeout: 20000 })
       if (data?.ok) {
         const poolSize = Number(data.data?.portPoolSize) || 0
         options.showAlert(`连接成功${poolSize ? `，可用代理端口 ${poolSize} 个` : ''}`, 'primary')
@@ -242,7 +240,7 @@ export function useAdminSystemConfig(options: UseAdminSystemConfigOptions) {
   async function handleSaveCaptureConfig() {
     captureConfigSaving.value = true
     try {
-      const { data } = await api.post('/api/admin/capture-config', {
+      const { data } = await captureApi.saveAdminCaptureConfig({
         ...localCaptureConfig.value,
         confirmed: true,
       })
@@ -266,7 +264,7 @@ export function useAdminSystemConfig(options: UseAdminSystemConfigOptions) {
     showSaveWxConfigConfirm.value = false
     wxConfigSaving.value = true
     try {
-      const { data } = await api.post('/api/admin/wx-config', {
+      const { data } = await systemApi.saveWXConfig({
         ...localWxConfig.value,
         confirmed: true,
       })
@@ -300,7 +298,7 @@ export function useAdminSystemConfig(options: UseAdminSystemConfigOptions) {
   async function loadSystemConfig() {
     systemConfigLoading.value = true
     try {
-      const { data } = await api.get('/api/admin/system-config')
+      const { data } = await systemApi.getSystemConfig()
       if (data?.ok) {
         if (data.data.saved)
           localSystemConfig.value = { ...data.data.saved }
@@ -320,7 +318,7 @@ export function useAdminSystemConfig(options: UseAdminSystemConfigOptions) {
     showSaveSystemConfirm.value = false
     systemConfigSaving.value = true
     try {
-      const { data } = await api.post('/api/admin/system-config', {
+      const { data } = await systemApi.saveSystemConfig({
         ...localSystemConfig.value,
         confirmed: true,
       })
@@ -341,9 +339,7 @@ export function useAdminSystemConfig(options: UseAdminSystemConfigOptions) {
     showResetSystemConfirm.value = false
     systemConfigSaving.value = true
     try {
-      const { data } = await api.post('/api/admin/system-config/reset', {
-        confirmed: true,
-      })
+      const { data } = await systemApi.resetSystemConfig()
       if (data?.ok) {
         localSystemConfig.value = { ...data.data.saved }
         options.showAlert('系统配置已重置为默认值', 'primary')

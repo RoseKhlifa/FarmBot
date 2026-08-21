@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { NewCardForm } from '@/composables/useAdminCards'
-import type { Card } from '@/stores/user'
+import type { Card } from '@/stores/admin'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 
 const props = defineProps<{

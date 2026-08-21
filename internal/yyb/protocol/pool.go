@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	store "github.com/RoseKhlifa/FarmBot/internal/yyb"
+	"github.com/RoseKhlifa/FarmBot/internal/yyb/model"
 )
 
 type Config struct {
@@ -44,9 +44,20 @@ type WmpfSession struct {
 	TCPProxy         string
 }
 
+// Store is the persistence surface required by the protocol pool. It is
+// intentionally defined here so the parent yyb database can depend on the
+// protocol package without an import cycle.
+type Store interface {
+	GetSession(context.Context, int64, string) (*model.SessionRow, error)
+	PutSession(context.Context, int64, *int64, map[string]any, int64, string) error
+	InvalidateSession(context.Context, int64, string) error
+	GetAccount(context.Context, int64) (*model.WechatAccount, error)
+	SetAccountUIN(context.Context, int64, int64) error
+}
+
 type Pool struct {
 	cfg Config
-	db  *store.DB
+	db  Store
 
 	mu    sync.Mutex
 	locks map[string]*sync.Mutex
@@ -55,7 +66,7 @@ type Pool struct {
 	shortlinkSem chan struct{}
 }
 
-func NewPool(cfg Config, db *store.DB) *Pool {
+func NewPool(cfg Config, db Store) *Pool {
 	def := DefaultConfig()
 	if cfg.ShortlinkTimeout == 0 {
 		cfg.ShortlinkTimeout = def.ShortlinkTimeout

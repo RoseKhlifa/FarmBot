@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { computed, onMounted, ref, watch } from 'vue'
-import api from '@/api'
+import { analyticsApi } from '@/api'
 import BaseSelect from '@/components/ui/BaseSelect.vue'
 import { useAccountStore } from '@/stores/account'
 import { usePlantBlacklistStore } from '@/stores/plant-blacklist'
@@ -218,10 +218,7 @@ async function loadAnalytics() {
   const requestId = ++analyticsRequestId
   loading.value = true
   try {
-    const res = await api.get(`/api/analytics`, {
-      params: { sort: sortKey.value },
-      headers: { 'x-account-id': accountId },
-    })
+    const res = await analyticsApi.getAnalytics(sortKey.value)
     if (requestId !== analyticsRequestId || String(currentAccountId.value || '') !== requestedId)
       return
     const data = res.data.data
@@ -330,7 +327,7 @@ function formatGrowTime(seconds: any) {
   <div class="space-y-4">
     <div class="flex gap-2">
       <button
-        class="whitespace-nowrap rounded-[14px] border border-[var(--theme-border)] bg-[var(--theme-glass)] px-3.5 py-[7px] text-xs font-semibold text-[var(--theme-text)] backdrop-blur-[16px] transition-colors"
+        class="whitespace-nowrap border border-[var(--theme-border)] rounded-[14px] bg-[var(--theme-glass)] px-3.5 py-[7px] text-xs text-[var(--theme-text)] font-semibold backdrop-blur-[16px] transition-colors"
         :class="activeTab === 'crops'
           ? '!bg-[var(--theme-primary)] text-white shadow-sm'
           : 'hover:bg-white/20 dark:hover:bg-white/10'"
@@ -343,7 +340,7 @@ function formatGrowTime(seconds: any) {
         </span>
       </button>
       <button
-        class="whitespace-nowrap rounded-[14px] border border-[var(--theme-border)] bg-[var(--theme-glass)] px-3.5 py-[7px] text-xs font-semibold text-[var(--theme-text)] backdrop-blur-[16px] transition-colors"
+        class="whitespace-nowrap border border-[var(--theme-border)] rounded-[14px] bg-[var(--theme-glass)] px-3.5 py-[7px] text-xs text-[var(--theme-text)] font-semibold backdrop-blur-[16px] transition-colors"
         :class="activeTab === 'blacklist'
           ? '!bg-[var(--theme-primary)] text-white shadow-sm'
           : 'hover:bg-white/20 dark:hover:bg-white/10'"
@@ -356,7 +353,7 @@ function formatGrowTime(seconds: any) {
         </span>
       </button>
       <button
-        class="whitespace-nowrap rounded-[14px] border border-[var(--theme-border)] bg-[var(--theme-glass)] px-3.5 py-[7px] text-xs font-semibold text-[var(--theme-text)] backdrop-blur-[16px] transition-colors"
+        class="whitespace-nowrap border border-[var(--theme-border)] rounded-[14px] bg-[var(--theme-glass)] px-3.5 py-[7px] text-xs text-[var(--theme-text)] font-semibold backdrop-blur-[16px] transition-colors"
         :class="activeTab === 'strategy'
           ? '!bg-[var(--theme-primary)] text-white shadow-sm'
           : 'hover:bg-white/20 dark:hover:bg-white/10'"

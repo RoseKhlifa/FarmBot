@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import api from '@/api'
-import { useAccountStore } from '@/stores/account'
+import { farmApi } from '@/api'
+import { isCurrentAccount } from '@/composables/useStaleGuard'
 
 export interface Land {
   id: number
@@ -28,26 +28,18 @@ export const useFarmStore = defineStore('farm', () => {
     summary.value = {}
   }
 
-  function isCurrentAccount(accountId: string) {
-    const accountStore = useAccountStore()
-    const currentId = String((accountStore.currentAccountId as { value?: string })?.value ?? accountStore.currentAccountId ?? '')
-    return currentId === String(accountId)
-  }
-
   async function fetchLands(accountId: string) {
     if (!accountId)
       return
     const requestedId = String(accountId)
     loading.value = true
     try {
-      const { data } = await api.get('/api/lands', {
-        headers: { 'x-account-id': accountId },
-      })
+      const { data } = await farmApi.getLands()
       if (!isCurrentAccount(requestedId))
         return
       if (data && data.ok) {
-        lands.value = data.data.lands || []
-        summary.value = data.data.summary || {}
+        lands.value = Array.isArray(data.data) ? data.data : (data.data?.lands || [])
+        summary.value = data.data?.summary || {}
       }
     }
     finally {
@@ -59,9 +51,7 @@ export const useFarmStore = defineStore('farm', () => {
     if (!accountId)
       return
     const requestedId = String(accountId)
-    const { data } = await api.get('/api/seeds', {
-      headers: { 'x-account-id': accountId },
-    })
+    const { data } = await farmApi.getSeeds()
     if (!isCurrentAccount(requestedId))
       return
     if (data && data.ok)
@@ -71,18 +61,14 @@ export const useFarmStore = defineStore('farm', () => {
   async function operate(accountId: string, opType: string) {
     if (!accountId)
       return
-    await api.post('/api/farm/operate', { opType }, {
-      headers: { 'x-account-id': accountId },
-    })
+    await farmApi.operate({ operation: opType })
     await fetchLands(accountId)
   }
 
   async function fertilizeLand(accountId: string, landId: number) {
     if (!accountId)
       return
-    const { data } = await api.post('/api/land/fertilize', { landId }, {
-      headers: { 'x-account-id': accountId },
-    })
+    const { data } = await farmApi.fertilize({ landIds: [landId], fertilizerId: 0 })
     await fetchLands(accountId)
     return data
   }
@@ -90,9 +76,7 @@ export const useFarmStore = defineStore('farm', () => {
   async function removePlant(accountId: string, landId: number) {
     if (!accountId)
       return
-    const { data } = await api.post('/api/land/remove', { landId }, {
-      headers: { 'x-account-id': accountId },
-    })
+    const { data } = await farmApi.removePlants({ landIds: [landId] })
     await fetchLands(accountId)
     return data
   }
@@ -100,9 +84,7 @@ export const useFarmStore = defineStore('farm', () => {
   async function removeAllPlants(accountId: string) {
     if (!accountId)
       return
-    const { data } = await api.post('/api/land/remove-all', {}, {
-      headers: { 'x-account-id': accountId },
-    })
+    const { data } = await farmApi.removeAllPlants()
     await fetchLands(accountId)
     return data
   }

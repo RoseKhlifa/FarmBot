@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/RoseKhlifa/FarmBot/internal/audit"
 	"github.com/RoseKhlifa/FarmBot/internal/domain/activity"
 	"github.com/RoseKhlifa/FarmBot/internal/domain/career"
 	"github.com/RoseKhlifa/FarmBot/internal/domain/farm"
@@ -24,6 +25,28 @@ import (
 )
 
 var ErrApplicationDependency = errors.New("application dependency is not configured")
+
+// HTTPError lets providers preserve the intended API status while keeping
+// the handler boundary independent from concrete provider implementations.
+type HTTPError struct {
+	Status int
+	Code   string
+	Err    error
+}
+
+func (e *HTTPError) Error() string {
+	if e == nil || e.Err == nil {
+		return ""
+	}
+	return e.Err.Error()
+}
+
+func (e *HTTPError) Unwrap() error {
+	if e == nil {
+		return nil
+	}
+	return e.Err
+}
 
 // DomainProviders is the only domain boundary used by handlers. The resolver
 // returns the account-local service, keeping Runtime maps out of HTTP code.
@@ -50,26 +73,32 @@ type AccountProvider interface {
 // Application is the handler-facing composition boundary. P6-05 can adapt
 // its concrete Application to this value without changing route handlers.
 type Application struct {
-	Domains  DomainProviders
-	Accounts AccountProvider
-	Cache    store.CacheRepo
-	Config   store.ConfigRepo
-	Users    store.UserRepo
-	Cards    store.CardRepo
-	Sessions *middleware.SessionManager
-	Auth     AuthProvider
-	Runtime  RuntimeProvider
-	Logs     LogProvider
-	Yyb      YybProvider
-	Public   PublicProvider
-	Capture  CaptureProvider
-	QR       QRProvider
-	Proxy    ProxyProvider
+	Domains       DomainProviders
+	Accounts      AccountProvider
+	Cache         store.CacheRepo
+	Config        store.ConfigRepo
+	Users         store.UserRepo
+	Cards         store.CardRepo
+	Sessions      *middleware.SessionManager
+	Auth          AuthProvider
+	Runtime       RuntimeProvider
+	Logs          LogProvider
+	Yyb           YybProvider
+	Public        PublicProvider
+	Capture       CaptureProvider
+	QR            QRProvider
+	Proxy         ProxyProvider
+	Audit         *audit.Repository
+	ExportAccount func(context.Context, string) ([]byte, error)
 }
 
 type AuthProvider interface {
-	Login(context.Context, string, string) (store.User, error)
+	Login(context.Context, string, string, string) (store.User, error)
 	Register(context.Context, string, string) (store.User, error)
+}
+
+type AdminUserUpdater interface {
+	UpdateAdminUser(context.Context, string, store.AdminUserPatch) (*store.User, error)
 }
 type RuntimeProvider interface {
 	Status(context.Context, string) (any, error)
@@ -98,6 +127,14 @@ type ProxyProvider interface {
 }
 
 type Handler struct{ App *Application }
+
+// BinaryResponse is returned by providers that proxy a binary download
+// (currently the capture-service CA certificate) instead of a JSON envelope.
+type BinaryResponse struct {
+	Data        []byte
+	ContentType string
+	Filename    string
+}
 
 func New(app *Application) *Handler { return &Handler{App: app} }
 
@@ -142,11 +179,89 @@ func writeError(c *gin.Context, err error) {
 	if err == nil {
 		return
 	}
-	c.JSON(http.StatusInternalServerError, gin.H{"ok": false, "error": err.Error()})
+	status := http.StatusInternalServerError
+	var httpErr *HTTPError
+	if errors.As(err, &httpErr) && httpErr != nil && httpErr.Status >= 400 && httpErr.Status <= 599 {
+		status = httpErr.Status
+	}
+	switch {
+	case status != http.StatusInternalServerError:
+		// Provider supplied an explicit API status.
+	case errors.Is(err, store.ErrRateLimited):
+		status = http.StatusTooManyRequests
+	case errors.Is(err, store.ErrUserLocked):
+		status = http.StatusLocked
+	case errors.Is(err, store.ErrUserExpired):
+		status = http.StatusForbidden
+	case errors.Is(err, store.ErrUserDisabled):
+		status = http.StatusForbidden
+	case errors.Is(err, store.ErrUserNotFound), errors.Is(err, store.ErrCardNotFound):
+		status = http.StatusNotFound
+	case errors.Is(err, store.ErrUserExists), errors.Is(err, store.ErrInvalidUsername), errors.Is(err, store.ErrInvalidPassword),
+		errors.Is(err, store.ErrCardExists), errors.Is(err, store.ErrCardUnavailable), errors.Is(err, store.ErrCardAlreadyBound), errors.Is(err, store.ErrInvalidCard):
+		status = http.StatusBadRequest
+	}
+	response := gin.H{"ok": false, "error": err.Error()}
+	if httpErr != nil && strings.TrimSpace(httpErr.Code) != "" {
+		response["code"] = strings.TrimSpace(httpErr.Code)
+	}
+	c.JSON(status, response)
 }
 func writeNotConfigured(c *gin.Context) {
 	c.JSON(http.StatusNotImplemented, gin.H{"ok": false, "error": ErrApplicationDependency.Error()})
 }
+
+// publicUser is the stable user shape consumed by the web client. store.User
+// intentionally contains password compatibility fields for persistence and
+// authentication; those fields must never cross the HTTP boundary.
+func publicUser(user store.User) gin.H {
+	return gin.H{
+		"username":           user.Username,
+		"role":               user.Role,
+		"card":               publicCard(user.CardJSON),
+		"accountLimit":       publicAccountLimit(user.AccountLimit),
+		"mustChangePassword": user.MustChangePassword,
+	}
+}
+
+func publicUsers(users []store.User) []gin.H {
+	result := make([]gin.H, 0, len(users))
+	for _, user := range users {
+		result = append(result, publicUser(user))
+	}
+	return result
+}
+
+func publicCard(raw string) any {
+	raw = strings.TrimSpace(raw)
+	if raw == "" || raw == "{}" || raw == "null" {
+		return nil
+	}
+	var card map[string]any
+	if err := json.Unmarshal([]byte(raw), &card); err != nil || len(card) == 0 {
+		return nil
+	}
+	return card
+}
+
+func publicAccountLimit(limit int) int {
+	if limit <= 0 {
+		return 2
+	}
+	return limit
+}
+
+func publicRenewal(user *store.User) gin.H {
+	if user == nil {
+		return gin.H{"card": nil, "accountLimit": 2, "cardType": "time"}
+	}
+	return gin.H{
+		"card":         publicCard(user.CardJSON),
+		"accountLimit": publicAccountLimit(user.AccountLimit),
+		"cardType":     "time",
+	}
+}
+
 func bindJSON(c *gin.Context, target any) bool {
 	if err := c.ShouldBindJSON(target); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": err.Error()})
@@ -174,3 +289,39 @@ func queryInt(c *gin.Context, name string, fallback int) int {
 // route has identical 400 semantics even when the middleware was omitted in
 // a focused test router.
 func RequireAccountAccess(c *gin.Context) (string, bool) { return accountID(c, true) }
+
+// requireAccountOwner protects path-based account mutations. The global
+// AccountAccess middleware validates the selected x-account-id header, but a
+// mutation also carries an account ID in its URL and must validate that exact
+// target.
+func (h *Handler) requireAccountOwner(c *gin.Context, id string) bool {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"ok": false, "error": "invalid account id"})
+		return false
+	}
+	user, ok := middleware.CurrentUser(c)
+	if !ok {
+		c.JSON(http.StatusUnauthorized, gin.H{"ok": false, "error": "Unauthorized"})
+		return false
+	}
+	if middleware.HasAdminRole(user.Role) {
+		return true
+	}
+	if h.app().Accounts == nil {
+		writeNotConfigured(c)
+		return false
+	}
+	accounts, err := h.app().Accounts.List(c.Request.Context())
+	if err != nil {
+		writeError(c, err)
+		return false
+	}
+	for _, account := range accounts {
+		if strings.TrimSpace(account.ID) == id && strings.EqualFold(strings.TrimSpace(account.OwnerUser), strings.TrimSpace(user.Username)) {
+			return true
+		}
+	}
+	c.JSON(http.StatusForbidden, gin.H{"ok": false, "error": "无权访问此账号"})
+	return false
+}

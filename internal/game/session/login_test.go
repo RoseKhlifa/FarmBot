@@ -103,7 +103,7 @@ func TestLoginCompletesHandshakeAndSupportsFriendOperation(t *testing.T) {
 			serverErrors <- err
 			return
 		}
-		defer connection.Close()
+		defer func() { _ = connection.Close() }()
 
 		for index := 0; index < 3; index++ {
 			_, frame, err := connection.ReadMessage()
@@ -237,7 +237,7 @@ func TestLoginFailureDestroysAccountRuntime(t *testing.T) {
 		if err != nil {
 			return
 		}
-		defer connection.Close()
+		defer func() { _ = connection.Close() }()
 		_, frame, err := connection.ReadMessage()
 		if err != nil {
 			return

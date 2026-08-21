@@ -103,6 +103,7 @@ type Service interface {
 	GetGuanxingActivity(context.Context) (GuanxingActivity, error)
 	ClaimGuanxingRewards(context.Context) (GuanxingClaimResult, error)
 	GetStarsandActivity(context.Context) (StarsandActivity, error)
+	ExchangeStarsandItem(context.Context, int64, int64) (HeluExchangeResult, error)
 }
 
 // Config wires account-local collaborators. RawTransport is optional when a
@@ -467,9 +468,13 @@ type GuanxingClaimResult struct {
 }
 
 type StarsandActivity struct {
-	ItemID int64
-	Title  string
-	Note   string
+	ItemID       int64
+	Title        string
+	Note         string
+	Balance      int64
+	ExchangeShop []ExchangeShopItem
+	Activity     HeluActivity
+	Available    bool
 }
 
 func maxDuration(value time.Duration) time.Duration {

@@ -1,6 +1,6 @@
 import { storeToRefs } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import api from '@/api'
+import { settingsApi, userApi } from '@/api'
 import { useSettingStore } from '@/stores/setting'
 import { useUserStore } from '@/stores/user'
 
@@ -224,7 +224,7 @@ export function useUserSettings(showAlert: (message: string, type?: AlertType) =
   async function fetchDeviceProtocol() {
     deviceProtocolLoading.value = true
     try {
-      const { data } = await api.get('/api/user/device-protocol')
+      const { data } = await userApi.getDeviceProtocol()
       if (data?.ok)
         applyDeviceProtocolConfig(data.config)
     }
@@ -248,7 +248,7 @@ export function useUserSettings(showAlert: (message: string, type?: AlertType) =
         deviceId: String(deviceProtocolForm.value.deviceId || '').trim(),
         imei: String(deviceProtocolForm.value.imei || '').trim(),
       }
-      const { data } = await api.post('/api/user/device-protocol', payload)
+      const { data } = await userApi.saveDeviceProtocol(payload)
       if (data?.ok) {
         applyDeviceProtocolConfig(data.config)
         showAlert('设备协议配置已保存', 'primary')
@@ -331,7 +331,7 @@ export function useUserSettings(showAlert: (message: string, type?: AlertType) =
   async function handleTestOffline() {
     offlineTesting.value = true
     try {
-      const { data } = await api.post('/api/settings/offline-reminder/test', localOffline.value)
+      const { data } = await settingsApi.testOfflineReminder(localOffline.value)
       if (data?.ok) {
         showAlert('测试消息发送成功', 'primary')
       }

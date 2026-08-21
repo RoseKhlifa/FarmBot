@@ -91,7 +91,8 @@ async function logout() {
 
 onMounted(() => {
   accountStore.fetchAccounts()
-  userStore.fetchUserInfo()
+  if (!userStore.userInfo)
+    userStore.fetchUserInfo()
   loadAnnouncements()
   pollHandle = window.setInterval(() => {
     loadAnnouncements()
@@ -220,10 +221,25 @@ watch(() => router.currentRoute.value.fullPath, () => {
       </div>
 
       <div class="px-3 py-4 pb-24 lg:px-14 md:px-10 md:py-8 sm:px-6 sm:py-6 md:pb-16">
-        <RouterView v-slot="{ Component }">
-          <Transition name="fade" mode="out-in">
-            <component :is="Component" />
-          </Transition>
+        <RouterView v-slot="{ Component, route: currentRoute }">
+          <Suspense timeout="0">
+            <template #default>
+              <Transition name="fade" mode="out-in">
+                <div :key="currentRoute.fullPath" class="route-view-shell">
+                  <component :is="Component" />
+                </div>
+              </Transition>
+            </template>
+            <template #fallback>
+              <div class="route-loading" role="status" aria-live="polite">
+                <span class="route-loading-mark i-carbon-renew" />
+                <div>
+                  <strong>正在打开页面</strong>
+                  <span>正在准备工作区资源</span>
+                </div>
+              </div>
+            </template>
+          </Suspense>
         </RouterView>
       </div>
 
@@ -305,5 +321,44 @@ watch(() => router.currentRoute.value.fullPath, () => {
 .fade-leave-to {
   opacity: 0;
   transform: translateY(4px);
+}
+.route-view-shell {
+  min-width: 0;
+}
+.route-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 280px;
+  border: 1px solid var(--surface-border);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--surface-1) 82%, transparent);
+  color: var(--muted-text);
+}
+.route-loading-mark {
+  color: var(--theme-primary);
+  font-size: 22px;
+  animation: route-loading-spin 0.9s linear infinite;
+}
+.route-loading strong,
+.route-loading span {
+  display: block;
+}
+.route-loading strong {
+  color: var(--theme-text);
+  font-size: 13px;
+}
+.route-loading div span {
+  margin-top: 3px;
+  font-size: 11px;
+}
+@keyframes route-loading-spin {
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .route-loading-mark {
+    animation: none;
+  }
 }
 </style>

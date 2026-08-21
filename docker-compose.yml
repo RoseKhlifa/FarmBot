@@ -1,52 +1,27 @@
 services:
-  qq-farm-bot:
+  farmbot:
     build:
       context: .
-      dockerfile: core/Dockerfile
-      args:
-        # 可选：yyb-go 为私有仓库时传入具备 read 权限的 token；公开仓库留空即可
-        - GITHUB_TOKEN=${GITHUB_TOKEN:-}
-    image: qq-farm-bot:latest
-    container_name: qq-farm-bot
+      dockerfile: Dockerfile
+    image: farmbot:latest
     restart: unless-stopped
     ports:
       - "${PORT:-3007}:3007"
     volumes:
-      - qq-farm-test-data:/app/core/data
-      - qq-farm-test-logs:/app/core/data/logs
-      # 应用宝 Go 服务的 SQLite 数据库持久化（跨容器重启保留已登录账号）
-      - qq-farm-test-yyb-db:/usr/local/share/yyb-go/resource/db
+      - farmbot-data:/app/data
     environment:
-      - TZ=${TZ:-Asia/Shanghai}
-      - NODE_ENV=production
-      - ADMIN_PORT=3007
-      # ===== 应用宝 Go 服务（同容器内，单镜像共用 3007 出口）=====
-      # Node 代理会把 /api/yyb/* 转发到下面的地址；无需在 Web 端再填外部地址
-      - YYB_API_URL=http://127.0.0.1:8450
-      # 该 token 同时作为：① Go 服务自身的 Bearer 鉴权（YYB_API_TOKEN）② Node 代理转发时携带的 apiKey（YYB_API_KEY）
-      - YYB_API_TOKEN=${YYB_API_TOKEN:-}
-      - YYB_API_KEY=${YYB_API_TOKEN:-}
-      - YYB_PORT=8450
-      # 可选：应用宝 Web 管理页登录账密（留空则由服务使用内置默认）
-      - YYB_ADMIN_USER=${YYB_ADMIN_USER:-}
-      - YYB_ADMIN_PASS=${YYB_ADMIN_PASS:-}
+      TZ: ${TZ:-Asia/Shanghai}
+      ADMIN_PORT: 3007
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      FARM_MASTER_KEY: ${FARM_MASTER_KEY:?FARM_MASTER_KEY must be set in .env or the shell}
+      FARM_LICENSE_ENABLED: ${FARM_LICENSE_ENABLED:-false}
+      FARM_DATA_DIR: /app/data
     healthcheck:
-      # /api/status 需要鉴权头，且容器内 localhost 解析到 ::1 而服务仅监听 IPv4，故用 127.0.0.1 探测根路径
-      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3007/"]
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:3007/api/health"]
       interval: 30s
-      timeout: 10s
+      timeout: 5s
       retries: 3
       start_period: 15s
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
 
 volumes:
-  qq-farm-test-data:
-    name: qq-farm-test-data
-  qq-farm-test-logs:
-    name: qq-farm-test-logs
-  qq-farm-test-yyb-db:
-    name: qq-farm-test-yyb-db
+  farmbot-data:

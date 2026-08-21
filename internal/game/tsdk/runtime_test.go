@@ -164,7 +164,7 @@ func TestRuntimeCreatesAccountDirectory(t *testing.T) {
 	if err := runtime.Init(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	defer runtime.Destroy()
+	defer func() { _ = runtime.Destroy() }()
 	if _, err := os.Stat(dir); err != nil {
 		t.Fatal(err)
 	}

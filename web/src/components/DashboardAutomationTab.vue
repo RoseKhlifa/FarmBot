@@ -20,7 +20,9 @@ onMounted(async () => {
   <div class="flex flex-col gap-3">
     <div v-if="settingsLoading" class="flex flex-col items-center gap-3 py-16 text-center">
       <div class="i-svg-spinners-90-ring-with-bg text-2xl" :style="{ color: 'var(--theme-primary)' }" />
-      <div class="text-sm" :style="{ color: 'var(--theme-text)', opacity: 0.4 }">加载设置...</div>
+      <div class="text-sm" :style="{ color: 'var(--theme-text)', opacity: 0.4 }">
+        加载设置...
+      </div>
     </div>
 
     <div v-else class="flex flex-col gap-3">
@@ -33,8 +35,10 @@ onMounted(async () => {
           backdropFilter: 'blur(16px)',
         }"
       >
-        <div class="flex items-center justify-between mb-4">
-          <div class="text-sm font-semibold" :style="{ color: 'var(--theme-text)' }">⚙️ 自动控制</div>
+        <div class="mb-4 flex items-center justify-between">
+          <div class="text-sm font-semibold" :style="{ color: 'var(--theme-text)' }">
+            ⚙️ 自动控制
+          </div>
           <span
             v-if="settings?.automation?.farm"
             class="rounded-full px-3 py-1 text-xs font-semibold"
@@ -47,25 +51,43 @@ onMounted(async () => {
           >已关闭</span>
         </div>
 
-        <div class="grid grid-cols-3 gap-3 mb-4">
+        <div class="grid grid-cols-3 mb-4 gap-3">
           <div class="rounded-xl p-3 text-center" :style="{ background: 'color-mix(in srgb, var(--theme-primary) 6%, transparent)' }">
-            <div class="text-xs font-semibold" :style="{ color: 'var(--theme-primary)' }">农场</div>
-            <div class="text-lg font-bold mt-1" :style="{ color: 'var(--theme-text)' }">{{ settings?.intervals?.farm || '-' }}</div>
-            <div class="text-[10px] mt-0.5" :style="{ color: 'color-mix(in srgb, var(--theme-text) 40%, transparent)' }">分钟</div>
+            <div class="text-xs font-semibold" :style="{ color: 'var(--theme-primary)' }">
+              农场
+            </div>
+            <div class="mt-1 text-lg font-bold" :style="{ color: 'var(--theme-text)' }">
+              {{ settings?.intervals?.farm || '-' }}
+            </div>
+            <div class="mt-0.5 text-[10px]" :style="{ color: 'color-mix(in srgb, var(--theme-text) 40%, transparent)' }">
+              分钟
+            </div>
           </div>
           <div class="rounded-xl p-3 text-center" style="background:color-mix(in srgb, #f59e0b 10%, transparent);">
-            <div class="text-xs font-semibold" style="color:#d97706">帮助</div>
-            <div class="text-lg font-bold mt-1" :style="{ color: 'var(--theme-text)' }">{{ settings?.intervals?.friend || '-' }}</div>
-            <div class="text-[10px] mt-0.5" :style="{ color: 'color-mix(in srgb, var(--theme-text) 40%, transparent)' }">分钟</div>
+            <div class="text-xs font-semibold" style="color:#d97706">
+              帮助
+            </div>
+            <div class="mt-1 text-lg font-bold" :style="{ color: 'var(--theme-text)' }">
+              {{ settings?.intervals?.friend || '-' }}
+            </div>
+            <div class="mt-0.5 text-[10px]" :style="{ color: 'color-mix(in srgb, var(--theme-text) 40%, transparent)' }">
+              分钟
+            </div>
           </div>
           <div class="rounded-xl p-3 text-center" style="background:color-mix(in srgb, #3b82f6 10%, transparent);">
-            <div class="text-xs font-semibold" style="color:#2563eb">偷菜</div>
-            <div class="text-lg font-bold mt-1" :style="{ color: 'var(--theme-text)' }">{{ settings?.intervals?.stealMin || '-' }}-{{ settings?.intervals?.stealMax || '-' }}</div>
-            <div class="text-[10px] mt-0.5" :style="{ color: 'color-mix(in srgb, var(--theme-text) 40%, transparent)' }">分钟</div>
+            <div class="text-xs font-semibold" style="color:#2563eb">
+              偷菜
+            </div>
+            <div class="mt-1 text-lg font-bold" :style="{ color: 'var(--theme-text)' }">
+              {{ settings?.intervals?.stealMin || '-' }}-{{ settings?.intervals?.stealMax || '-' }}
+            </div>
+            <div class="mt-0.5 text-[10px]" :style="{ color: 'color-mix(in srgb, var(--theme-text) 40%, transparent)' }">
+              分钟
+            </div>
           </div>
         </div>
 
-        <div class="flex flex-col gap-2" v-if="settings?.automation">
+        <div v-if="settings?.automation" class="flex flex-col gap-2">
           <div class="flex items-center justify-between rounded-xl px-3 py-2" :style="{ background: 'color-mix(in srgb, var(--theme-primary) 4%, transparent)' }">
             <span class="text-xs" :style="{ color: 'color-mix(in srgb, var(--theme-text) 60%, transparent)' }">自动好友帮助</span>
             <span class="text-xs font-semibold" :style="{ color: settings?.automation?.friend_help ? 'var(--theme-primary)' : 'color-mix(in srgb, var(--theme-text) 40%, transparent)' }">{{ settings?.automation?.friend_help ? '✅ 开启' : '❌ 关闭' }}</span>

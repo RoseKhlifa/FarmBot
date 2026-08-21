@@ -1,7 +1,8 @@
 import { defineStore } from 'pinia'
 import { computed, ref, watch } from 'vue'
-import api from '@/api'
+import { accountApi, bagApi, farmApi } from '@/api'
 import { useRealtime } from '@/composables/useRealtime'
+import { isCurrentAccount } from '@/composables/useStaleGuard'
 import { REALTIME_EVENTS } from '@/realtime/client'
 import { useAccountStore } from '@/stores/account'
 
@@ -37,10 +38,6 @@ export const useStatusStore = defineStore('status', () => {
   function getCurrentAccountId() {
     const accountStore = useAccountStore()
     return String((accountStore.currentAccountId as { value?: string })?.value ?? accountStore.currentAccountId ?? '')
-  }
-
-  function isCurrentAccount(accountId: string) {
-    return getCurrentAccountId() === String(accountId)
   }
 
   const currentStatusReady = computed(() => {
@@ -186,9 +183,7 @@ export const useStatusStore = defineStore('status', () => {
     const requestedId = String(accountId)
     loading.value = true
     try {
-      const { data } = await api.get('/api/status', {
-        headers: { 'x-account-id': accountId },
-      })
+      const { data } = await farmApi.getStatus()
       if (!isCurrentAccount(requestedId))
         return
       if (data.ok) {
@@ -197,7 +192,7 @@ export const useStatusStore = defineStore('status', () => {
         error.value = ''
       }
       else {
-        error.value = data.error
+        error.value = data.error || '获取状态失败'
       }
     }
     catch (e: any) {
@@ -213,16 +208,12 @@ export const useStatusStore = defineStore('status', () => {
       return
     const requestedId = String(accountId || options.accountId || '')
     const params: any = { limit: 100, ...options }
-    const headers: any = {}
-    if (accountId && accountId !== 'all') {
-      headers['x-account-id'] = accountId
-    }
-    else {
+    if (!accountId || accountId === 'all') {
       params.accountId = 'all'
     }
 
     try {
-      const { data } = await api.get('/api/logs', { headers, params })
+      const { data } = await accountApi.getLogs(params.limit as number, { params })
       if (requestedId && requestedId !== 'all' && !isCurrentAccount(requestedId))
         return
       if (data.ok) {
@@ -244,9 +235,7 @@ export const useStatusStore = defineStore('status', () => {
       return
     const requestedId = String(accountId)
     try {
-      const { data } = await api.get('/api/daily-gifts', {
-        headers: { 'x-account-id': accountId },
-      })
+      const { data } = await bagApi.getDailyGifts()
       if (!isCurrentAccount(requestedId))
         return
       if (data.ok) {
@@ -264,15 +253,15 @@ export const useStatusStore = defineStore('status', () => {
       const headers: Record<string, string> = {}
       if (requestedId)
         headers['x-account-id'] = requestedId
-      const res = await api.get(`/api/account-logs?limit=${Math.max(1, Number(limit) || 100)}`, { headers })
-      if (Array.isArray(res.data)) {
+      const res = await accountApi.getAccountLogs(Math.max(1, Number(limit) || 100))
+      if (res.data.ok && Array.isArray(res.data.data)) {
         if (requestedId && !isCurrentAccount(requestedId))
           return
         accountLogs.value = requestedId
-          ? res.data
+          ? res.data.data
               .filter((item: any) => String(item?.accountId || item?.id || '') === requestedId)
               .filter((item: any) => !shouldHideLogEntryInFrontend(item))
-          : res.data.filter((item: any) => !shouldHideLogEntryInFrontend(item))
+          : res.data.data.filter((item: any) => !shouldHideLogEntryInFrontend(item))
       }
     }
     catch (e) {

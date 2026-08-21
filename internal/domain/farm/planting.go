@@ -308,7 +308,7 @@ func SortBagSeedsForPlanting(seeds []Seed, priority []int64) []Seed {
 func SelectSeed(candidates []Seed, config PlantingConfig, analytics *Analytics) (Seed, bool) {
 	available := make([]Seed, 0, len(candidates))
 	for _, candidate := range candidates {
-		if candidate.SeedID <= 0 || candidate.Count < 0 || (candidate.RequiredLevel > 0 && candidate.RequiredLevel > config.UserLevel) || candidate.Unlocked == false && candidate.GoodsID > 0 {
+		if candidate.SeedID <= 0 || candidate.Count < 0 || (candidate.RequiredLevel > 0 && candidate.RequiredLevel > config.UserLevel) || !candidate.Unlocked && candidate.GoodsID > 0 {
 			continue
 		}
 		if candidate.PlantSize <= 0 {

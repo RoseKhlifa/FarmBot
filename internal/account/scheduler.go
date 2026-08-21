@@ -207,7 +207,7 @@ func (s *scheduler) Every(name string, interval, jitter time.Duration, fn any) e
 	s.ensureLocked()
 	var startTasks []*scheduledTask
 	if s.ctx == nil && s.autoStart {
-		startTasks = s.startLocked(nil)
+		startTasks = s.startLocked(context.Background())
 	}
 	if old := s.tasks[key]; old != nil {
 		if old.cancel != nil {

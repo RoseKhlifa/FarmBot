@@ -18,6 +18,8 @@ func (h *Handler) RegisterActivity(r gin.IRouter) {
 	r.POST("/api/activity/qingmei/wine/sell", h.qingmeiWine)
 	r.GET("/api/activity/guanxing", h.guanxing)
 	r.POST("/api/activity/guanxing/claim", h.guanxingClaim)
+	r.GET("/api/activity/starsand", h.starsand)
+	r.POST("/api/activity/starsand/exchange", h.starsandExchange)
 	r.GET("/api/activity/shop", h.activityShop)
 	r.POST("/api/activity/shop/buy", h.activityShopBuy)
 	r.POST("/api/activity/shop/refresh", h.activityShopRefresh)
@@ -171,6 +173,41 @@ func (h *Handler) guanxingClaim(c *gin.Context) {
 		return
 	}
 	data, err := service.ClaimGuanxingRewards(c.Request.Context())
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	writeOK(c, data)
+}
+func (h *Handler) starsand(c *gin.Context) {
+	service, ok := h.activityService(c)
+	if !ok {
+		return
+	}
+	data, err := service.GetStarsandActivity(c.Request.Context())
+	if err != nil {
+		writeError(c, err)
+		return
+	}
+	writeOK(c, data)
+}
+func (h *Handler) starsandExchange(c *gin.Context) {
+	service, ok := h.activityService(c)
+	if !ok {
+		return
+	}
+	var body struct {
+		SlotID  int64 `json:"slotId"`
+		GoodsID int64 `json:"goodsId"`
+		Count   int64 `json:"count"`
+	}
+	if !bindJSON(c, &body) {
+		return
+	}
+	if body.SlotID <= 0 {
+		body.SlotID = body.GoodsID
+	}
+	data, err := service.ExchangeStarsandItem(c.Request.Context(), body.SlotID, body.Count)
 	if err != nil {
 		writeError(c, err)
 		return

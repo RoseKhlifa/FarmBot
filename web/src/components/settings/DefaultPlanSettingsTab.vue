@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref, watchEffect } from 'vue'
-import api from '@/api'
+import { settingsApi } from '@/api'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import AutomationSettingsTab from '@/components/settings/AutomationSettingsTab.vue'
 import StrategySettingsTab from '@/components/settings/StrategySettingsTab.vue'
@@ -189,7 +189,7 @@ function buildConfig() {
 async function fetchPlan() {
   loading.value = true
   try {
-    const { data } = await api.get('/api/settings/default-plan')
+    const { data } = await settingsApi.getDefaultPlan()
     if (data?.ok)
       applyPlan(data.data)
   }
@@ -204,7 +204,7 @@ async function fetchPlan() {
 async function savePlan() {
   saving.value = true
   try {
-    const { data } = await api.put('/api/settings/default-plan', {
+    const { data } = await settingsApi.saveDefaultPlan({
       enabled: enabled.value,
       config: buildConfig(),
     })
@@ -226,9 +226,7 @@ async function importCurrentAccount() {
     return
   importing.value = true
   try {
-    const { data } = await api.post('/api/settings/default-plan/import', {}, {
-      headers: { 'x-account-id': String(props.currentAccountId) },
-    })
+    const { data } = await settingsApi.importDefaultPlan()
     if (!data?.ok)
       throw new Error(data?.error || '导入失败')
     applyPlan(data.data)
@@ -245,7 +243,7 @@ async function importCurrentAccount() {
 async function resetPlan() {
   resetting.value = true
   try {
-    const { data } = await api.post('/api/settings/default-plan/reset')
+    const { data } = await settingsApi.resetDefaultPlan()
     if (!data?.ok)
       throw new Error(data?.error || '恢复失败')
     applyPlan(data.data)
@@ -312,7 +310,7 @@ watchEffect(() => {
     <div class="flex flex-col gap-3 border-b border-gray-200 pb-4 lg:flex-row lg:items-center lg:justify-between dark:border-gray-700">
       <div class="min-w-0">
         <div class="flex flex-wrap items-center gap-3">
-          <h3 class="flex items-center gap-2 text-lg text-gray-900 font-bold dark:text-gray-100 max-sm:text-base">
+          <h3 class="flex items-center gap-2 text-lg text-gray-900 font-bold max-sm:text-base dark:text-gray-100">
             <span class="i-carbon-settings-adjust" />
             默认方案
           </h3>

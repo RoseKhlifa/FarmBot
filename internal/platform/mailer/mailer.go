@@ -125,7 +125,7 @@ func SendSMTPEmail(ctx context.Context, config Config, message Message) (Result,
 	if err != nil {
 		return Result{}, fmt.Errorf("connect SMTP server: %w", err)
 	}
-	defer connection.Close()
+	defer func() { _ = connection.Close() }()
 	_ = connection.SetDeadline(time.Now().Add(timeout))
 
 	var client *smtp.Client
@@ -142,7 +142,7 @@ func SendSMTPEmail(ctx context.Context, config Config, message Message) (Result,
 	if err != nil {
 		return Result{}, fmt.Errorf("initialize SMTP client: %w", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	if ok, _ := client.Extension("STARTTLS"); ok && port != 465 {
 		if err := client.StartTLS(cloneTLSConfig(config.TLSConfig, host)); err != nil {

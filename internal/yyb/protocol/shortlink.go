@@ -101,7 +101,7 @@ func send0RTTRaw(ctx context.Context, target Target, entry pskEntry, recvKey, en
 	if err != nil {
 		return nil, nil, err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	if timeout > 0 {
 		_ = conn.SetDeadline(time.Now().Add(timeout))
 	}
@@ -138,6 +138,7 @@ func parse0RTTResponse(rbody, psk, pskCH, type8, recvKey []byte) ([]byte, []byte
 	if sh == nil || appdata == nil {
 		return nil, nil, fmt.Errorf("response missing ServerHello/AppData")
 	}
+	_ = encHS
 	candidates := [][]byte{
 		bytes.Join([][]byte{pskCH, sh}, nil),
 		bytes.Join([][]byte{pskCH, type8, sh}, nil),

@@ -98,3 +98,55 @@
   Enter、PutWeeds、PutInsects、Farming，说明持续有效依赖 ACE 状态而非固定 Token。
 - `core` 定向 ESLint 通过，6 个离线测试通过；仍需使用测试账号完成至少 5 分钟
   在线好友操作验证后才能确认服务端链路完全恢复。
+
+## 2026-08-19 Go 模块化迁移接力
+
+- P3-02 已完成：yyb 的 `wechat_accounts`、`sessions`、`features` 通过 `0002_wechat.sql` 并入主 SQLite；`internal/yyb.DB` 现在只是共享主库门面，删除微信账号时同步清理会话和 `accounts.yyb_openid` 关联，不再创建独立 yyb 数据库。
+- P1-05 已完成：新增 `--import-json <dir>`、`--conflict skip|overwrite`、`--data-dir` 导入命令，支持账号/配置/用户/卡密/登录记录/统计/好友缓存等旧 JSON 数据；导入只读源文件并输出计数。
+- P5-08 已完成：新增单机 license 校验与机器码、SMTP mailer、HTTP pusher 基础包，保留旧 license 算法和默认关闭策略。
+- P3-03 已完成：新增 `internal/yyb/service.go` 同进程 yyb 门面，覆盖 QR 创建/轮询/确认、账号管理、login_buffer 刷新和 wxapp 操作；协议池改为依赖独立 `internal/yyb/model` + 存储接口，避免包循环。
+- 当前验证：`go test ./...`、`go vet ./...`、`go test -race ./internal/store ./internal/yyb` 通过。尚未做真实微信扫码和线上 wxapp 对拍，需在 P4 账号运行时联调时验证。
+
+## 2026-08-20 W0-W12 收口
+
+- W0-W12 的代码任务卡已全部完成：基础工程/配置/日志、SQLite 迁移与 repositories、JSON 导入、protobuf/TSDK/ACE/WS/登录会话、YYB 收编、账号 Runtime/调度/循环、warehouse/farm/friend/mall/task/activity/light domains、Gin/鉴权/账号访问/实时 Hub/领域 handlers，以及 W12 的前端 realtime/API 分域与账号头单源。
+- 星砂不再是 stub，已接入 activity 服务与 HTTP 兑换路由；shop seed/pet/decoration/mystery、daily gifts、账号/密码/卡密/系统管理等原 501/假实现路径已改为真实 provider/domain 调用。
+- 化肥 `/api/fertilizer/buy` 与 `/api/fertilizer/check-and-buy` 已改为调用 mall 域的真实购买/阈值检查接口，前端可获得实际购买数量。
+- 前端已通过 `vue-tsc`、Vite build、全量 ESLint；Go 已通过 `go test ./...`、`go test ./... -race`、`go vet ./...`、`make lint`、`make build`、`make gen-proto`、`make test`。`make gen-proto` 在未安装 protoc 时校验 22 个已提交绑定。
+- 真机登录、真实网关/微信扫码、长时间 ACE 稳定性尚未执行，按当前阶段要求留给后续联调；代码与离线测试闭环不依赖这些外部条件。
+
+## 2026-08-20 P6-05 / P8-06 收口
+
+- P6-05 已完成：`internal/app/application.go` 与 `internal/app/wire.go` 作为唯一 Go 组合根，集中持有数据库、repositories、YYB、sessions、runtime manager、realtime、metrics 与 HTTP server；`cmd/farmbot/main.go` 仅负责加载配置、创建 Application、运行和接收信号后关闭。
+- P6-05 生命周期已补组合根测试：覆盖依赖装配、健康检查监听、上下文取消优雅退出、关闭幂等和关闭后拒绝重启；关闭顺序为 HTTP → runtime/realtime/session → SQLite。
+- P8-06 已完成主题单点：`main.ts` 只初始化 Pinia/App store 并触发同步，`App.vue` 不再重复读取或应用主题，主题变量与 `.dark` 只由 `stores/app.ts` 维护。
+- P8-06 已完成设置默认值单源：`stores/setting.ts` 使用 `createDefaultSettings()` 同时服务初始化和清理，嵌套配置每次生成独立对象。
+- P8-06 已完成后台职责拆分：新增 `stores/admin.ts`，用户认证/续费保留在 `stores/user.ts`，后台用户、日志、卡密 CRUD 及领取开关统一由 admin store 提供，后台 composables 不再直接调用对应 API。
+- P8-06 已完成陈旧账号守卫复用：新增 `composables/useStaleGuard.ts`，farm/activity/illustrated/friend/plant-blacklist/shop/status/setting 统一使用 `isCurrentAccount`。
+- P8-06 已收窄关键边界：AccountModal 编辑数据、第三方/YYB 账号、好友/土地/访客接口、后台卡密组件改为明确类型；卡密格式化移至 `utils/card-format.ts`，避免认证 store 承担后台类型与格式化职责。
+- 本轮验证通过：`go build ./...`、`go test ./...`、`go test ./... -race`、`go vet ./...`、`pnpm exec vue-tsc --noEmit`、`pnpm exec eslint "src/**/*.{ts,vue}"`、`pnpm build`。前端构建仍只有已知 UnoCSS 图标缺失与 Google Fonts 网络超时提示，退出码为 0；未执行真机测试。
+
+## 2026-08-20 P7-04 收口
+
+- 已删除旧 Node 后端目录 `core/` 和独立 `yyb-go/`；运行时用户数据目录不在删除范围内。
+- 根 `package.json`、`pnpm-workspace.yaml`、锁文件、Vite 配置和 Makefile 已切换为 Go 单体 + `web` workspace；旧 YYB 外部进程环境变量和启动代理逻辑已移除，YYB 由 Go 进程内置提供。
+- 已重写 `README.md`、`start.sh`、`start.bat`、`server-deploy.sh`，补齐源码运行、Docker 部署、备份/导入/导出、健康检查和数据目录说明；新增 `internal/tools/syncassets`，确保发布前端资源同步到嵌入目录。
+- 已建立回退锚点 tag：`p7-04-pre-node-removal-20260820`。
+- `make release` 已成功生成 Windows、Linux、darwin-amd64、darwin-arm64 四个平台产物；源码与发布二进制的 `/api/health`、`/api/ready` 冒烟检查通过。
+- 验证通过：`go build ./...`、`go test ./...`、`go test ./... -race`、`go vet ./...`、`git diff --check`、前端 `vue-tsc`、ESLint、Vite build、`make build-web`、`make release`。Docker 因当前环境未安装未实测，真机测试按要求暂不执行。
+- 发布前端构建期间恢复了工作区原有的 `web/src/layouts/DefaultLayout.vue`，当前内容已通过类型检查和构建；后续如继续调整布局，需以该文件为基准核对未提交差异。
+
+## 2026-08-20 全面功能测试前置修复
+
+- 初始管理员创建已接入 `ADMIN_PASSWORD`：仅首次创建时使用，已有管理员密码不会被每次启动覆盖；新增了 HTTP 登录闭环测试。
+- 应用组合根现在强制要求有效 `FARM_MASTER_KEY`，缺失或非法时拒绝启动；YYB 安全测试不再继承宿主密钥，`go test` 在无密钥和有密钥两套环境均通过。
+
+## 2026-08-20 功能逻辑与登录闭环复核
+
+- 修复 Go 登录响应契约：只返回 `username/role/card/accountLimit/token`，不再泄露 `Password/PwdHash/Salt`；`/api/user/me`、注册、续费、后台用户列表和批量续费统一返回安全的前端字段；认证现在传递真实客户端 IP，恢复 IP 限流和 `429/423/403` 登录错误状态。
+- 修复公开路由白名单漏项：`/api/register` 和 `/api/card/info/:code` 不再被 `AuthGate` 错误拦截；公共续费改为真正读取 `username/cardCode`，登录续费兼容前端 `cardCode` 字段。
+- 修复后台用户编辑实际不落库的问题：新增事务性管理员更新，支持改用户名、密码、额度、有效期、永久卡、封禁/解封，并同步卡片 JSON、登录状态和会话失效；禁止删除当前登录管理员。
+- 为账号和卡密 HTTP 模型补齐 lower-camel JSON 字段，避免接口 200 但前端读取不到 `id/running/code/enabled`。
+- 新增登录响应、公开路由、管理员更新和封禁登录回归测试；本轮实际启动实例验证 `/api/health`、`/api/ready`、管理员登录、注册、封禁返回 403、账号/卡密列表及重命名改密登录。
+- 已修复后端 `errcheck` 问题，更新 `.dockerignore`/`.gitignore` 的旧 `core` 路径，compose 和启动脚本补充密钥要求，新增 `.env.example`。
+- 发布二进制实测：health/ready 正常，自定义管理员密码登录 200，默认 `admin` 密码在配置覆盖后返回 401；临时数据库和进程已清理。

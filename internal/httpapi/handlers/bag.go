@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"errors"
+
 	"github.com/RoseKhlifa/FarmBot/internal/domain/warehouse"
 	"github.com/gin-gonic/gin"
 )
@@ -102,4 +104,23 @@ func (h *Handler) bagSeeds(c *gin.Context) {
 	}
 	writeOK(c, seeds)
 }
-func (h *Handler) dailyGifts(c *gin.Context) { writeNotConfigured(c) }
+func (h *Handler) dailyGifts(c *gin.Context) {
+	id, ok := accountID(c, true)
+	if !ok {
+		return
+	}
+	domains, resolved := resolve(c, h.app().Domains.Mall, id)
+	if !resolved {
+		return
+	}
+	if domains == nil {
+		writeError(c, errors.New("mall domains are not initialized"))
+		return
+	}
+	result := gin.H{
+		"fertilizer": domains.FreeGiftDailyState(),
+		"monthCard":  domains.MonthCard.DailyState(),
+		"qqVip":      domains.QQVIP.DailyState(),
+	}
+	writeOK(c, result)
+}

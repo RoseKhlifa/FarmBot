@@ -63,7 +63,7 @@ func requestNewDNS(ctx context.Context, connectTo string, timeout time.Duration)
 	if err != nil {
 		return 0, nil, "", err
 	}
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 	if timeout > 0 {
 		_ = conn.SetDeadline(time.Now().Add(timeout))
 	}

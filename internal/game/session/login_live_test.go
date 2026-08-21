@@ -40,7 +40,7 @@ func TestLiveLoginGate(t *testing.T) {
 	if err != nil {
 		t.Fatalf("real login handshake: %v", err)
 	}
-	defer gameSession.Close()
+	defer func() { _ = gameSession.Close() }()
 	if !gameSession.Online() || gameSession.OpenID == "" || gameSession.GID == 0 {
 		t.Fatalf("invalid online identity: openid=%q gid=%d online=%v", gameSession.OpenID, gameSession.GID, gameSession.Online())
 	}

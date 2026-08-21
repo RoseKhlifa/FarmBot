@@ -39,9 +39,9 @@ const manualKey = ref('')
 
 // ------------ 解析逻辑 ------------
 const HEX32_RE = /(?<![0-9a-f])[0-9a-f]{32}(?![0-9a-f])/i
-const INVITE_RE = /[A-Za-z0-9+/=]{40,}/
+const INVITE_RE = /[A-Z0-9+/=]{40,}/i
 
-interface TokenInfo { token: string; kind: 'invite' | 'sharekey' | 'none' }
+interface TokenInfo { token: string, kind: 'invite' | 'sharekey' | 'none' }
 
 function extractGid(line: string): number {
   // 优先 uid= / gid= 参数
@@ -71,7 +71,7 @@ function extractToken(line: string): TokenInfo {
 
 // 抽取卡主 openid（分享卡路径 ReportArkClick 必需）
 function extractOpenId(line: string): string {
-  const m = line.match(/openid=([A-Za-z0-9_\-]+)/i)
+  const m = line.match(/openid=([\w\-]+)/i)
   return m ? (m[1] ?? '') : ''
 }
 
@@ -159,7 +159,7 @@ async function onImportFile(e: Event) {
     // 支持 JSON 格式：[{gid, share_key}] 或 {"gid":..,"share_key":..}
     if (trimmed.startsWith('[') || trimmed.startsWith('{')) {
       const arr = trimmed.startsWith('[') ? JSON.parse(trimmed) : [JSON.parse(trimmed)]
-      const lines = (arr as any[])
+      const lines = (arr as Array<Record<string, unknown>>)
         .filter(o => o && o.gid && o.share_key)
         .map(o => `uid=${o.gid}${o.openid ? `&openid=${o.openid}` : ''}&share_key=${o.share_key}`)
       if (lines.length === 0) {
@@ -172,7 +172,7 @@ async function onImportFile(e: Event) {
     parseInput()
   }
   catch (err: any) {
-    toast.error('文件读取或解析失败：' + (err?.message || err))
+    toast.error(`文件读取或解析失败：${err?.message || err}`)
   }
   finally {
     input.value = '' // 允许重复选择同一文件
@@ -432,7 +432,9 @@ function cancelSending() {
 
 async function retryFailed() {
   const targets = rows.value.filter(r => r.status === 'failed')
-  targets.forEach((r) => { r.selected = true })
+  targets.forEach((r) => {
+    r.selected = true
+  })
   await sendSelected()
 }
 
@@ -452,12 +454,12 @@ function statusBadgeClass(row: TargetRow) {
 <template>
   <div class="space-y-4">
     <!-- 说明 -->
-    <div class="rounded-lg bg-blue-50 p-3 text-sm text-blue-800 dark:bg-blue-900/20 dark:text-blue-200 sm:p-4">
+    <div class="rounded-lg bg-blue-50 p-3 text-sm text-blue-800 dark:bg-blue-900/20 sm:p-4 dark:text-blue-200">
       <div class="mb-1 flex items-center gap-2 font-medium">
         <div class="i-carbon-information" />
         主动加好友说明
       </div>
-      <ul class="list-disc pl-5 space-y-1 text-blue-700/90 dark:text-blue-200/80">
+      <ul class="list-disc pl-5 text-blue-700/90 space-y-1 dark:text-blue-200/80">
         <li>粘贴<b>分享卡片数据</b>（<code>uid=...&openid=...&share_key=...</code>）——走 <b>ReportArkClick</b> 直接发申请，<b>无需进农场、天然绕过拜访开关 1002007</b>（已验证）。</li>
         <li>每条必须含 <code>gid(uid)</code> + <code>openid</code> + <code>share_key</code>(32位hex) 三者，缺一不可；支持一行一条或整段粘贴，或「导入文件」选 <code>share_cards.txt/.json</code>。</li>
         <li>凭证有<b>时效</b>，请使用<b>新鲜</b>卡片；过期会返回「凭证已过期」。</li>
@@ -467,7 +469,7 @@ function statusBadgeClass(row: TargetRow) {
     <!-- 账号在线提示 -->
     <div
       v-if="!accountRunning"
-      class="flex items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-900/20 dark:text-amber-300 sm:p-4"
+      class="flex items-center gap-2 rounded-lg bg-amber-50 p-3 text-sm text-amber-700 dark:bg-amber-900/20 sm:p-4 dark:text-amber-300"
     >
       <div class="i-carbon-warning-alt" />
       当前账号未在线，发送前请先到「账号」页启动该账号。
@@ -486,7 +488,7 @@ function statusBadgeClass(row: TargetRow) {
       />
       <div class="mt-3 flex flex-wrap items-center gap-2">
         <button
-          class="w-full rounded-lg px-4 py-2 text-sm text-white transition disabled:opacity-50 sm:w-auto"
+          class="w-full rounded-lg px-4 py-2 text-sm text-white transition sm:w-auto disabled:opacity-50"
           :style="{ backgroundColor: 'var(--theme-primary)' }"
           :disabled="!rawInput.trim()"
           @click="parseInput"
@@ -495,7 +497,7 @@ function statusBadgeClass(row: TargetRow) {
           解析
         </button>
         <button
-          class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-600 transition dark:border-gray-600 dark:bg-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-600 sm:w-auto"
+          class="w-full border border-gray-300 rounded-lg bg-white px-4 py-2 text-sm text-gray-600 transition sm:w-auto dark:border-gray-600 dark:bg-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-600"
           @click="triggerImport"
         >
           <div class="i-carbon-document-import mr-1 inline-block align-text-bottom" />
@@ -509,7 +511,7 @@ function statusBadgeClass(row: TargetRow) {
           @change="onImportFile"
         >
         <button
-          class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-600 transition dark:border-gray-600 dark:bg-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-600 sm:w-auto"
+          class="w-full border border-gray-300 rounded-lg bg-white px-4 py-2 text-sm text-gray-600 transition sm:w-auto dark:border-gray-600 dark:bg-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-600"
           @click="rawInput = ''"
         >
           清空输入框
@@ -528,16 +530,16 @@ function statusBadgeClass(row: TargetRow) {
           type="text"
           inputmode="numeric"
           placeholder="目标 gid"
-          class="w-full border border-gray-300 rounded-lg bg-white px-3 py-2 text-sm dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 sm:w-40"
+          class="w-full border border-gray-300 rounded-lg bg-white px-3 py-2 text-sm sm:w-40 dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
         <input
           v-model="manualKey"
           type="text"
           placeholder="分享卡数据 uid&openid&share_key（可整段粘贴）"
-          class="w-full min-w-0 flex-1 border border-gray-300 rounded-lg bg-white px-3 py-2 text-sm font-mono dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 sm:min-w-64"
+          class="min-w-0 w-full flex-1 border border-gray-300 rounded-lg bg-white px-3 py-2 text-sm font-mono sm:min-w-64 dark:border-gray-600 focus:border-blue-500 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500"
         >
         <button
-          class="w-full rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm text-gray-700 transition dark:border-gray-600 dark:bg-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-600 sm:w-auto"
+          class="w-full border border-gray-300 rounded-lg bg-white px-4 py-2 text-sm text-gray-700 transition sm:w-auto dark:border-gray-600 dark:bg-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-600"
           @click="addManual"
         >
           添加到列表
@@ -547,9 +549,9 @@ function statusBadgeClass(row: TargetRow) {
 
     <!-- 目标列表 -->
     <div class="rounded-lg bg-white shadow dark:bg-gray-800">
-      <div class="flex flex-col gap-3 border-b border-gray-200 p-3 dark:border-gray-700 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 sm:p-4">
+      <div class="flex flex-col gap-3 border-b border-gray-200 p-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 dark:border-gray-700 sm:p-4">
         <label class="flex cursor-pointer items-center gap-2 text-sm text-gray-700 dark:text-gray-200">
-          <input v-model="allSelected" type="checkbox" class="h-4 w-4 rounded border-gray-300">
+          <input v-model="allSelected" type="checkbox" class="h-4 w-4 border-gray-300 rounded">
           全选
         </label>
         <div class="text-sm text-gray-500 dark:text-gray-400">
@@ -572,13 +574,13 @@ function statusBadgeClass(row: TargetRow) {
         </div>
         <button
           v-if="failedCount > 0 && !sending"
-          class="w-full rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-700 transition dark:bg-amber-900/30 hover:bg-amber-200 dark:text-amber-300 sm:w-auto"
+          class="w-full rounded-lg bg-amber-100 px-3 py-2 text-sm text-amber-700 transition sm:w-auto dark:bg-amber-900/30 hover:bg-amber-200 dark:text-amber-300"
           @click="retryFailed"
         >
           重试失败 ({{ failedCount }})
         </button>
         <button
-          class="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-gray-600 transition dark:border-gray-600 dark:bg-gray-700 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-600 disabled:opacity-50 sm:w-auto"
+          class="w-full border border-gray-300 rounded-lg bg-white px-3 py-2 text-sm text-gray-600 transition sm:w-auto dark:border-gray-600 dark:bg-gray-700 hover:bg-gray-50 dark:text-gray-300 disabled:opacity-50 dark:hover:bg-gray-600"
           :disabled="rows.length === 0 || sending"
           @click="clearAll"
         >
@@ -586,7 +588,7 @@ function statusBadgeClass(row: TargetRow) {
         </button>
         <button
           v-if="!sending"
-          class="w-full rounded-lg px-4 py-2 text-sm text-white transition disabled:opacity-50 sm:w-auto"
+          class="w-full rounded-lg px-4 py-2 text-sm text-white transition sm:w-auto disabled:opacity-50"
           :style="{ backgroundColor: 'var(--theme-primary)' }"
           :disabled="selectedCount === 0 || sending || !accountRunning"
           @click="sendSelected"
@@ -596,7 +598,7 @@ function statusBadgeClass(row: TargetRow) {
         </button>
         <button
           v-else
-          class="w-full rounded-lg bg-red-600 px-4 py-2 text-sm text-white transition hover:bg-red-500 sm:w-auto"
+          class="w-full rounded-lg bg-red-600 px-4 py-2 text-sm text-white transition sm:w-auto hover:bg-red-500"
           @click="cancelSending"
         >
           <div class="i-carbon-close mr-1 inline-block align-text-bottom" />
@@ -620,20 +622,20 @@ function statusBadgeClass(row: TargetRow) {
           <input
             v-model="row.selected"
             type="checkbox"
-            class="mt-1 h-4 w-4 shrink-0 rounded border-gray-300 sm:mt-0"
+            class="mt-1 h-4 w-4 shrink-0 border-gray-300 rounded sm:mt-0"
             :disabled="sending"
           >
           <div class="min-w-0 flex-1">
             <div class="flex items-baseline gap-2">
-              <span class="text-sm font-mono font-medium text-gray-800 dark:text-gray-100">
+              <span class="text-sm text-gray-800 font-medium font-mono dark:text-gray-100">
                 {{ row.gid || '—' }}
               </span>
               <span class="text-xs text-gray-400">GID</span>
             </div>
-            <div class="truncate text-sm font-mono text-gray-600 dark:text-gray-300">
+            <div class="truncate text-sm text-gray-600 font-mono dark:text-gray-300">
               {{ maskKey(row.key) }}
             </div>
-            <div v-if="row.openid" class="truncate text-xs font-mono text-gray-400">
+            <div v-if="row.openid" class="truncate text-xs text-gray-400 font-mono">
               openid={{ row.openid }}
             </div>
             <div class="mt-0.5 flex items-center gap-1 text-xs">
@@ -678,7 +680,7 @@ function statusBadgeClass(row: TargetRow) {
             <span v-else class="text-xs text-gray-400">待发送</span>
           </div>
           <button
-            class="shrink-0 rounded p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-red-500 dark:hover:bg-gray-700 disabled:opacity-40"
+            class="shrink-0 rounded p-1.5 text-gray-400 transition hover:bg-gray-100 hover:text-red-500 disabled:opacity-40 dark:hover:bg-gray-700"
             :disabled="sending"
             @click="removeRow(row.id)"
           >

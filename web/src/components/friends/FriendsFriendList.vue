@@ -1,35 +1,36 @@
 <script setup lang="ts">
+import type { Friend, FriendLand } from '@/stores/friend'
 import LandCard from '@/components/LandCard.vue'
 
 type FriendActionType = 'steal' | 'water' | 'weed' | 'bug' | 'bad'
 
 const props = defineProps<{
-  friends: any[]
+  friends: Friend[]
   totalFriends: number
   totalPages: number
   pageSize: number
   blacklistGidSet: Set<number>
   knownFriendGidSet: Set<number>
   expandedFriends: Set<string>
-  friendLands: Record<string, any[]>
+  friendLands: Record<string, FriendLand[]>
   friendLandsLoading: Record<string, boolean>
   isQqAccount: boolean
-  canShowFriendAvatar: (friend: any) => boolean
-  getFriendAvatar: (friend: any) => string
-  getFriendLevel: (friend: any) => number
-  getFriendGold: (friend: any) => number
+  canShowFriendAvatar: (friend: Friend) => boolean
+  getFriendAvatar: (friend: Friend) => string
+  getFriendLevel: (friend: Friend) => number
+  getFriendGold: (friend: Friend) => number
   formatFriendGold: (value: unknown) => string
-  getFriendStatusText: (friend: any) => string
-  getFriendStatusHint: (friend: any) => string
+  getFriendStatusText: (friend: Friend) => string
+  getFriendStatusHint: (friend: Friend) => string
 }>()
 
 const emit = defineEmits<{
   (e: 'toggleFriend', friendId: string): void
   (e: 'operate', friendId: string, type: FriendActionType, event: Event): void
-  (e: 'toggleBlacklist', friend: any, event: Event): void
-  (e: 'deleteFriend', friend: any, event: Event): void
-  (e: 'removeKnownFriendGid', friend: any, event: Event): void
-  (e: 'friendAvatarError', friend: any): void
+  (e: 'toggleBlacklist', friend: Friend, event: Event): void
+  (e: 'deleteFriend', friend: Friend, event: Event): void
+  (e: 'removeKnownFriendGid', friend: Friend, event: Event): void
+  (e: 'friendAvatarError', friend: Friend): void
 }>()
 
 const currentPage = defineModel<number>('currentPage', { required: true })
@@ -48,7 +49,7 @@ function goToPage(page: number) {
     <div
       class="flex flex-col cursor-pointer justify-between gap-4 p-4 transition sm:flex-row sm:items-center hover:bg-gray-50 dark:hover:bg-gray-700/50"
       :class="blacklistGidSet.has(Number(friend.gid)) ? 'opacity-50' : ''"
-      @click="emit('toggleFriend', friend.gid)"
+      @click="emit('toggleFriend', String(friend.gid))"
     >
       <div class="flex items-center gap-3">
         <div class="h-10 w-10 flex shrink-0 items-center justify-center overflow-hidden rounded-full bg-gray-200 ring-1 ring-gray-100 dark:bg-gray-600 dark:ring-gray-700">
@@ -100,31 +101,31 @@ function goToPage(page: number) {
       <div class="flex flex-wrap gap-2">
         <button
           class="rounded bg-blue-100 px-3 py-2 text-sm text-blue-700 transition hover:bg-blue-200"
-          @click="emit('operate', friend.gid, 'steal', $event)"
+          @click="emit('operate', String(friend.gid), 'steal', $event)"
         >
           偷取
         </button>
         <button
           class="rounded bg-cyan-100 px-3 py-2 text-sm text-cyan-700 transition hover:bg-cyan-200"
-          @click="emit('operate', friend.gid, 'water', $event)"
+          @click="emit('operate', String(friend.gid), 'water', $event)"
         >
           浇水
         </button>
         <button
           class="rounded bg-green-100 px-3 py-2 text-sm text-green-700 transition hover:bg-green-200"
-          @click="emit('operate', friend.gid, 'weed', $event)"
+          @click="emit('operate', String(friend.gid), 'weed', $event)"
         >
           除草
         </button>
         <button
           class="rounded bg-orange-100 px-3 py-2 text-sm text-orange-700 transition hover:bg-orange-200"
-          @click="emit('operate', friend.gid, 'bug', $event)"
+          @click="emit('operate', String(friend.gid), 'bug', $event)"
         >
           除虫
         </button>
         <button
           class="rounded bg-red-100 px-3 py-2 text-sm text-red-700 transition hover:bg-red-200"
-          @click="emit('operate', friend.gid, 'bad', $event)"
+          @click="emit('operate', String(friend.gid), 'bad', $event)"
         >
           捣乱
         </button>
@@ -138,7 +139,7 @@ function goToPage(page: number) {
           {{ blacklistGidSet.has(Number(friend.gid)) ? '移出黑名单' : '加入黑名单' }}
         </button>
         <button
-          class="rounded bg-red-600 px-3 py-2 text-sm text-white transition hover:bg-red-700 dark:bg-red-700 dark:hover:bg-red-600"
+          class="rounded bg-red-600 px-3 py-2 text-sm text-white transition dark:bg-red-700 hover:bg-red-700 dark:hover:bg-red-600"
           @click="emit('deleteFriend', friend, $event)"
         >
           删除好友
@@ -153,16 +154,16 @@ function goToPage(page: number) {
       </div>
     </div>
 
-    <div v-if="expandedFriends.has(friend.gid)" class="border-t bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
-      <div v-if="friendLandsLoading[friend.gid]" class="flex justify-center py-4">
+    <div v-if="expandedFriends.has(String(friend.gid))" class="border-t bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/50">
+      <div v-if="friendLandsLoading[String(friend.gid)]" class="flex justify-center py-4">
         <div class="i-svg-spinners-90-ring-with-bg text-2xl text-blue-500" />
       </div>
-      <div v-else-if="!friendLands[friend.gid] || friendLands[friend.gid]?.length === 0" class="py-4 text-center text-gray-500">
+      <div v-else-if="!friendLands[String(friend.gid)] || friendLands[String(friend.gid)]?.length === 0" class="py-4 text-center text-gray-500">
         当前没有返回土地数据，可稍后重试或先确认该好友农场是否可访问。
       </div>
       <div v-else class="grid grid-cols-2 gap-2 lg:grid-cols-8 md:grid-cols-5 sm:grid-cols-4">
         <LandCard
-          v-for="land in friendLands[friend.gid]"
+          v-for="land in friendLands[String(friend.gid)]"
           :key="land.id"
           :land="land"
           :show-actions="false"

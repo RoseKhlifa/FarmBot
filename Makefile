@@ -5,9 +5,9 @@ GOLANGCI_LINT ?= golangci-lint
 
 BINARY ?= farmbot
 
-.PHONY: build build-web gen-proto test lint docker release release-windows release-linux release-macos release-target clean
+.PHONY: build build-web sync-web-assets gen-proto test lint docker release release-windows release-linux release-macos release-target clean
 
-VERSION ?= $(shell node -p "require('./core/package.json').version")
+VERSION ?= $(shell node -p "require('./package.json').version")
 RELEASE_DIR ?= dist
 RELEASE_LDFLAGS ?= -s -w -X main.version=$(VERSION)
 
@@ -28,9 +28,10 @@ build:
 
 build-web:
 	$(PNPM) -C web build
+	$(GO) run ./internal/tools/syncassets
 
 gen-proto:
-	$(PROTOC) --proto_path=proto --go_out=internal/game/pb proto/*.proto
+	$(GO) run ./internal/tools/protogen
 
 test:
 	$(GO) test ./...

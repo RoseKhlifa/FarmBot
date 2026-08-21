@@ -92,7 +92,7 @@ func (r *SQLiteStatsRepo) List(ctx context.Context, accountID string, dates ...s
 	if err != nil {
 		return nil, fmt.Errorf("list stats for account %q: %w", accountID, err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	stats := make([]Stat, 0)
 	for rows.Next() {
 		var stat Stat
@@ -123,7 +123,7 @@ func (r *SQLiteStatsRepo) Set(ctx context.Context, stat Stat) error {
 	if err != nil {
 		return fmt.Errorf("begin stat write: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if err := statsEnsureAccount(ctx, tx, accountID); err != nil {
 		return err
 	}
@@ -154,7 +154,7 @@ func (r *SQLiteStatsRepo) Increment(ctx context.Context, accountID, metric, date
 	if err != nil {
 		return Stat{}, fmt.Errorf("begin stat increment: %w", err)
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	if err := statsEnsureAccount(ctx, tx, accountID); err != nil {
 		return Stat{}, err
 	}

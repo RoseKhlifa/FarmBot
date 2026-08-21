@@ -150,7 +150,7 @@ func manualAuthHead(deviceID []byte) []byte {
 		10: 1, 11: 0, 12: 0, 13: 0, 17: 0, 18: 1, 20: 1504, 21: 0, 22: 0, 23: 0,
 		25: 17, 26: 4, 28: 1, 29: 1, 30: 0,
 	}
-	return wpkgHead(ints, map[int][]byte{14: []byte{}, 24: deviceID, 27: []byte{}})
+	return wpkgHead(ints, map[int][]byte{14: {}, 24: deviceID, 27: {}})
 }
 
 func buildLoginBody(loginBufferB64 string, deviceID, appDeviceID []byte, temp *manualAuthTemp) ([]byte, error) {
@@ -409,7 +409,7 @@ func sessionWpkgHead(uin int64, f9, deviceID []byte) []byte {
 		10: 1, 11: 0, 12: 0, 13: 0, 17: 0, 18: 1, 20: 1504, 21: 0, 22: uint64(uin),
 		23: 0, 25: 16, 26: 4, 28: 1, 29: 1, 30: 0,
 	}
-	return wpkgHead(ints, map[int][]byte{14: []byte{}, 24: deviceID, 27: f9})
+	return wpkgHead(ints, map[int][]byte{14: {}, 24: deviceID, 27: f9})
 }
 
 func buildTransferPacket(session AppSession, plaintext []byte) ([]byte, error) {

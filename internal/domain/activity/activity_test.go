@@ -241,7 +241,7 @@ func TestOpaqueActivityDecodersMatchNodeFieldLayout(t *testing.T) {
 	}
 }
 
-func TestStarsandIsExplicitStub(t *testing.T) {
+func TestStarsandUsesHeluExchangeData(t *testing.T) {
 	service := newActivityService(t, &activityTransportFake{}, nil)
 	starsand, err := service.GetStarsandActivity(context.Background())
 	if err != nil || starsand.ItemID != StarsandItemID {

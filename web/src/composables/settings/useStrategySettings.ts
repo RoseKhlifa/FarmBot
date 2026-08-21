@@ -1,7 +1,7 @@
 import type { Ref } from 'vue'
 import { storeToRefs } from 'pinia'
 import { computed, ref, watchEffect } from 'vue'
-import api from '@/api'
+import { analyticsApi, bagApi } from '@/api'
 import { useFarmStore } from '@/stores/farm'
 import { useSettingStore } from '@/stores/setting'
 
@@ -111,9 +111,7 @@ export function useStrategySettings({
     bagSeedsLoading.value = true
     bagSeedsError.value = null
     try {
-      const res = await api.get('/api/bag/seeds', {
-        headers: { 'x-account-id': accountId },
-      })
+      const res = await bagApi.getBagSeeds()
       if (requestId !== bagSeedsRequestId || String(currentAccountId.value || '') !== requestedId)
         return
       if (res.data.ok) {
@@ -263,9 +261,7 @@ export function useStrategySettings({
           return
         }
         const requestedId = String(accountId)
-        const res = await api.get(`/api/analytics?sort=${sortBy}`, {
-          headers: { 'x-account-id': accountId },
-        })
+        const res = await analyticsApi.getAnalytics(sortBy)
         if (requestId !== strategyPreviewRequestId || String(currentAccountId.value || '') !== requestedId)
           return
         const rankings: any[] = res.data.ok ? (res.data.data || []) : []

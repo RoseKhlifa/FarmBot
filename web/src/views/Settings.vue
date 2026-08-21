@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { nextTick, onMounted, ref, watch } from 'vue'
-import api from '@/api'
+import { settingsApi } from '@/api'
 import ConfirmModal from '@/components/ConfirmModal.vue'
 import AccountSettingsTab from '@/components/settings/AccountSettingsTab.vue'
 import DefaultPlanSettingsTab from '@/components/settings/DefaultPlanSettingsTab.vue'
 import UserSettingsTab from '@/components/settings/UserSettingsTab.vue'
 import { useAccountSettings } from '@/composables/settings/useAccountSettings'
-import { useUserSettings } from '@/composables/settings/useUserSettings'
-import { useSettingStore } from '@/stores/setting'
 import { useAutomationSettings } from '@/composables/settings/useAutomationSettings'
 import { useStrategySettings } from '@/composables/settings/useStrategySettings'
+import { useUserSettings } from '@/composables/settings/useUserSettings'
+import { useSettingStore } from '@/stores/setting'
 import AdminPanel from '@/views/AdminPanel.vue'
 
 const settingStore = useSettingStore()
@@ -154,9 +154,7 @@ async function applyDefaultPlan(account: any) {
   const accountId = String(account.id)
   defaultPlanApplyingId.value = accountId
   try {
-    const { data } = await api.post('/api/settings/default-plan/apply', {}, {
-      headers: { 'x-account-id': accountId },
-    })
+    const { data } = await settingsApi.applyDefaultPlan()
     if (!data?.ok)
       throw new Error(data?.error || '应用失败')
     showAlert(`已将默认方案应用到 ${account.name || account.id}`)
@@ -188,7 +186,7 @@ onMounted(async () => {
 <template>
   <div class="settings-page">
     <div class="mb-4">
-      <h1 class="text-2xl text-gray-900 font-bold dark:text-gray-100 max-sm:text-xl">
+      <h1 class="text-2xl text-gray-900 font-bold max-sm:text-xl dark:text-gray-100">
         设置
       </h1>
     </div>

@@ -8,7 +8,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/RoseKhlifa/FarmBot/internal/domain/warehouse"
 	"github.com/RoseKhlifa/FarmBot/internal/game/pb"
 	"github.com/RoseKhlifa/FarmBot/internal/game/transport"
 	"google.golang.org/protobuf/proto"
@@ -177,27 +176,6 @@ type schedulerFake struct {
 func (f *schedulerFake) Every(name string, interval, _ time.Duration, _ any) error {
 	f.name, f.interval = name, interval
 	return nil
-}
-
-type warehouseFake struct{}
-
-func (warehouseFake) ListBag(context.Context) (warehouse.Bag, error) {
-	return warehouse.Bag{Items: []warehouse.Item{{ID: 1011, Count: 0}, {ID: 1012, Count: 0}}}, nil
-}
-func (warehouseFake) SellItem(context.Context, warehouse.Item) (warehouse.SellResult, error) {
-	return warehouse.SellResult{}, nil
-}
-func (warehouseFake) SellItems(context.Context, []warehouse.Item) (warehouse.SellResult, error) {
-	return warehouse.SellResult{}, nil
-}
-func (warehouseFake) SellAll(context.Context) (warehouse.SellAllResult, error) {
-	return warehouse.SellAllResult{}, nil
-}
-func (warehouseFake) UseItem(context.Context, int64, int64, []int64) (warehouse.UseResult, error) {
-	return warehouse.UseResult{}, nil
-}
-func (warehouseFake) BatchUse(context.Context, []warehouse.UseEntry) (warehouse.BatchUseResult, error) {
-	return warehouse.BatchUseResult{}, nil
 }
 
 func encodeVarintFields(fields map[uint64]uint64) []byte {

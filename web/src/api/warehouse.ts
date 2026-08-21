@@ -19,22 +19,22 @@ export interface SellItemsInput {
   items?: WarehouseItemInput[]
 }
 
-export function getBag<T = unknown>(config?: ApiRequestConfig) {
+export function getBag<T = any>(config?: ApiRequestConfig) {
   return client.get<ApiEnvelope<T>>('/api/bag', config)
 }
 
-export function useItem<T = unknown>(payload: UseItemInput, config?: ApiRequestConfig) {
+export function useItem<T = any>(payload: UseItemInput, config?: ApiRequestConfig) {
   return client.post<ApiEnvelope<T>>('/api/bag/use', payload, config)
 }
 
-export function sellItems<T = unknown>(payload: SellItemsInput = {}, config?: ApiRequestConfig) {
+export function sellItems<T = any>(payload: SellItemsInput = {}, config?: ApiRequestConfig) {
   return client.post<ApiEnvelope<T>>('/api/bag/sell', payload, config)
 }
 
-export function getBagSeeds<T = unknown>(config?: ApiRequestConfig) {
+export function getBagSeeds<T = any>(config?: ApiRequestConfig) {
   return client.get<ApiEnvelope<T>>('/api/bag/seeds', config)
 }
 
-export function getDailyGifts<T = unknown>(config?: ApiRequestConfig) {
+export function getDailyGifts<T = any>(config?: ApiRequestConfig) {
   return client.get<ApiEnvelope<T>>('/api/daily-gifts', config)
 }

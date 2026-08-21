@@ -15,14 +15,16 @@ const searchKeyword = defineModel<string>('searchKeyword', { required: true })
 
 <template>
   <div class="mb-4 flex flex-col gap-3">
-    <h2 class="text-2xl font-bold">好友</h2>
+    <h2 class="text-2xl font-bold">
+      好友
+    </h2>
     <div v-if="activeTab === 'friends'" class="relative">
       <div class="i-carbon-search absolute left-4 top-1/2 text-gray-400 -translate-y-1/2" />
       <input
         v-model="searchKeyword"
         type="text"
         placeholder="搜索好友..."
-        class="w-full rounded-full border border-white/40 bg-[var(--theme-glass)] py-2.5 pl-11 pr-4 text-sm text-gray-700 backdrop-blur-md placeholder-gray-400 focus:border-[var(--theme-primary)] focus:outline-none dark:border-white/10 dark:text-gray-100 dark:placeholder-gray-500"
+        class="w-full border border-white/40 rounded-full bg-[var(--theme-glass)] py-2.5 pl-11 pr-4 text-sm text-gray-700 backdrop-blur-md dark:border-white/10 focus:border-[var(--theme-primary)] dark:text-gray-100 focus:outline-none placeholder-gray-400 dark:placeholder-gray-500"
       >
     </div>
     <div class="flex flex-wrap gap-3 text-sm text-gray-500 dark:text-gray-400">

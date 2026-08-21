@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import api from '@/api'
+import { accountApi } from '@/api'
 import BaseButton from '@/components/ui/BaseButton.vue'
 import BaseInput from '@/components/ui/BaseInput.vue'
 
@@ -34,7 +34,7 @@ async function save() {
       name: name.value,
     }
 
-    const res = await api.post('/api/accounts', payload)
+    const res = await accountApi.createAccount(payload)
     if (res.data.ok) {
       emit('saved')
       emit('close')

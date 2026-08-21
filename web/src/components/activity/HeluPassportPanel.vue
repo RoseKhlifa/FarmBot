@@ -171,7 +171,8 @@ function progressText(passport?: HeluSeasonPassport | null) {
           :key="`${item.itemId}-${item.itemCount}`"
           class="max-w-full min-w-0 inline-flex items-center gap-1.5 rounded-full bg-gray-50 px-2.5 py-1 text-xs text-gray-700 dark:bg-gray-900/40 dark:text-gray-200"
         >
-          <ActivityItemImage :item="item"
+          <ActivityItemImage
+            :item="item"
             img-class="h-5 w-5 shrink-0"
           />
           <span class="truncate">{{ rewardName(item) }} x{{ rewardCount(item) }}</span>
@@ -210,7 +211,8 @@ function progressText(passport?: HeluSeasonPassport | null) {
           >
             {{ tierState(passport, tier.level) }}
           </span>
-          <ActivityItemImage v-if="tierThumb(tier)?.image"
+          <ActivityItemImage
+            v-if="tierThumb(tier)?.image"
             :item="tierThumb(tier)!"
             img-class="max-h-16 max-w-16"
           />
@@ -230,7 +232,8 @@ function progressText(passport?: HeluSeasonPassport | null) {
                 :key="`${tier.level}-${item.itemId}-${item.itemCount}`"
                 class="grid h-6 w-6 place-items-center rounded-full bg-white ring-1 ring-gray-100 dark:bg-gray-800 dark:ring-gray-700"
               >
-                <ActivityItemImage :item="item"
+                <ActivityItemImage
+                  :item="item"
                   img-class="h-4 w-4"
                 />
               </span>

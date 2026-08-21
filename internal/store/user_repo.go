@@ -10,6 +10,7 @@ import (
 	"database/sql"
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"regexp"
@@ -39,6 +40,7 @@ var (
 	ErrUserNotFound       = errors.New("user not found")
 	ErrUserExists         = errors.New("user already exists")
 	ErrInvalidCredentials = errors.New("invalid credentials")
+	ErrUserDisabled       = errors.New("user is disabled")
 	ErrUserLocked         = errors.New("user is locked")
 	ErrUserExpired        = errors.New("user entitlement expired")
 	ErrRateLimited        = errors.New("login rate limited")
@@ -62,7 +64,7 @@ type UserRepo interface {
 	Update(context.Context, User) error
 	Delete(context.Context, string) error
 	Authenticate(context.Context, string, string, string) (*User, error)
-	InitializeDefaultAdmin(context.Context) error
+	InitializeDefaultAdmin(context.Context, string) error
 	CheckRateLimit(context.Context, string) (RateLimitResult, error)
 	CheckAccountLockout(context.Context, string) (RateLimitResult, error)
 	RecordFailedAttempt(context.Context, string) (AttemptResult, error)
@@ -71,6 +73,20 @@ type UserRepo interface {
 	RecordLoginLog(context.Context, LoginLog) error
 	GetLoginLogs(context.Context, int, int) ([]LoginLog, int, error)
 	ClearLoginLogs(context.Context) error
+}
+
+// AdminUserPatch contains the explicit mutations exposed by the admin user
+// editor. The Set flags distinguish an omitted field from a deliberate null.
+type AdminUserPatch struct {
+	NewUsername    string
+	Password       string
+	AccountLimit   *int
+	ExpiresAt      *int64
+	ExpiresAtSet   bool
+	IsPermanent    bool
+	IsPermanentSet bool
+	Enabled        bool
+	EnabledSet     bool
 }
 
 // SQLiteUserRepo stores panel users, password credentials and login audit
@@ -294,7 +310,7 @@ func (r *SQLiteUserRepo) List(ctx context.Context) ([]User, error) {
 	if err != nil {
 		return nil, fmt.Errorf("list users: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	users := make([]User, 0)
 	for rows.Next() {
 		user, scanErr := scanUser(rows)
@@ -343,6 +359,133 @@ WHERE username = ?`,
 	return nil
 }
 
+// UpdateAdminUser applies the admin user editor as one transaction. It keeps
+// the credential columns and the membership JSON in sync so login/session
+// checks observe the same status that the panel displays.
+func (r *SQLiteUserRepo) UpdateAdminUser(ctx context.Context, username string, patch AdminUserPatch) (*User, error) {
+	if err := r.ensureDB(); err != nil {
+		return nil, err
+	}
+	username = strings.TrimSpace(username)
+	tx, err := r.DB.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("begin admin user update: %w", err)
+	}
+	defer func() { _ = tx.Rollback() }()
+	user, err := scanUser(tx.QueryRowContext(ctx, userSelectSQL+" WHERE username = ?", username))
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, ErrUserNotFound
+	}
+	if err != nil {
+		return nil, fmt.Errorf("read admin user: %w", err)
+	}
+
+	newUsername := username
+	if strings.TrimSpace(patch.NewUsername) != "" && strings.TrimSpace(patch.NewUsername) != username {
+		newUsername = strings.TrimSpace(patch.NewUsername)
+		if !usernamePattern.MatchString(newUsername) {
+			return nil, ErrInvalidUsername
+		}
+		var exists int
+		if err := tx.QueryRowContext(ctx, "SELECT count(*) FROM users WHERE username = ?", newUsername).Scan(&exists); err != nil {
+			return nil, fmt.Errorf("check renamed user: %w", err)
+		}
+		if exists > 0 {
+			return nil, ErrUserExists
+		}
+	}
+
+	if patch.Password != "" {
+		if err := ValidatePassword(patch.Password); err != nil {
+			return nil, err
+		}
+		stored, hashErr := HashPassword(patch.Password)
+		if hashErr != nil {
+			return nil, hashErr
+		}
+		user.PwdHash, user.Salt, err = splitStoredPassword(stored)
+		if err != nil {
+			return nil, err
+		}
+		user.Password = storedCredential(user.PwdHash, user.Salt)
+		user.MustChangePassword = false
+	}
+	if patch.AccountLimit != nil {
+		user.AccountLimit = *patch.AccountLimit
+		if user.AccountLimit <= 0 {
+			user.AccountLimit = defaultAccountLimit
+		}
+	}
+	if patch.ExpiresAtSet {
+		user.ExpireAt = patch.ExpiresAt
+	}
+
+	if patch.EnabledSet {
+		if patch.Enabled {
+			if strings.EqualFold(user.Status, "banned") {
+				user.Status = "active"
+			}
+		} else {
+			user.Status = "banned"
+		}
+	}
+	if patch.IsPermanentSet || patch.ExpiresAtSet || patch.EnabledSet {
+		user.CardJSON = updateMembershipJSON(user.CardJSON, patch)
+	}
+	user.Username = newUsername
+	user.UpdatedAt = time.Now().UnixMilli()
+	_, err = tx.ExecContext(ctx, `
+UPDATE users SET username = ?, pwd_hash = ?, salt = ?, role = ?, status = ?, expire_at = ?,
+    account_limit = ?, tenant_id = ?, plan = ?, card_code = ?, card_json = ?, must_change_password = ?,
+    created_at = ?, updated_at = ?
+WHERE username = ?`,
+		user.Username, user.PwdHash, user.Salt, user.Role, user.Status, nullableInt64(user.ExpireAt),
+		user.AccountLimit, nullableString(user.TenantID), nullableString(defaultPlan(user.Plan)), nullableString(user.CardCode), user.CardJSON,
+		boolInt(user.MustChangePassword), user.CreatedAt, user.UpdatedAt, username)
+	if err != nil {
+		return nil, fmt.Errorf("update admin user: %w", err)
+	}
+	if newUsername != username {
+		if _, err := tx.ExecContext(ctx, "UPDATE accounts SET owner_user = ? WHERE owner_user = ?", newUsername, username); err != nil {
+			return nil, fmt.Errorf("update renamed user account ownership: %w", err)
+		}
+	}
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("commit admin user update: %w", err)
+	}
+	return user, nil
+}
+
+func updateMembershipJSON(raw string, patch AdminUserPatch) string {
+	if strings.TrimSpace(raw) == "" || strings.TrimSpace(raw) == "{}" {
+		return raw
+	}
+	var membership map[string]any
+	if err := json.Unmarshal([]byte(raw), &membership); err != nil || len(membership) == 0 {
+		return raw
+	}
+	if patch.EnabledSet {
+		membership["enabled"] = patch.Enabled
+	}
+	if patch.IsPermanentSet {
+		membership["isPermanent"] = patch.IsPermanent
+		if patch.IsPermanent {
+			membership["days"] = -1
+			membership["durationValue"] = -1
+			membership["durationMs"] = 0
+			membership["expiresAt"] = nil
+		}
+	}
+	if patch.ExpiresAtSet && !patch.IsPermanent {
+		membership["expiresAt"] = patch.ExpiresAt
+	}
+	encoded, err := json.Marshal(membership)
+	if err != nil {
+		return raw
+	}
+	return string(encoded)
+}
+
 // Delete removes a user and releases any cards bound to it in one transaction.
 func (r *SQLiteUserRepo) Delete(ctx context.Context, username string) error {
 	if err := r.ensureDB(); err != nil {
@@ -371,13 +514,18 @@ func (r *SQLiteUserRepo) Delete(ctx context.Context, username string) error {
 	return nil
 }
 
-// InitializeDefaultAdmin creates the documented admin/admin account if it is
-// absent. Existing credentials are never overwritten.
-func (r *SQLiteUserRepo) InitializeDefaultAdmin(ctx context.Context) error {
+// InitializeDefaultAdmin creates the documented admin account if it is absent.
+// ADMIN_PASSWORD is used only on first creation; existing credentials are
+// never overwritten on later starts.
+func (r *SQLiteUserRepo) InitializeDefaultAdmin(ctx context.Context, configuredPassword string) error {
 	if err := r.ensureDB(); err != nil {
 		return err
 	}
-	stored, err := HashPassword(defaultAdminPassword)
+	password := defaultAdminPassword
+	if strings.TrimSpace(configuredPassword) != "" {
+		password = configuredPassword
+	}
+	stored, err := HashPassword(password)
 	if err != nil {
 		return err
 	}
@@ -489,7 +637,12 @@ func (r *SQLiteUserRepo) Authenticate(ctx context.Context, username, password, i
 		return nil, ErrUserLocked
 	}
 	if user.Status != "" && user.Status != "active" {
-		return nil, r.invalidLogin(ctx, username, ip, ErrInvalidCredentials)
+		_ = r.AddLoginLog(ctx, LoginLog{User: username, IP: ip, Result: "disabled", Event: "login", TS: time.Now().UnixMilli()})
+		return nil, ErrUserDisabled
+	}
+	if membershipDisabled(user.CardJSON) {
+		_ = r.AddLoginLog(ctx, LoginLog{User: username, IP: ip, Result: "disabled", Event: "login", TS: time.Now().UnixMilli()})
+		return nil, ErrUserDisabled
 	}
 	if user.ExpireAt != nil && *user.ExpireAt > 0 && *user.ExpireAt <= time.Now().UnixMilli() {
 		_ = r.AddLoginLog(ctx, LoginLog{User: username, IP: ip, Result: "expired", Event: "login", TS: time.Now().UnixMilli()})
@@ -515,6 +668,19 @@ func (r *SQLiteUserRepo) Authenticate(ctx context.Context, username, password, i
 		return nil, err
 	}
 	return user, nil
+}
+
+func membershipDisabled(raw string) bool {
+	if strings.TrimSpace(raw) == "" || strings.TrimSpace(raw) == "{}" {
+		return false
+	}
+	var membership struct {
+		Enabled *bool `json:"enabled"`
+	}
+	if err := json.Unmarshal([]byte(raw), &membership); err != nil {
+		return false
+	}
+	return membership.Enabled != nil && !*membership.Enabled
 }
 
 func (r *SQLiteUserRepo) invalidLogin(ctx context.Context, username, ip string, base error) error {
@@ -597,7 +763,7 @@ FROM login_logs ORDER BY ts DESC, id DESC LIMIT ? OFFSET ?`, limit, offset)
 	if err != nil {
 		return nil, 0, fmt.Errorf("list login logs: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	logs := make([]LoginLog, 0)
 	for rows.Next() {
 		var log LoginLog

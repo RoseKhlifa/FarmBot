@@ -1,6 +1,5 @@
 node_modules/
 .DS_Store
-core/node_modules/
 web/node_modules/
 
 web/dist/
@@ -12,7 +11,7 @@ coverage/
 .vite/
 .turbo/
 
-core/data/
+data/
 logs/
 log/
 tmp/
@@ -21,10 +20,8 @@ temp/
 
 .env
 .env.*
+!.env.example
 *.log
-
-# 运行时生成的种子图标资源（旧镜像带出，非源码，勿提交）
-core/src/gameConfig/seed_images_named/
 
 # Python
 __pycache__/

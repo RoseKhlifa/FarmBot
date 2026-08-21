@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
-import api from '@/api'
-import { useAccountStore } from '@/stores/account'
+import { mallApi } from '@/api'
+import { isCurrentAccount } from '@/composables/useStaleGuard'
 
 export interface ShopSeedItem {
   id: number
@@ -124,12 +124,6 @@ export const useShopStore = defineStore('shop', () => {
     userTicket.value = 0
   }
 
-  function isCurrentAccount(accountId: string) {
-    const accountStore = useAccountStore()
-    const currentId = String((accountStore.currentAccountId as { value?: string })?.value ?? accountStore.currentAccountId ?? '')
-    return currentId === String(accountId)
-  }
-
   async function fetchSeeds(accountId: string) {
     if (!accountId)
       return
@@ -138,9 +132,7 @@ export const useShopStore = defineStore('shop', () => {
     loading.value = true
     error.value = ''
     try {
-      const { data } = await api.get('/api/shop/seed', {
-        headers: { 'x-account-id': accountId },
-      })
+      const { data } = await mallApi.getSeedShop()
       if (requestId !== seedRequestId || !isCurrentAccount(requestedId))
         return
       if (data.ok)
@@ -166,15 +158,13 @@ export const useShopStore = defineStore('shop', () => {
     petLoading.value = true
     petError.value = ''
     try {
-      const { data } = await api.get('/api/shop/pet', {
-        headers: { 'x-account-id': accountId },
-      })
+      const { data } = await mallApi.getPetShop()
       if (requestId !== petRequestId || !isCurrentAccount(requestedId))
         return
       if (data.ok) {
-        pets.value = data.data || []
-        userGold.value = data.userGold || 0
-        userGoldBean.value = data.userGoldBean || 0
+        pets.value = Array.isArray(data.data) ? data.data : (data.data?.shops || [])
+        userGold.value = Number(data.userGold ?? data.data?.userGold ?? 0)
+        userGoldBean.value = Number(data.userGoldBean ?? data.data?.userGoldBean ?? 0)
       }
       else {
         petError.value = data.error || '获取宠物商店失败'
@@ -198,14 +188,12 @@ export const useShopStore = defineStore('shop', () => {
     decorationLoading.value = true
     decorationError.value = ''
     try {
-      const { data } = await api.get('/api/shop/decoration', {
-        headers: { 'x-account-id': accountId },
-      })
+      const { data } = await mallApi.getDecorationShop()
       if (requestId !== decorationRequestId || !isCurrentAccount(requestedId))
         return
       if (data.ok) {
-        decorations.value = data.data || []
-        userGoldBean.value = data.userGoldBean || 0
+        decorations.value = Array.isArray(data.data) ? data.data : (data.data?.shops || [])
+        userGoldBean.value = Number(data.userGoldBean ?? data.data?.userGoldBean ?? 0)
       }
       else {
         decorationError.value = data.error || '获取装扮商城失败'
@@ -229,14 +217,12 @@ export const useShopStore = defineStore('shop', () => {
     mallLoading.value = true
     mallError.value = ''
     try {
-      const { data } = await api.get('/api/shop/mall', {
-        headers: { 'x-account-id': accountId },
-      })
+      const { data } = await mallApi.getMall()
       if (requestId !== mallRequestId || !isCurrentAccount(requestedId))
         return
       if (data.ok) {
         mallGoods.value = data.data || []
-        userTicket.value = data.userTicket || 0
+        userTicket.value = Number(data.userTicket ?? data.data?.userTicket ?? 0)
       }
       else {
         mallError.value = data.error || '获取道具商城失败'
@@ -260,9 +246,7 @@ export const useShopStore = defineStore('shop', () => {
     mysteryLoading.value = true
     mysteryError.value = ''
     try {
-      const { data } = await api.get('/api/shop/mystery', {
-        headers: { 'x-account-id': accountId },
-      })
+      const { data } = await mallApi.getMysteryShop()
       if (requestId !== mysteryRequestId || !isCurrentAccount(requestedId))
         return
       if (data.ok) {
@@ -283,40 +267,32 @@ export const useShopStore = defineStore('shop', () => {
     }
   }
 
-  async function buyGoods(accountId: string, goodsId: number, num: number, price: number) {
-    const { data } = await api.post('/api/shop/buy', {
+  async function buyGoods(_accountId: string, goodsId: number, num: number, price: number) {
+    const { data } = await mallApi.buySeed({
       goodsId,
-      num,
+      count: num,
       price,
-    }, {
-      headers: { 'x-account-id': accountId },
     })
     return data
   }
 
-  async function buyMallGoods(accountId: string, goodsId: number, count: number) {
-    const { data } = await api.post('/api/shop/mall/buy', {
+  async function buyMallGoods(_accountId: string, goodsId: number, count: number) {
+    const { data } = await mallApi.buyMallGoods({
       goodsId,
       count,
-    }, {
-      headers: { 'x-account-id': accountId },
     })
     return data
   }
 
-  async function buyMysteryShopGoods(accountId: string, npcId: number) {
-    const { data } = await api.post('/api/shop/mystery/buy', {
+  async function buyMysteryShopGoods(_accountId: string, npcId: number) {
+    const { data } = await mallApi.buyMysteryGoods({
       npcId,
-    }, {
-      headers: { 'x-account-id': accountId },
     })
     return data
   }
 
-  async function abandonMysteryShop(accountId: string) {
-    const { data } = await api.post('/api/shop/mystery/abandon', {}, {
-      headers: { 'x-account-id': accountId },
-    })
+  async function abandonMysteryShop(_accountId: string) {
+    const { data } = await mallApi.abandonMysteryShop()
     return data
   }
 
