@@ -322,7 +322,10 @@ func (s *service) callWXApp(ctx context.Context, ref, appID string, payload map[
 		return nil, err
 	}
 	appID = strings.TrimSpace(appID)
-	if appID == "" {
+	// The account manager historically passes the game TSDK app key here.
+	// Its documented default is "0", which is not a WeChat mini-program AppID
+	// and makes js-login return a successful envelope without a login code.
+	if appID == "" || appID == "0" {
 		appID = s.defaultAppID
 	}
 	result, err := call(ctx, account, appID, payload)

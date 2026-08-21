@@ -45,6 +45,23 @@ func (nestedCodePool) OperateWXData(context.Context, string, string, map[string]
 	return nil, errors.New("not implemented")
 }
 
+type appIDPool struct {
+	appID string
+}
+
+func (p *appIDPool) GetCode(_ context.Context, _ string, appID string, _ int64, _ string) (map[string]any, error) {
+	p.appID = appID
+	return map[string]any{"code": "captured-code"}, nil
+}
+
+func (*appIDPool) GetPhoneNumber(context.Context, string, string, int64, string) (map[string]any, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (*appIDPool) OperateWXData(context.Context, string, string, map[string]any, int64, string) (map[string]any, error) {
+	return nil, errors.New("not implemented")
+}
+
 func (p *retryPool) GetCode(_ context.Context, loginBuffer, _ string, _ int64, _ string) (map[string]any, error) {
 	p.calls++
 	p.loginBuffer = append(p.loginBuffer, loginBuffer)
@@ -115,6 +132,26 @@ func TestServiceGetCodeAcceptsNestedResponse(t *testing.T) {
 	code, err := service.GetCode(ctx, "openid-nested", "")
 	if err != nil || code != "nested-code-1" {
 		t.Fatalf("GetCode() = %q, %v", code, err)
+	}
+}
+
+func TestServiceGetCodeUsesDefaultAppIDForTSDKSentinel(t *testing.T) {
+	_, db := openSharedTestDB(t)
+	ctx := context.Background()
+	if _, err := db.UpsertAccount(ctx, "openid-default-app", "buffer", nil, nil, nil, nil, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	pool := &appIDPool{}
+	service, err := NewService(db, ServiceConfig{Pool: pool})
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, err := service.GetCode(ctx, "openid-default-app", "0")
+	if err != nil || code != "captured-code" {
+		t.Fatalf("GetCode() = %q, %v", code, err)
+	}
+	if pool.appID != defaultAppID {
+		t.Fatalf("pool appID = %q, want %q", pool.appID, defaultAppID)
 	}
 }
 

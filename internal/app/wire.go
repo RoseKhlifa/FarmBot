@@ -129,10 +129,12 @@ func newApplication(cfg config.Config) (*Application, error) {
 		},
 	})
 	manager = account.NewManager(account.ManagerConfig{
-		Accounts:     accounts,
-		Config:       configRepo,
-		Yyb:          yybService,
-		AppID:        cfg.TSDK.AppKey,
+		Accounts: accounts,
+		Config:   configRepo,
+		Yyb:      yybService,
+		// The YYB service owns the WeChat mini-program AppID. Do not pass the
+		// game TSDK app key here; its default value ("0") is not a valid YYB ID.
+		AppID:        "",
 		CodeProvider: accountCodeProvider(yybService),
 		Context:      context.Background(),
 		RuntimeDependencies: account.Dependencies{
