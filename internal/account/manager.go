@@ -840,14 +840,14 @@ func loadSystemProtocolConfig(ctx context.Context, repo store.ConfigRepo) system
 }
 
 func (m *Manager) deviceProtocol(ctx context.Context) (tsdk.DeviceInfo, string) {
-	// Match the reference Node client: when no custom device protocol is
-	// configured it leaves deviceModel/deviceBrand undefined, so the TSDK host
-	// wrapper derives them from the running machine (os.type()+os.arch() and
-	// "Node.js"). Only the platform field is pinned, and that happens downstream
-	// from the account OS. Leaving Model/Brand empty here lets deviceString()
-	// apply those same host-derived fallbacks; the optional setting still
-	// overrides whichever fields it explicitly supplies.
-	device := tsdk.DeviceInfo{}
+	// Match the reference Node client's DEFAULT_DEVICE_PROTOCOL. Its
+	// getDeviceProtocol() always returns these iPhone values when the user has
+	// not saved a custom device; the "enabled" flag only gates the custom
+	// User-Agent, not the model/brand fed to the TSDK runtime. The game has no
+	// Linux client, so the fingerprint must present an iPhone regardless of the
+	// host OS the bot runs on. The optional setting still overrides whichever
+	// fields it explicitly supplies.
+	device := tsdk.DeviceInfo{Model: "iPhone 15 Pro Max", Brand: "Apple"}
 	if m == nil || m.config == nil {
 		return device, ""
 	}
