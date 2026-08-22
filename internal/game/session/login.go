@@ -262,6 +262,20 @@ func resolveOptions(code string, options Options) (Options, error) {
 	if options.TSDK.DataDir == "" {
 		options.TSDK.DataDir = filepath.Join(processConfig.DataDir, "tsdk", options.TSDK.AccountID)
 	}
+	// The reference Node client always passes its device protocol to TSDK,
+	// including the default iPhone/Apple identity when the editor is disabled.
+	// It also supplies CONFIG.os (normally "iOS") as the device platform;
+	// leaking the Linux container platform changes the encrypted fingerprint
+	// and can make the gateway reject Login with code 1000016.
+	if options.TSDK.Device.Model == "" {
+		options.TSDK.Device.Model = "iPhone 15 Pro Max"
+	}
+	if options.TSDK.Device.Brand == "" {
+		options.TSDK.Device.Brand = "Apple"
+	}
+	if options.TSDK.Device.Platform == "" {
+		options.TSDK.Device.Platform = options.OS
+	}
 	if options.TSDK.Logger == nil && options.Logger != nil {
 		options.TSDK.Logger = tsdk.Logger(options.Logger)
 	}

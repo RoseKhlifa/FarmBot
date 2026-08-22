@@ -303,6 +303,41 @@ func TestBuildGatewayURLOmitsOpenIDValueWhenUnset(t *testing.T) {
 	}
 }
 
+func TestResolveOptionsUsesReferenceDeviceProtocolDefaults(t *testing.T) {
+	resolved, err := resolveOptions("login-code", Options{
+		GatewayURL:    "wss://example.test/game",
+		ClientVersion: "test-version",
+		Platform:      "wx",
+		OS:            "iOS",
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resolved.TSDK.Device.Model != "iPhone 15 Pro Max" || resolved.TSDK.Device.Brand != "Apple" || resolved.TSDK.Device.Platform != "iOS" {
+		t.Fatalf("TSDK device = %+v, want reference iPhone/Apple defaults", resolved.TSDK.Device)
+	}
+}
+
+func TestResolveOptionsPreservesCustomDeviceAndFillsPlatform(t *testing.T) {
+	resolved, err := resolveOptions("login-code", Options{
+		GatewayURL:    "wss://example.test/game",
+		ClientVersion: "test-version",
+		Platform:      "wx",
+		OS:            "iOS",
+		TSDK: tsdk.Options{Device: tsdk.DeviceInfo{
+			Model: "Mate 60 Pro",
+			Brand: "Huawei",
+		}},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := resolved.TSDK.Device
+	if got.Model != "Mate 60 Pro" || got.Brand != "Huawei" || got.Platform != "iOS" {
+		t.Fatalf("TSDK device = %+v, want custom model/brand with iOS platform", got)
+	}
+}
+
 func slowACEIntervals() ace.Intervals {
 	return ace.Intervals{
 		Process: time.Hour, Poll: time.Hour, ACEHeartbeat: time.Hour,

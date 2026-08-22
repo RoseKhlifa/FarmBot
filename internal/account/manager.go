@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/RoseKhlifa/FarmBot/internal/game/session"
+	"github.com/RoseKhlifa/FarmBot/internal/game/tsdk"
 	"github.com/RoseKhlifa/FarmBot/internal/store"
 	"github.com/RoseKhlifa/FarmBot/internal/yyb"
 )
@@ -592,17 +593,21 @@ func (m *Manager) loadSpec(ctx context.Context, accountID string) (RuntimeSpec, 
 	if platform == "" {
 		platform = "qq"
 	}
+	device, userAgent := m.deviceProtocol(ctx)
+	sessionOptions := session.Options{
+		AccountID: account.ID,
+		UIN:       strings.TrimSpace(account.UIN),
+		Platform:  platform,
+		UserAgent: userAgent,
+		TSDK:      tsdk.Options{Device: device},
+	}
 	return RuntimeSpec{
 		Account:       account,
 		AccountConfig: config,
 		RuntimeConfig: Config{
 			AccountID: account.ID,
 			LoginCode: code,
-			Session: session.Options{
-				AccountID: account.ID,
-				UIN:       strings.TrimSpace(account.UIN),
-				Platform:  platform,
-			},
+			Session:   sessionOptions,
 		},
 		Dependencies: m.runtimeDeps,
 		Reconnect:    policy,
@@ -770,6 +775,46 @@ func isYYBAccount(account store.Account) bool {
 
 func isGameLoginPermissionError(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "code=1000016")
+}
+
+type deviceProtocolConfig struct {
+	Enabled     bool   `json:"enabled"`
+	UserAgent   string `json:"userAgent"`
+	DeviceModel string `json:"deviceModel"`
+	DeviceBrand string `json:"deviceBrand"`
+}
+
+func (m *Manager) deviceProtocol(ctx context.Context) (tsdk.DeviceInfo, string) {
+	// These are the exact defaults used by the reference Node client. The
+	// optional setting only overrides fields that are explicitly supplied.
+	device := tsdk.DeviceInfo{Model: "iPhone 15 Pro Max", Brand: "Apple"}
+	if m == nil || m.config == nil {
+		return device, ""
+	}
+	raw, err := m.config.GetGlobal(ctx, "deviceProtocol")
+	if err != nil {
+		// JSON migrations retain unknown legacy settings under this namespace.
+		// Read that key as a compatibility fallback without making an optional
+		// setting failure abort account startup.
+		raw, err = m.config.GetGlobal(ctx, "legacy:deviceProtocol")
+		if err != nil {
+			return device, ""
+		}
+	}
+	var cfg deviceProtocolConfig
+	if json.Unmarshal(raw, &cfg) != nil {
+		return device, ""
+	}
+	if value := strings.TrimSpace(cfg.DeviceModel); value != "" {
+		device.Model = value
+	}
+	if value := strings.TrimSpace(cfg.DeviceBrand); value != "" {
+		device.Brand = value
+	}
+	if cfg.Enabled {
+		return device, strings.TrimSpace(cfg.UserAgent)
+	}
+	return device, ""
 }
 
 func applyReconnectJSON(base ReconnectConfig, raw json.RawMessage) ReconnectConfig {

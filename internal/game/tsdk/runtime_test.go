@@ -208,6 +208,17 @@ func TestDeviceStringMatchesNodeHostShape(t *testing.T) {
 	}
 }
 
+func TestDeviceStringUsesConfiguredGameOS(t *testing.T) {
+	runtime := New(context.Background(), Options{Device: DeviceInfo{
+		Model:    "iPhone 15 Pro Max",
+		Platform: "iOS",
+		Brand:    "Apple",
+	}})
+	if got, want := runtime.deviceString(), "iPhone 15 Pro Max;iOS;"+nodeSystemName()+";Apple;"; got != want {
+		t.Fatalf("device string = %q, want %q", got, want)
+	}
+}
+
 func TestRuntimeInitializesWithNodeLinuxDeviceDescriptor(t *testing.T) {
 	cases := []DeviceInfo{
 		{Model: "Linux x64", Platform: "linux", System: "6.1.0-49-amd64", Brand: "Node.js"},
