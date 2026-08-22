@@ -156,15 +156,11 @@ func codeFromResult(value any, depth int) string {
 	}
 	switch v := value.(type) {
 	case string:
-		return strings.TrimSpace(v)
+		return normalizeLoginCode(v)
 	case []byte:
-		return strings.TrimSpace(string(v))
+		return normalizeLoginCode(string(v))
 	case json.Number:
-		text := strings.TrimSpace(v.String())
-		if len(text) >= 8 {
-			return text
-		}
-		return ""
+		return normalizeLoginCode(v.String())
 	case map[string]any:
 		for _, key := range []string{"code", "wx_code", "wxCode", "login_code", "loginCode"} {
 			if code := codeFromResult(v[key], depth+1); code != "" {
@@ -181,6 +177,27 @@ func codeFromResult(value any, depth int) string {
 		}
 	}
 	return ""
+}
+
+func normalizeLoginCode(value string) string {
+	value = strings.TrimSpace(value)
+	switch strings.ToLower(value) {
+	case "success", "ok", "login:ok":
+		return ""
+	}
+	if len(value) < 8 {
+		allDigits := value != ""
+		for _, r := range value {
+			if r < '0' || r > '9' {
+				allDigits = false
+				break
+			}
+		}
+		if allDigits {
+			return ""
+		}
+	}
+	return value
 }
 
 func mapKeys(value map[string]any) string {

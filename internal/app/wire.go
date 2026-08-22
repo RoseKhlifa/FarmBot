@@ -142,6 +142,15 @@ func newApplication(cfg config.Config) (*Application, error) {
 		},
 		RuntimeFactory: func(spec account.RuntimeSpec) *account.Runtime {
 			deps := spec.Dependencies
+			accountID := spec.Account.ID
+			spec.RuntimeConfig.Session.Logger = func(level, message string) {
+				logs.Append(accountID, map[string]any{
+					"accountId": accountID,
+					"type":      "session",
+					"level":     level,
+					"message":   message,
+				})
+			}
 			deps.StatusChanged = func(snapshot account.StatusSnapshot) {
 				logs.Append(snapshot.AccountID, map[string]any{"accountId": snapshot.AccountID, "status": snapshot})
 				if realtimeHub != nil {

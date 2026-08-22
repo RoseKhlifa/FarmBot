@@ -279,8 +279,27 @@ func TestBuildGatewayURLRejectsNonWebSocketURL(t *testing.T) {
 		t.Fatal(err)
 	}
 	parsed, _ := url.Parse(got)
-	if parsed.Query().Get("code") != "a+b&c" || parsed.Query().Get("existing") != "1" {
+	if parsed.Query().Get("code") != "a+b&c" || parsed.Query().Get("existing") != "1" || parsed.Query().Get("openID") != "" {
 		t.Fatalf("gateway query was not safely merged: %s", got)
+	}
+}
+
+func TestBuildGatewayURLOmitsOpenIDValueWhenUnset(t *testing.T) {
+	got, err := buildGatewayURL(Options{
+		GatewayURL:    "wss://example.test/game",
+		Platform:      "qq",
+		OS:            "iOS",
+		ClientVersion: "v",
+	}, "code")
+	if err != nil {
+		t.Fatal(err)
+	}
+	parsed, err := url.Parse(got)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if value := parsed.Query().Get("openID"); value != "" {
+		t.Fatalf("unset OpenID = %q, want empty query value", value)
 	}
 }
 

@@ -282,7 +282,39 @@ func (m *Manager) startContext(parent context.Context, accountID string, reconne
 		starter = func(ctx context.Context, runtime *Runtime) error { return runtime.Start(ctx) }
 	}
 	if err := starter(startCtx, runtime); err != nil {
-		return fmt.Errorf("start account %q: %w", accountID, err)
+		// YYB login codes are short-lived and single-use. A code can be
+		// accepted by the provider but rejected by the game gateway with
+		// 1000016 when it was issued from a stale session or consumed by an
+		// earlier request. Refresh the provider code once and retry the whole
+		// account start; never loop because a persistent permission error needs
+		// to remain visible to the caller.
+		if isYYBAccount(spec.Account) && isGameLoginPermissionError(err) && startCtx.Err() == nil {
+			firstErr := err
+			_ = m.stopOne(runtime)
+			retrySpec, refreshErr := m.loadSpec(startCtx, accountID)
+			if refreshErr == nil {
+				retryRuntime := m.runtimeFactory(retrySpec)
+				if retryRuntime == nil {
+					refreshErr = errors.New("runtime factory returned nil")
+				} else if retryErr := starter(startCtx, retryRuntime); retryErr == nil {
+					runtime = retryRuntime
+					spec = retrySpec
+					err = nil
+				} else {
+					_ = m.stopOne(retryRuntime)
+					refreshErr = retryErr
+				}
+			}
+			if err != nil {
+				if refreshErr != nil {
+					return fmt.Errorf("start account %q: %w; refreshed-code retry failed: %v", accountID, firstErr, refreshErr)
+				}
+				return fmt.Errorf("start account %q: %w", accountID, firstErr)
+			}
+		}
+		if err != nil {
+			return fmt.Errorf("start account %q: %w", accountID, err)
+		}
 	}
 	if err := startCtx.Err(); err != nil {
 		_ = m.stopOne(runtime)
@@ -734,6 +766,10 @@ func (m *Manager) cancelReconnectLocked(accountID string, reset bool) {
 
 func isYYBAccount(account store.Account) bool {
 	return strings.EqualFold(strings.TrimSpace(account.LoginType), "yyb") || strings.TrimSpace(account.YYBOpenID) != ""
+}
+
+func isGameLoginPermissionError(err error) bool {
+	return err != nil && strings.Contains(err.Error(), "code=1000016")
 }
 
 func applyReconnectJSON(base ReconnectConfig, raw json.RawMessage) ReconnectConfig {

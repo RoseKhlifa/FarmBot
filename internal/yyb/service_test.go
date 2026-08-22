@@ -45,6 +45,20 @@ func (nestedCodePool) OperateWXData(context.Context, string, string, map[string]
 	return nil, errors.New("not implemented")
 }
 
+type statusCodePool struct{}
+
+func (statusCodePool) GetCode(context.Context, string, string, int64, string) (map[string]any, error) {
+	return map[string]any{"code": "0", "data": map[string]any{"code": "nested-code-2"}}, nil
+}
+
+func (statusCodePool) GetPhoneNumber(context.Context, string, string, int64, string) (map[string]any, error) {
+	return nil, errors.New("not implemented")
+}
+
+func (statusCodePool) OperateWXData(context.Context, string, string, map[string]any, int64, string) (map[string]any, error) {
+	return nil, errors.New("not implemented")
+}
+
 type appIDPool struct {
 	appID string
 }
@@ -131,6 +145,22 @@ func TestServiceGetCodeAcceptsNestedResponse(t *testing.T) {
 	}
 	code, err := service.GetCode(ctx, "openid-nested", "")
 	if err != nil || code != "nested-code-1" {
+		t.Fatalf("GetCode() = %q, %v", code, err)
+	}
+}
+
+func TestServiceGetCodeSkipsStatusCodeAndUsesNestedLoginCode(t *testing.T) {
+	_, db := openSharedTestDB(t)
+	ctx := context.Background()
+	if _, err := db.UpsertAccount(ctx, "openid-status", "buffer", nil, nil, nil, nil, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	service, err := NewService(db, ServiceConfig{Pool: statusCodePool{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	code, err := service.GetCode(ctx, "openid-status", "")
+	if err != nil || code != "nested-code-2" {
 		t.Fatalf("GetCode() = %q, %v", code, err)
 	}
 }

@@ -158,7 +158,7 @@ func LoginWithOptions(ctx context.Context, code string, options Options) (_ *Ses
 	}
 	session.client = client
 
-	loginReply, err := sendLogin(lifecycleCtx, client, runtime, resolved)
+	loginReply, err := sendLogin(lifecycleCtx, client, runtime, resolved, code)
 	if err != nil {
 		return nil, err
 	}
@@ -284,6 +284,9 @@ func buildGatewayURL(options Options, code string) (string, error) {
 	query.Set("os", options.OS)
 	query.Set("ver", options.ClientVersion)
 	query.Set("code", code)
+	// The official client deliberately leaves openID empty. The login code is
+	// the credential that binds the game account; a YYB provider OpenID is a
+	// different identity namespace and must never be sent as the game OpenID.
 	query.Set("openID", "")
 	parsed.RawQuery = query.Encode()
 	return parsed.String(), nil
@@ -303,7 +306,7 @@ func loginHeaders(existing http.Header, userAgent string) http.Header {
 	return headers
 }
 
-func sendLogin(ctx context.Context, client *transport.Client, runtime SecurityRuntime, options Options) (*pb.LoginReply, error) {
+func sendLogin(ctx context.Context, client *transport.Client, runtime SecurityRuntime, options Options, code string) (*pb.LoginReply, error) {
 	device := options.LoginDevice
 	if device == nil {
 		device = &pb.DeviceInfo{
@@ -324,11 +327,19 @@ func sendLogin(ctx context.Context, client *transport.Client, runtime SecurityRu
 		SceneId:    "1256",
 		ReportData: &pb.ReportData{MinigameChannel: "other", MinigamePlatid: 2},
 	}
+	if options.Logger != nil {
+		code = strings.TrimSpace(code)
+		digest := sha256.Sum256([]byte(code))
+		options.Logger("info", fmt.Sprintf("game login request: platform=%s os=%s client_version=%s code_len=%d code_sha256=%x", options.Platform, options.OS, options.ClientVersion, len(code), digest[:8]))
+	}
 	response, err := sendDecoded(ctx, client, runtime, transport.Command{
 		ServiceName: userService,
 		MethodName:  loginMethod,
 	}, request, new(pb.LoginReply))
 	if err != nil {
+		if options.Logger != nil {
+			options.Logger("error", "game login rejected: "+err.Error())
+		}
 		return nil, fmt.Errorf("game login handshake: %w", err)
 	}
 	reply, ok := response.(*pb.LoginReply)
