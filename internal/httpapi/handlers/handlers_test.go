@@ -21,6 +21,12 @@ func (missingDeviceProtocolConfig) GetGlobal(context.Context, string) (json.RawM
 	return nil, sql.ErrNoRows
 }
 
+type missingSystemConfig struct{ store.ConfigRepo }
+
+func (missingSystemConfig) GetSystemConfig(context.Context) (json.RawMessage, error) {
+	return nil, sql.ErrNoRows
+}
+
 func TestRegisterRoutesContractSnapshot(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
@@ -157,5 +163,31 @@ func TestDeviceProtocolReturnsDefaultsWhenUnset(t *testing.T) {
 	}
 	if !body.OK || body.Data == nil {
 		t.Fatalf("body = %s, want default config object", rec.Body.String())
+	}
+}
+
+func TestSystemConfigReturnsDefaultsWhenUnset(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	router := gin.New()
+	New(&Application{Config: missingSystemConfig{}}).RegisterSystem(router)
+	req := httptest.NewRequest(http.MethodGet, "/api/admin/system-config", nil)
+	rec := httptest.NewRecorder()
+	router.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, want 200; body=%s", rec.Code, rec.Body.String())
+	}
+	var body struct {
+		OK   bool `json:"ok"`
+		Data struct {
+			Saved   map[string]any `json:"saved"`
+			Default map[string]any `json:"default"`
+			Current map[string]any `json:"current"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(rec.Body.Bytes(), &body); err != nil {
+		t.Fatalf("decode body: %v", err)
+	}
+	if !body.OK || body.Data.Saved == nil || body.Data.Default["serverUrl"] == nil || body.Data.Current["clientVersion"] == nil {
+		t.Fatalf("body = %s, want saved/default/current config objects", rec.Body.String())
 	}
 }

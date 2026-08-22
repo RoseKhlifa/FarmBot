@@ -129,9 +129,6 @@ func LoginWithOptions(ctx context.Context, code string, options Options) (_ *Ses
 		runtime = tsdk.New(lifecycleCtx, resolved.TSDK)
 	}
 	session.runtime = runtime
-	if err := runtime.Init(lifecycleCtx); err != nil {
-		return nil, fmt.Errorf("initialize TSDK: %w", err)
-	}
 
 	gatewayURL, err := buildGatewayURL(resolved, code)
 	if err != nil {
@@ -157,6 +154,12 @@ func LoginWithOptions(ctx context.Context, code string, options Options) (_ *Ses
 		return nil, err
 	}
 	session.client = client
+	// Match the reference worker lifecycle: the gateway socket is open before
+	// the security runtime is initialized and the first Login frame is sent.
+	// This keeps TSDK startup/network timing identical to the Node client.
+	if err := runtime.Init(lifecycleCtx); err != nil {
+		return nil, fmt.Errorf("initialize TSDK: %w", err)
+	}
 
 	loginReply, err := sendLogin(lifecycleCtx, client, runtime, resolved, code)
 	if err != nil {

@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	appconfig "github.com/RoseKhlifa/FarmBot/internal/config"
 	"github.com/RoseKhlifa/FarmBot/internal/httpapi/middleware"
 	"github.com/RoseKhlifa/FarmBot/internal/store"
 	"github.com/gin-gonic/gin"
@@ -95,12 +96,42 @@ func (h *Handler) systemConfig(c *gin.Context) {
 		writeNotConfigured(c)
 		return
 	}
+	// A system config row is optional. The Node implementation returns a
+	// missing saved value together with defaults, so a fresh Go installation
+	// must not turn the first admin-panel load into a 500 response.
+	saved := map[string]any{}
 	value, err := h.app().Config.GetSystemConfig(c.Request.Context())
-	if err != nil {
+	if err == nil {
+		if len(value) > 0 {
+			if decodeErr := json.Unmarshal(value, &saved); decodeErr != nil {
+				writeError(c, decodeErr)
+				return
+			}
+			if saved == nil {
+				saved = map[string]any{}
+			}
+		}
+	} else if !errors.Is(err, sql.ErrNoRows) {
 		writeError(c, err)
 		return
 	}
-	writeOK(c, gin.H{"saved": value, "current": value})
+
+	defaults := appconfig.Default()
+	current := map[string]any{
+		"serverUrl":     defaults.ServerURL,
+		"clientVersion": defaults.ClientVersion,
+		"platform":      defaults.Platform,
+		"os":            defaults.OS,
+	}
+	for _, key := range []string{"serverUrl", "clientVersion", "platform", "os"} {
+		if candidate, ok := saved[key].(string); ok && strings.TrimSpace(candidate) != "" {
+			current[key] = strings.TrimSpace(candidate)
+		}
+	}
+	writeOK(c, gin.H{"saved": saved, "default": map[string]any{
+		"serverUrl": defaults.ServerURL, "clientVersion": defaults.ClientVersion,
+		"platform": defaults.Platform, "os": defaults.OS,
+	}, "current": current})
 }
 
 func (h *Handler) saveSystemConfig(c *gin.Context) {

@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	appconfig "github.com/RoseKhlifa/FarmBot/internal/config"
 	"github.com/RoseKhlifa/FarmBot/internal/game/session"
 	"github.com/RoseKhlifa/FarmBot/internal/game/tsdk"
 	"github.com/RoseKhlifa/FarmBot/internal/store"
@@ -593,13 +594,22 @@ func (m *Manager) loadSpec(ctx context.Context, accountID string) (RuntimeSpec, 
 	if platform == "" {
 		platform = "qq"
 	}
+	// The reference worker receives the persisted system protocol settings
+	// before it opens the gateway connection. Keep the account platform
+	// account-scoped (YYB accounts use "wx"), while honoring the stored gateway,
+	// client version, and OS values for every account. Falling back to process
+	// defaults is intentional for fresh installations with no row yet.
+	system := loadSystemProtocolConfig(ctx, m.config)
 	device, userAgent := m.deviceProtocol(ctx)
 	sessionOptions := session.Options{
-		AccountID: account.ID,
-		UIN:       strings.TrimSpace(account.UIN),
-		Platform:  platform,
-		UserAgent: userAgent,
-		TSDK:      tsdk.Options{Device: device},
+		AccountID:     account.ID,
+		UIN:           strings.TrimSpace(account.UIN),
+		Platform:      platform,
+		GatewayURL:    system.GatewayURL,
+		ClientVersion: system.ClientVersion,
+		OS:            system.OS,
+		UserAgent:     userAgent,
+		TSDK:          tsdk.Options{Device: device},
 	}
 	return RuntimeSpec{
 		Account:       account,
@@ -782,6 +792,51 @@ type deviceProtocolConfig struct {
 	UserAgent   string `json:"userAgent"`
 	DeviceModel string `json:"deviceModel"`
 	DeviceBrand string `json:"deviceBrand"`
+}
+
+type systemProtocolConfig struct {
+	GatewayURL    string
+	ClientVersion string
+	OS            string
+}
+
+func loadSystemProtocolConfig(ctx context.Context, repo store.ConfigRepo) systemProtocolConfig {
+	defaults := appconfig.Load()
+	result := systemProtocolConfig{
+		GatewayURL:    defaults.ServerURL,
+		ClientVersion: defaults.ClientVersion,
+		OS:            defaults.OS,
+	}
+	if repo == nil {
+		return result
+	}
+	raw, err := repo.GetSystemConfig(ctx)
+	if err != nil {
+		// Older JSON imports used the legacy key before the typed config
+		// repository was introduced. Keep those installations functional.
+		raw, err = repo.GetGlobal(ctx, "legacy:systemConfig")
+	}
+	if err != nil {
+		return result
+	}
+	var stored struct {
+		ServerURL     string `json:"serverUrl"`
+		ClientVersion string `json:"clientVersion"`
+		OS            string `json:"os"`
+	}
+	if json.Unmarshal(raw, &stored) != nil {
+		return result
+	}
+	if value := strings.TrimSpace(stored.ServerURL); value != "" {
+		result.GatewayURL = value
+	}
+	if value := strings.TrimSpace(stored.ClientVersion); value != "" {
+		result.ClientVersion = value
+	}
+	if value := strings.TrimSpace(stored.OS); value != "" {
+		result.OS = value
+	}
+	return result
 }
 
 func (m *Manager) deviceProtocol(ctx context.Context) (tsdk.DeviceInfo, string) {

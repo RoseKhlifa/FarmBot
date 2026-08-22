@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	appconfig "github.com/RoseKhlifa/FarmBot/internal/config"
 	"github.com/RoseKhlifa/FarmBot/internal/store"
 )
 
@@ -60,5 +61,35 @@ func TestGameLoginPermissionErrorMatcher(t *testing.T) {
 	}
 	if isGameLoginPermissionError(errors.New("code=1000017 other error")) {
 		t.Fatal("different gateway error was recognized as 1000016")
+	}
+}
+
+func TestManagerUsesPersistedSystemProtocolConfig(t *testing.T) {
+	db, err := store.Open(appconfig.Config{DataDir: t.TempDir()})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	accounts, configs := store.NewAccountRepo(db), store.NewConfigRepo(db)
+	if err := accounts.Upsert(context.Background(), store.Account{
+		ID: "account-system-config", Name: "wx", Code: "stored-code", Platform: "wx", LoginType: "manual",
+	}); err != nil {
+		t.Fatal(err)
+	}
+	if err := configs.SetSystemConfig(context.Background(), []byte(`{"serverUrl":"wss://saved.example/ws","clientVersion":"saved-version","os":"Android"}`)); err != nil {
+		t.Fatal(err)
+	}
+	manager := NewManager(ManagerConfig{Accounts: accounts, Config: configs})
+	t.Cleanup(func() { _ = manager.Close() })
+	spec, err := manager.loadSpec(context.Background(), "account-system-config")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := spec.RuntimeConfig.Session
+	if got.GatewayURL != "wss://saved.example/ws" || got.ClientVersion != "saved-version" || got.OS != "Android" {
+		t.Fatalf("session protocol config = %+v, want persisted values", got)
+	}
+	if got.Platform != "wx" {
+		t.Fatalf("account platform = %q, want wx", got.Platform)
 	}
 }
