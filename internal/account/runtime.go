@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	appconfig "github.com/RoseKhlifa/FarmBot/internal/config"
 	"github.com/RoseKhlifa/FarmBot/internal/game/ace"
 	"github.com/RoseKhlifa/FarmBot/internal/game/session"
 	"github.com/RoseKhlifa/FarmBot/internal/game/transport"
@@ -165,6 +166,7 @@ func (r *Runtime) Start(parent context.Context) error {
 		loginOptions.TSDK.AccountID = r.accountID
 	}
 	if loginOptions.Runtime == nil {
+		normalizeTSDKDevice(&loginOptions)
 		ownedTSDK = tsdkNew(ctx, loginOptions.TSDK)
 		loginOptions.Runtime = ownedTSDK
 	}
@@ -233,6 +235,28 @@ func (r *Runtime) Start(parent context.Context) error {
 	close(startDone)
 	go r.watchSession(ctx, loggedIn)
 	return nil
+}
+
+// normalizeTSDKDevice must run before account Runtime creates its owned TSDK.
+// session.resolveOptions also applies these defaults, but that happens after
+// this constructor boundary and cannot change an already-created WASM runtime.
+func normalizeTSDKDevice(options *session.Options) {
+	if options == nil {
+		return
+	}
+	if options.TSDK.Device.Model == "" {
+		options.TSDK.Device.Model = "iPhone 15 Pro Max"
+	}
+	if options.TSDK.Device.Brand == "" {
+		options.TSDK.Device.Brand = "Apple"
+	}
+	if options.TSDK.Device.Platform == "" {
+		platform := options.OS
+		if platform == "" {
+			platform = appconfig.Load().OS
+		}
+		options.TSDK.Device.Platform = platform
+	}
 }
 
 // Stop cancels the account context, waits for an in-progress login to finish,
